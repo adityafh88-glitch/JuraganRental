@@ -39,7 +39,8 @@ def make_task(path, dest, options):
 
 
 def units(o):
-    """Konversi meter (Blender) ke cm (Unreal) di semua jenis data impor."""
+    """Konversi meter (Blender) ke cm (Unreal). Hanya untuk props; karakter dan animasi
+    diekspor dari Blender sudah dalam cm (tanpa skala di tulang root)."""
     for key in ("static_mesh_import_data", "skeletal_mesh_import_data", "anim_sequence_import_data"):
         o.get_editor_property(key).set_editor_property("convert_scene_unit", True)
     return o
@@ -111,7 +112,7 @@ char_dir = os.path.join(ART, "Characters")
 files = sorted(f for f in os.listdir(char_dir) if f.lower().endswith(".fbx"))
 first = "SK_Pemain.fbx"
 skeleton = None
-for p in run([make_task(os.path.join(char_dir, first), "/Game/Characters", units(skeletal_options()))]):
+for p in run([make_task(os.path.join(char_dir, first), "/Game/Characters", skeletal_options())]):
     a = unreal.load_asset(p)
     if isinstance(a, unreal.SkeletalMesh):
         skeleton = a.get_editor_property("skeleton")
@@ -120,7 +121,7 @@ if not skeleton:
     report["errors"].append("Skeleton tidak terbentuk dari SK_Pemain")
 else:
     report["skeleton"] = skeleton.get_path_name()
-    rest = [make_task(os.path.join(char_dir, f), "/Game/Characters", units(skeletal_options(skeleton))) for f in files if f != first]
+    rest = [make_task(os.path.join(char_dir, f), "/Game/Characters", skeletal_options(skeleton)) for f in files if f != first]
     for p in run(rest):
         a = unreal.load_asset(p)
         if isinstance(a, unreal.SkeletalMesh):
@@ -128,12 +129,26 @@ else:
 
     # ---------- Animasi ----------
     anim_dir = os.path.join(char_dir, "Animations")
-    atasks = [make_task(os.path.join(anim_dir, f), "/Game/Characters/Animations", units(anim_options(skeleton)))
+    atasks = [make_task(os.path.join(anim_dir, f), "/Game/Characters/Animations", anim_options(skeleton))
               for f in sorted(os.listdir(anim_dir)) if f.lower().endswith(".fbx")]
-    for p in run(atasks):
-        a = unreal.load_asset(p)
+    run(atasks)
+    # FBX animasi berisi mesh (agar skala tulang benar). Importer ikut membuat mesh dan
+    # physics asset sementara, dan menamai animasinya A_X_Anim. Bersihkan dan rapikan namanya.
+    lib = unreal.EditorAssetLibrary
+    for f in sorted(os.listdir(anim_dir)):
+        if not f.lower().endswith(".fbx"):
+            continue
+        name = os.path.splitext(f)[0]
+        base = "/Game/Characters/Animations/" + name
+        for extra in (base, base + "_PhysicsAsset"):
+            if lib.does_asset_exist(extra):
+                lib.delete_asset(extra)
+        if lib.does_asset_exist(base + "_Anim"):
+            lib.rename_asset(base + "_Anim", base)
+        a = unreal.load_asset(base)
         if isinstance(a, unreal.AnimSequence):
-            report["animations"].append({"name": a.get_name(), "length_s": round(a.get_play_length(), 2)})
+            report["animations"].append({"name": a.get_name(), "length_s": round(a.get_play_length(), 2),
+                                         "skeleton": a.get_editor_property("skeleton").get_name()})
 
 # Simpan juga aset turunan (skeleton, material) yang tidak tercakup task.save
 for folder in ("/Game/Props", "/Game/Characters"):

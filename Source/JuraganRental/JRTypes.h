@@ -33,6 +33,14 @@ enum class EJRCustomerState : uint8
 };
 
 UENUM(BlueprintType)
+enum class EJRStoveState : uint8
+{
+	Idle,
+	Cooking,
+	Ready
+};
+
+UENUM(BlueprintType)
 enum class EJRGamePhase : uint8
 {
 	Intro,
@@ -53,6 +61,16 @@ struct FJRInteraction
 
 	UPROPERTY(BlueprintReadOnly)
 	float HoldTime = 0.f;
+};
+
+/** Satu barang di aplikasi Toko Grosir (HP jadul). */
+struct FJRShopItem
+{
+	FName Id;
+	FString Name;
+	FString Desc;
+	int32 Cost = 0;
+	FString Lock; // kosong = bisa dibeli; selain itu alasan terkunci
 };
 
 /** Format rupiah: 1500000 -> "Rp 1.500.000". */

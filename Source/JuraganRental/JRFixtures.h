@@ -63,3 +63,27 @@ private:
 
 	bool bLastTripped = false;
 };
+
+/** Pojok kantin: meja, kompor listrik, panci. Masak mi di sini lalu antar ke pelanggan. */
+UCLASS()
+class JURAGANRENTAL_API AJRStove : public AActor, public IJRInteractable
+{
+	GENERATED_BODY()
+
+public:
+	AJRStove();
+	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaSeconds) override;
+	virtual FJRInteraction GetInteraction() const override;
+	virtual void Interact() override;
+
+private:
+	UPROPERTY()
+	TObjectPtr<USceneComponent> Root;
+
+	UPROPERTY()
+	TObjectPtr<class UTextRenderComponent> Label;
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> PlateMat;
+};

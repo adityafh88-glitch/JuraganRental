@@ -4,25 +4,33 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "JRInteractable.h"
 #include "JRTypes.h"
 #include "JRCustomer.generated.h"
 
 class AJRStation;
 class AJRGameMode;
+class UAnimSequence;
+class USkeletalMeshComponent;
 class UTextRenderComponent;
+class UCapsuleComponent;
 
 UCLASS()
-class JURAGANRENTAL_API AJRCustomer : public AActor
+class JURAGANRENTAL_API AJRCustomer : public AActor, public IJRInteractable
 {
 	GENERATED_BODY()
 
 public:
 	AJRCustomer();
 
-	void Setup(int32 InTypeIndex, const FString& InName, const FLinearColor& Top, const FLinearColor& Bottom,
-		float InScale, EJRUnitType InWant, bool bInFlex);
+	/** MeshName = nama aset di /Game/Characters, misalnya "SK_Bocil". */
+	void Setup(int32 InTypeIndex, const FString& InName, const TCHAR* MeshName, float InScale, EJRUnitType InWant, bool bInFlex);
 
 	virtual void Tick(float DeltaSeconds) override;
+
+	/** Lihat pelanggan lalu tekan E: terima bayaran, atau diteruskan ke unit yang ia pakai. */
+	virtual FJRInteraction GetInteraction() const override;
+	virtual void Interact() override;
 
 	/** Jalan ke Loc; setibanya di sana state menjadi Next. */
 	void WalkTo(const FVector& Loc, EJRCustomerState Next);
@@ -48,15 +56,31 @@ public:
 	float Bill = 0.f;
 	int32 Breakdowns = 0;		// berapa kali unitnya rusak / mati listrik
 	double PayOrder = 0.0;
+	bool bOrder = false;		// sedang pesan mi
+	float OrderHours = 0.f;		// sisa waktu sebelum pesanan batal
+	bool bAte = false;
+	int32 MissedOrders = 0;
 	FString Mood;
 
 private:
 	bool MoveStep(float DeltaSeconds);
 	void Arrive(AJRGameMode* GM);
+	void UpdateAnimation();
+	void PlayLoop(UAnimSequence* Anim);
 
 	UPROPERTY()
 	TObjectPtr<USceneComponent> Root;
 
 	UPROPERTY()
+	TObjectPtr<USkeletalMeshComponent> Body;
+
+	/** Hanya untuk trace interaksi (kanal Visibility); tidak menghalangi gerak. */
+	UPROPERTY()
+	TObjectPtr<UCapsuleComponent> HitBox;
+
+	UPROPERTY()
 	TObjectPtr<UTextRenderComponent> Bubble;
+
+	UPROPERTY()
+	TObjectPtr<UAnimSequence> CurrentAnim;
 };

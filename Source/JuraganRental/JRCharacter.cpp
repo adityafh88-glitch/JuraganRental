@@ -1,6 +1,9 @@
 #include "JRCharacter.h"
 
 #include "Camera/CameraComponent.h"
+#include "UObject/ConstructorHelpers.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 #include "Components/CapsuleComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -12,6 +15,7 @@
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
 #include "JRGameMode.h"
+#include "JRHUD.h"
 #include "JRInteractable.h"
 
 AJRCharacter::AJRCharacter()
@@ -24,6 +28,17 @@ AJRCharacter::AJRCharacter()
 	Camera->SetRelativeLocation(FVector(0.f, 0.f, 64.f));
 	Camera->bUsePawnControlRotation = true;
 	Camera->SetFieldOfView(85.f);
+
+	HeldBowl = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("HeldBowl"));
+	HeldBowl->SetupAttachment(Camera);
+	HeldBowl->SetRelativeLocation(FVector(45.f, 14.f, -24.f));
+	HeldBowl->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));
+	HeldBowl->SetRelativeScale3D(FVector(1.3f));
+	HeldBowl->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	HeldBowl->SetCastShadow(false);
+	HeldBowl->SetVisibility(false);
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> Bowl(TEXT("/Game/Props/SM_Mangkuk_Mi.SM_Mangkuk_Mi"));
+	if (Bowl.Succeeded()) HeldBowl->SetStaticMesh(Bowl.Object);
 
 	bUseControllerRotationYaw = true;
 	bUseControllerRotationPitch = false;
@@ -45,7 +60,7 @@ void AJRCharacter::BuildInput()
 	LookAction = MakeAction(EInputActionValueType::Axis2D);
 	InteractAction = MakeAction(EInputActionValueType::Boolean);
 	ConfirmAction = MakeAction(EInputActionValueType::Boolean);
-	for (int32 i = 0; i < 6; ++i) BuyActions.Add(MakeAction(EInputActionValueType::Boolean));
+	PhoneAction = MakeAction(EInputActionValueType::Boolean);
 
 	Mapping = NewObject<UInputMappingContext>(this);
 	auto Negate = [this](bool bX, bool bY)
@@ -71,8 +86,7 @@ void AJRCharacter::BuildInput()
 	Mapping->MapKey(LookAction, EKeys::Mouse2D).Modifiers.Add(Negate(false, true));
 	Mapping->MapKey(InteractAction, EKeys::E);
 	Mapping->MapKey(ConfirmAction, EKeys::Enter);
-	const FKey Numbers[6] = { EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five, EKeys::Six };
-	for (int32 i = 0; i < 6; ++i) Mapping->MapKey(BuyActions[i], Numbers[i]);
+	Mapping->MapKey(PhoneAction, EKeys::Tab);
 }
 
 void AJRCharacter::PawnClientRestart()
@@ -100,16 +114,13 @@ void AJRCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	EIC->BindAction(InteractAction, ETriggerEvent::Started, this, &AJRCharacter::InteractStarted);
 	EIC->BindAction(InteractAction, ETriggerEvent::Completed, this, &AJRCharacter::InteractCompleted);
 	EIC->BindAction(ConfirmAction, ETriggerEvent::Started, this, &AJRCharacter::Confirm);
-	for (int32 i = 0; i < BuyActions.Num(); ++i)
-	{
-		EIC->BindActionValueLambda(BuyActions[i], ETriggerEvent::Started, [this, i](const FInputActionValue&) { Buy(i + 1); });
-	}
+	EIC->BindAction(PhoneAction, ETriggerEvent::Started, this, &AJRCharacter::TogglePhone);
 }
 
 void AJRCharacter::Move(const FInputActionValue& Value)
 {
 	const FVector2D Axis = Value.Get<FVector2D>();
-	if (!Controller) return;
+	if (!Controller || IsPhoneOpen()) return;
 	const FRotator Yaw(0.f, Controller->GetControlRotation().Yaw, 0.f);
 	AddMovementInput(FRotationMatrix(Yaw).GetUnitAxis(EAxis::X), Axis.Y);
 	AddMovementInput(FRotationMatrix(Yaw).GetUnitAxis(EAxis::Y), Axis.X);
@@ -117,6 +128,7 @@ void AJRCharacter::Move(const FInputActionValue& Value)
 
 void AJRCharacter::Look(const FInputActionValue& Value)
 {
+	if (IsPhoneOpen()) return;
 	const FVector2D Axis = Value.Get<FVector2D>();
 	AddControllerYawInput(Axis.X);
 	AddControllerPitchInput(Axis.Y);
@@ -124,6 +136,7 @@ void AJRCharacter::Look(const FInputActionValue& Value)
 
 void AJRCharacter::InteractStarted()
 {
+	if (IsPhoneOpen()) return;
 	bInteractHeld = true;
 	if (CurrentInteraction.Kind == EJRInteractKind::Press)
 	{
@@ -142,9 +155,17 @@ void AJRCharacter::Confirm()
 	if (AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>()) GM->Confirm();
 }
 
-void AJRCharacter::Buy(int32 Slot)
+void AJRCharacter::TogglePhone()
 {
-	if (AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>()) GM->TryBuy(Slot);
+	const APlayerController* PC = Cast<APlayerController>(Controller);
+	if (AJRHUD* Hud = PC ? Cast<AJRHUD>(PC->GetHUD()) : nullptr) Hud->TogglePhone();
+}
+
+bool AJRCharacter::IsPhoneOpen() const
+{
+	const APlayerController* PC = Cast<APlayerController>(Controller);
+	const AJRHUD* Hud = PC ? Cast<AJRHUD>(PC->GetHUD()) : nullptr;
+	return Hud && Hud->IsPhoneOpen();
 }
 
 void AJRCharacter::UpdateTarget()
@@ -179,6 +200,11 @@ void AJRCharacter::Tick(float DeltaSeconds)
 	{
 		Controller->SetControlRotation(FRotator::ZeroRotator); // menghadap deretan TV
 		bRotationInitialized = true;
+	}
+
+	if (const AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>())
+	{
+		if (HeldBowl->IsVisible() != GM->bCarryMie) HeldBowl->SetVisibility(GM->bCarryMie);
 	}
 
 	UpdateTarget();

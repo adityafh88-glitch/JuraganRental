@@ -22,4 +22,14 @@ namespace JRBlockout
 
 	/** Ganti warna bagian. Mengembalikan material dinamis agar warna bisa diubah lagi. */
 	JURAGANRENTAL_API UMaterialInstanceDynamic* Paint(UStaticMeshComponent* Part, const FLinearColor& Color);
+
+	/** Material warna polos yang bisa diubah saat runtime (parameter "Color"). */
+	JURAGANRENTAL_API UMaterialInstanceDynamic* MakeColorMat(UObject* Outer, const FLinearColor& Color);
+
+	/**
+	 * Pasang model dari /Game/Props/<Name>. Loc relatif ke Parent (cm).
+	 * FaceYaw = arah hadap bagian depan model relatif terhadap actor (0 = ke +X actor).
+	 */
+	JURAGANRENTAL_API UStaticMeshComponent* AddProp(AActor* Owner, USceneComponent* Parent, const TCHAR* Name,
+		const FVector& Loc, float FaceYaw = 0.f, bool bCollide = true);
 }

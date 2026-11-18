@@ -33,26 +33,28 @@ void AJRStation::Setup(EJRUnitType InType, int32 InIndex)
 	DisplayName = FString::Printf(TEXT("%s %d"), Type == EJRUnitType::PS ? TEXT("TV") : TEXT("PC"), Index + 1);
 
 	// Sumbu lokal: +X menghadap ke dalam ruangan (ke arah pelanggan).
+	ScreenMat = MakeColorMat(this, Hex(0x0d0f12));
 	if (Type == EJRUnitType::PS)
 	{
-		AddPart(this, Root, EShape::Cube, FVector(90, 190, 70), FVector(0, 0, 35), Hex(0x6b4a2f));          // meja
-		AddPart(this, Root, EShape::Cube, FVector(75, 130, 95), FVector(-5, 0, 118), Hex(0x2a2a2a));         // TV tabung
-		UStaticMeshComponent* Screen = AddPart(this, Root, EShape::Cube, FVector(2, 105, 72), FVector(34, 0, 120), Hex(0x0d0f12), false);
-		ScreenMat = Cast<UMaterialInstanceDynamic>(Screen->GetMaterial(0));
-		AddPart(this, Root, EShape::Cube, FVector(34, 50, 10), FVector(18, 62, 75), Hex(0x3a4150));          // konsol
-		AddPart(this, Root, EShape::Cube, FVector(130, 170, 4), FVector(190, 0, 2), Hex(0x2f5f86), false);   // karpet lesehan
-		Label->SetRelativeLocation(FVector(0, 0, 200));
+		AddProp(this, Root, TEXT("SM_Meja_TV"), FVector(0, 0, 0));
+		UStaticMeshComponent* Tv = AddProp(this, Root, TEXT("SM_TV_Tabung"), FVector(-4, 0, 50));
+		Tv->SetMaterialByName(TEXT("M_TV_Screen"), ScreenMat);
+		AddProp(this, Root, TEXT("SM_Konsol_PlayStasiun"), FVector(0, 16.5f, 28.5f));
+		AddProp(this, Root, TEXT("SM_Karpet"), FVector(SeatDistance(), 0, 0), 0.f, false);
+		AddProp(this, Root, TEXT("SM_Stik"), FVector(SeatDistance() - 45, 45, 2), 160.f, false);
+		Label->SetRelativeLocation(FVector(0, 0, 140));
 	}
 	else
 	{
-		AddPart(this, Root, EShape::Cube, FVector(90, 180, 75), FVector(0, 0, 37.5f), Hex(0x59606a));        // meja
-		AddPart(this, Root, EShape::Cube, FVector(8, 95, 62), FVector(32, 0, 108), Hex(0x1f1f1f));           // monitor
-		UStaticMeshComponent* Screen = AddPart(this, Root, EShape::Cube, FVector(2, 82, 50), FVector(37, 0, 108), Hex(0x0d0f12), false);
-		ScreenMat = Cast<UMaterialInstanceDynamic>(Screen->GetMaterial(0));
-		AddPart(this, Root, EShape::Cube, FVector(42, 24, 60), FVector(-10, 66, 105), Hex(0x2e3238));        // CPU
-		AddPart(this, Root, EShape::Cube, FVector(62, 62, 48), FVector(135, 0, 24), Hex(0x7a2e2e), false);   // kursi
-		AddPart(this, Root, EShape::Cube, FVector(110, 6, 130), FVector(20, 125, 65), Hex(0x8b9098));        // sekat bilik
-		Label->SetRelativeLocation(FVector(40, 0, 185));
+		AddProp(this, Root, TEXT("SM_Meja_Warnet"), FVector(0, 0, 0));
+		UStaticMeshComponent* Crt = AddProp(this, Root, TEXT("SM_Monitor_CRT"), FVector(-8, 0, 75));
+		Crt->SetMaterialByName(TEXT("M_TV_Screen"), ScreenMat);
+		AddProp(this, Root, TEXT("SM_CPU"), FVector(-5, 30, 0));
+		AddProp(this, Root, TEXT("SM_Keyboard"), FVector(18, 0, 75), 0.f, false);
+		AddProp(this, Root, TEXT("SM_Mouse"), FVector(16, 30, 75), 0.f, false);
+		AddProp(this, Root, TEXT("SM_Kursi_Plastik"), FVector(SeatDistance(), 0, 0), 180.f, false); // menghadap meja
+		AddProp(this, Root, TEXT("SM_Sekat_Bilik"), FVector(30, 112, 0));
+		Label->SetRelativeLocation(FVector(0, 0, 165));
 	}
 }
 
@@ -63,7 +65,7 @@ AJRGameMode* AJRStation::GetGM() const
 
 FVector AJRStation::GetSeatLocation() const
 {
-	FVector Seat = GetActorLocation() + GetActorForwardVector() * (Type == EJRUnitType::PS ? 190.f : 135.f);
+	FVector Seat = GetActorLocation() + GetActorForwardVector() * SeatDistance();
 	Seat.Z = 0.f;
 	return Seat;
 }
@@ -99,6 +101,19 @@ FJRInteraction AJRStation::GetInteraction() const
 		Out.Kind = EJRInteractKind::Press;
 		Out.Prompt = FString::Printf(TEXT("Nyalakan %s  (%s/jam)"), *DisplayName, *JRFormatRp(GM->PriceFor(Type)));
 	}
+	else if (Customer && Customer->State == EJRCustomerState::Playing && Customer->bOrder)
+	{
+		if (GM->bCarryMie)
+		{
+			Out.Kind = EJRInteractKind::Press;
+			Out.Prompt = FString::Printf(TEXT("Antar mi ke %s  (+%s)"), *Customer->DisplayName, *JRFormatRp(AJRGameMode::MiePrice));
+		}
+		else
+		{
+			Out.Kind = EJRInteractKind::Info;
+			Out.Prompt = TEXT("Pelanggan pesan mi. Masak di kompor pojok kantin");
+		}
+	}
 	return Out;
 }
 
@@ -117,6 +132,10 @@ void AJRStation::Interact()
 	else if (Customer && Customer->State == EJRCustomerState::WaitStart)
 	{
 		GM->StartSession(this);
+	}
+	else if (Customer && Customer->bOrder && GM->bCarryMie)
+	{
+		GM->DeliverMie(this);
 	}
 }
 
@@ -156,7 +175,7 @@ void AJRStation::Tick(float DeltaSeconds)
 		const bool bBlink = FMath::FloorToInt(GetWorld()->GetTimeSeconds() * 2.5f) % 2 == 0;
 		ScreenColor = Type == EJRUnitType::PS ? (bBlink ? Hex(0x3a7bd5) : Hex(0x2f9e6a)) : Hex(0x6fb3ff);
 		const int32 Minutes = FMath::Max(0, FMath::CeilToInt(Customer->HoursLeft * 60.f));
-		Text = FString::Printf(TEXT("%d:%02d"), Minutes / 60, Minutes % 60);
+		Text = FString::Printf(TEXT("%d:%02d%s"), Minutes / 60, Minutes % 60, Customer->bOrder ? TEXT("  + MI") : TEXT(""));
 		TextColor = FColor(255, 194, 75);
 	}
 

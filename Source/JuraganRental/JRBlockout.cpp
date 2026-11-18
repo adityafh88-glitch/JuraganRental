@@ -38,16 +38,45 @@ namespace JRBlockout
 		return Part;
 	}
 
-	UMaterialInstanceDynamic* Paint(UStaticMeshComponent* Part, const FLinearColor& Color)
+	UMaterialInstanceDynamic* MakeColorMat(UObject* Outer, const FLinearColor& Color)
 	{
 		UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
-		if (!Base || !Part)
+		if (!Base)
 		{
 			return nullptr;
 		}
-		UMaterialInstanceDynamic* Mat = UMaterialInstanceDynamic::Create(Base, Part);
+		UMaterialInstanceDynamic* Mat = UMaterialInstanceDynamic::Create(Base, Outer);
 		Mat->SetVectorParameterValue(TEXT("Color"), Color);
-		Part->SetMaterial(0, Mat);
 		return Mat;
+	}
+
+	UMaterialInstanceDynamic* Paint(UStaticMeshComponent* Part, const FLinearColor& Color)
+	{
+		if (!Part) return nullptr;
+		UMaterialInstanceDynamic* Mat = MakeColorMat(Part, Color);
+		if (Mat) Part->SetMaterial(0, Mat);
+		return Mat;
+	}
+
+	UStaticMeshComponent* AddProp(AActor* Owner, USceneComponent* Parent, const TCHAR* Name,
+		const FVector& Loc, float FaceYaw, bool bCollide)
+	{
+		const FString Path = FString::Printf(TEXT("/Game/Props/%s.%s"), Name, Name);
+		UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, *Path);
+		if (!Mesh)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("JuraganRental: model %s tidak ditemukan"), *Path);
+		}
+		UStaticMeshComponent* Part = NewObject<UStaticMeshComponent>(Owner);
+		Part->SetStaticMesh(Mesh);
+		Part->SetMobility(EComponentMobility::Movable);
+		Part->SetupAttachment(Parent);
+		Part->SetRelativeLocation(Loc);
+		// Model dari Blender menghadap +Y; putar -90 agar menghadap +X actor.
+		Part->SetRelativeRotation(FRotator(0.f, FaceYaw - 90.f, 0.f));
+		Part->SetCollisionProfileName(bCollide ? UCollisionProfile::BlockAll_ProfileName : UCollisionProfile::NoCollision_ProfileName);
+		Part->RegisterComponent();
+		Owner->AddInstanceComponent(Part);
+		return Part;
 	}
 }

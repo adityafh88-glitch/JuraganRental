@@ -1,13 +1,22 @@
 #include "JRCustomer.h"
 
-#include "Components/TextRenderComponent.h"
-#include "Kismet/GameplayStatics.h"
+#include "Animation/AnimSequence.h"
 #include "Camera/PlayerCameraManager.h"
-#include "JRBlockout.h"
+#include "Components/CapsuleComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Components/TextRenderComponent.h"
+#include "Engine/SkeletalMesh.h"
+#include "Kismet/GameplayStatics.h"
 #include "JRGameMode.h"
 #include "JRStation.h"
 
-using namespace JRBlockout;
+namespace
+{
+	UAnimSequence* LoadAnim(const TCHAR* Name)
+	{
+		return LoadObject<UAnimSequence>(nullptr, *FString::Printf(TEXT("/Game/Characters/Animations/%s.%s"), Name, Name));
+	}
+}
 
 AJRCustomer::AJRCustomer()
 {
@@ -16,30 +25,102 @@ AJRCustomer::AJRCustomer()
 	Root->SetMobility(EComponentMobility::Movable);
 	RootComponent = Root;
 
+	Body = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Body"));
+	Body->SetupAttachment(Root);
+	Body->SetRelativeRotation(FRotator(0.f, -90.f, 0.f)); // model Blender menghadap +Y
+	Body->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Body->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+
+	HitBox = CreateDefaultSubobject<UCapsuleComponent>(TEXT("HitBox"));
+	HitBox->SetupAttachment(Root);
+	HitBox->InitCapsuleSize(38.f, 90.f);
+	HitBox->SetRelativeLocation(FVector(0.f, 0.f, 90.f));
+	HitBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	HitBox->SetCollisionResponseToAllChannels(ECR_Ignore);
+	HitBox->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+
 	Bubble = CreateDefaultSubobject<UTextRenderComponent>(TEXT("Bubble"));
 	Bubble->SetupAttachment(Root);
-	Bubble->SetRelativeLocation(FVector(0, 0, 185));
+	Bubble->SetRelativeLocation(FVector(0, 0, 200));
 	Bubble->SetHorizontalAlignment(EHTA_Center);
 	Bubble->SetWorldSize(20.f);
 	Bubble->SetTextRenderColor(FColor(255, 194, 75));
 	Bubble->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
-void AJRCustomer::Setup(int32 InTypeIndex, const FString& InName, const FLinearColor& Top, const FLinearColor& Bottom,
-	float InScale, EJRUnitType InWant, bool bInFlex)
+void AJRCustomer::Setup(int32 InTypeIndex, const FString& InName, const TCHAR* MeshName, float InScale, EJRUnitType InWant, bool bInFlex)
 {
 	TypeIndex = InTypeIndex;
 	DisplayName = InName;
 	Want = InWant;
 	bFlex = bInFlex;
 
-	// Badan sederhana; +X adalah arah depan (pita mata).
-	AddPart(this, Root, EShape::Cube, FVector(26, 42, 50), FVector(0, 0, 25), Bottom, false);
-	AddPart(this, Root, EShape::Cylinder, FVector(52, 52, 62), FVector(0, 0, 81), Top, false);
-	AddPart(this, Root, EShape::Sphere, FVector(42, 42, 42), FVector(0, 0, 133), Hex(0xd9a77c), false);
-	AddPart(this, Root, EShape::Cube, FVector(6, 22, 5), FVector(19, 0, 137), Hex(0x222222), false);
+	const FString Path = FString::Printf(TEXT("/Game/Characters/%s.%s"), MeshName, MeshName);
+	if (USkeletalMesh* Mesh = LoadObject<USkeletalMesh>(nullptr, *Path))
+	{
+		Body->SetSkeletalMesh(Mesh);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("JuraganRental: karakter %s tidak ditemukan"), *Path);
+	}
 	SetActorScale3D(FVector(InScale));
-	SetActorEnableCollision(false);
+	UpdateAnimation();
+}
+
+FJRInteraction AJRCustomer::GetInteraction() const
+{
+	if (State == EJRCustomerState::WaitPay)
+	{
+		FJRInteraction Out;
+		Out.Kind = EJRInteractKind::Press;
+		Out.Prompt = FString::Printf(TEXT("Terima bayaran %s  (%s)"), *DisplayName, *JRFormatRp(Bill));
+		return Out;
+	}
+	if (Station && (State == EJRCustomerState::WaitStart || State == EJRCustomerState::Playing))
+	{
+		return Station->GetInteraction();
+	}
+	return FJRInteraction();
+}
+
+void AJRCustomer::Interact()
+{
+	if (State == EJRCustomerState::WaitPay)
+	{
+		if (AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>()) GM->CollectPayer(this);
+	}
+	else if (Station)
+	{
+		Station->Interact();
+	}
+}
+
+void AJRCustomer::PlayLoop(UAnimSequence* Anim)
+{
+	if (Anim && Anim != CurrentAnim)
+	{
+		Body->PlayAnimation(Anim, true);
+		CurrentAnim = Anim;
+	}
+}
+
+void AJRCustomer::UpdateAnimation()
+{
+	static const TCHAR* Walk = TEXT("A_Jalan");
+	switch (State)
+	{
+	case EJRCustomerState::Walk:
+		PlayLoop(LoadAnim(Walk));
+		break;
+	case EJRCustomerState::WaitStart:
+	case EJRCustomerState::Playing:
+		PlayLoop(LoadAnim(Station && Station->Type == EJRUnitType::PC ? TEXT("A_Duduk_Kursi_Main") : TEXT("A_Duduk_Lesehan_Main")));
+		break;
+	default:
+		PlayLoop(LoadAnim(TEXT("A_Idle")));
+		break;
+	}
 }
 
 void AJRCustomer::WalkTo(const FVector& Loc, EJRCustomerState Next)
@@ -61,9 +142,7 @@ bool AJRCustomer::MoveStep(float DeltaSeconds)
 		return true;
 	}
 	const float Step = FMath::Min(Dist, Speed * DeltaSeconds);
-	FVector Next = Loc + Delta / Dist * Step;
-	Next.Z = FMath::Abs(FMath::Sin(GetWorld()->GetTimeSeconds() * 8.f)) * 4.f; // langkah kecil
-	SetActorLocation(Next);
+	SetActorLocation(FVector(Loc.X, Loc.Y, 0.f) + Delta / Dist * Step);
 	SetActorRotation(FRotator(0.f, Delta.Rotation().Yaw, 0.f));
 	return Dist - Step < 5.f;
 }
@@ -76,8 +155,7 @@ void AJRCustomer::Arrive(AJRGameMode* GM)
 	case EJRCustomerState::WaitStart:
 		if (Station)
 		{
-			const bool bLesehan = Station->Type == EJRUnitType::PS;
-			SetActorLocation(Station->GetSeatLocation() - FVector(0, 0, bLesehan ? 28.f * GetActorScale3D().Z : 0.f));
+			SetActorLocation(Station->GetSeatLocation()); // animasi duduk yang menurunkan pinggul
 			SetActorRotation(Station->GetSeatRotation());
 		}
 		break;
@@ -147,9 +225,11 @@ void AJRCustomer::Tick(float DeltaSeconds)
 	{
 		return;
 	}
+	UpdateAnimation();
 
 	FString Text;
-	if (State == EJRCustomerState::Queue) Text = TEXT("...");
+	if (State == EJRCustomerState::Playing && bOrder) Text = TEXT("Pesan mi!");
+	else if (State == EJRCustomerState::Queue) Text = TEXT("...");
 	else if (State == EJRCustomerState::WaitPay) Text = JRFormatRp(Bill);
 	else if (State == EJRCustomerState::Walk && NextState == EJRCustomerState::Gone) Text = Mood;
 	Bubble->SetText(FText::FromString(Text));

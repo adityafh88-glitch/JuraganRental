@@ -12,6 +12,7 @@ class AJRStation;
 class AJRCustomer;
 class AJRKasir;
 class AJRMcb;
+class AJRStove;
 
 struct FJRToast
 {
@@ -25,6 +26,7 @@ struct FJRDayStats
 	float Income = 0.f;
 	float Elec = 0.f;
 	float Kabur = 0.f;
+	float Stock = 0.f;	// modal bahan kantin
 	float RepDelta = 0.f;
 	int32 Customers = 0;
 	TArray<int32> Satisfaction;
@@ -59,18 +61,34 @@ public:
 	int32 PricePC = 3000;
 	bool bStikOri = false;
 	TArray<FJRToast> Toasts;
+
+	/* ---------- Kantin ---------- */
+	static constexpr float CookSeconds = 4.f;
+	static constexpr int32 MieCost = 1500;
+	static constexpr int32 MiePrice = 4000;
+	EJRStoveState StoveState = EJRStoveState::Idle;
+	float CookProgress = 0.f;	// detik
+	bool bCarryMie = false;
+	void StartCook();
+	void TakeMie();
+	void DeliverMie(AJRStation* Station);
 	TArray<FString> ReportLines;
 
 	bool IsPlaying() const { return Phase == EJRGamePhase::Playing; }
 	int32 PriceFor(EJRUnitType Type) const { return Type == EJRUnitType::PS ? PricePS : PricePC; }
 	int32 FairFor(EJRUnitType Type) const { return Type == EJRUnitType::PS ? 2000 : 3000; }
-	TArray<FString> GetShopLines() const;
+	const FJRDayStats& GetStats() const { return Stats; }
+
+	/* ---------- HP jadul: toko dan tarif ---------- */
+	TArray<FJRShopItem> GetShopItems() const;
+	bool BuyItem(FName Id);
+	void AdjustPrice(EJRUnitType Type, int32 Delta);
 
 	/* ---------- Dipanggil pemain ---------- */
 	void Confirm();				// Enter: buka toko / mulai hari berikutnya
-	bool TryBuy(int32 Slot);	// tombol 1-6 di layar belanja
 	void StartSession(AJRStation* Station);
 	void CollectNextPayer();
+	void CollectPayer(AJRCustomer* C);
 	void ResetMcb();
 	AJRCustomer* NextPayer() const;
 
@@ -111,8 +129,18 @@ private:
 	UPROPERTY()
 	TObjectPtr<AJRMcb> Mcb;
 
+	UPROPERTY()
+	TObjectPtr<AJRStove> Stove;
+
 	TArray<FVector> QueueSpots;
 	TArray<bool> QueueUsed;
 	FVector DoorLocation = FVector::ZeroVector;
 	FJRDayStats Stats;
+
+	// Mode uji otomatis (-jrautotest): main sendiri, ambil screenshot, lalu keluar.
+	void TickAutoTest(float DeltaSeconds);
+	bool bAutoTest = false;
+	float AutoTestTime = 0.f;
+	int32 AutoTestShot = 0;
+	int32 AutoTestMieDelivered = 0;
 };

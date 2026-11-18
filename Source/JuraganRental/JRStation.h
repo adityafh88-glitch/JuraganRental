@@ -32,6 +32,9 @@ public:
 	FRotator GetSeatRotation() const;
 	bool IsFree() const { return Customer == nullptr && !bBroken; }
 
+	/** Jarak tempat duduk pelanggan dari unit (karpet lesehan / kursi warnet), cm. */
+	float SeatDistance() const { return Type == EJRUnitType::PS ? 170.f : 80.f; }
+
 	EJRUnitType Type = EJRUnitType::PS;
 	int32 Index = 0;
 	FString DisplayName;

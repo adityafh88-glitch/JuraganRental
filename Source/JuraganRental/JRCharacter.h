@@ -36,10 +36,15 @@ private:
 	void InteractStarted();
 	void InteractCompleted();
 	void Confirm();
-	void Buy(int32 Slot);
+	void TogglePhone();
+	bool IsPhoneOpen() const;
 
 	UPROPERTY()
 	TObjectPtr<UCameraComponent> Camera;
+
+	/** Mangkuk mi yang dibawa (terlihat di depan kamera). */
+	UPROPERTY()
+	TObjectPtr<UStaticMeshComponent> HeldBowl;
 
 	UPROPERTY()
 	TObjectPtr<UInputMappingContext> Mapping;
@@ -57,7 +62,7 @@ private:
 	TObjectPtr<UInputAction> ConfirmAction;
 
 	UPROPERTY()
-	TArray<TObjectPtr<UInputAction>> BuyActions;
+	TObjectPtr<UInputAction> PhoneAction;
 
 	TWeakObjectPtr<AActor> TargetActor;
 	bool bInteractHeld = false;

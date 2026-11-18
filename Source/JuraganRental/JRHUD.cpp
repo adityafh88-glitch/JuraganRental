@@ -5,6 +5,9 @@
 #include "Engine/Font.h"
 #include "JRCharacter.h"
 #include "JRGameMode.h"
+#include "JRPhoneWidget.h"
+#include "Blueprint/UserWidget.h"
+#include "GameFramework/PlayerController.h"
 
 namespace
 {
@@ -13,6 +16,48 @@ namespace
 	const FLinearColor Muted(0.64f, 0.66f, 0.70f);
 	const FLinearColor Panel(0.07f, 0.08f, 0.10f, 0.85f);
 	const FLinearColor Crt(0.37f, 0.70f, 1.f);
+}
+
+void AJRHUD::BeginPlay()
+{
+	Super::BeginPlay();
+	if (PlayerOwner)
+	{
+		Phone = CreateWidget<UJRPhoneWidget>(PlayerOwner, UJRPhoneWidget::StaticClass());
+		if (Phone)
+		{
+			Phone->AddToViewport(10);
+			Phone->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+}
+
+void AJRHUD::TogglePhone()
+{
+	SetPhoneOpen(!bPhoneOpen);
+}
+
+void AJRHUD::SetPhoneOpen(bool bOpen)
+{
+	const AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
+	if (bOpen && (!GM || GM->Phase == EJRGamePhase::Intro)) return;
+	if (!Phone || !PlayerOwner) return;
+	bPhoneOpen = bOpen;
+	Phone->SetVisibility(bOpen ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	if (bOpen)
+	{
+		Phone->Refresh(true);
+		FInputModeGameAndUI Mode;
+		Mode.SetHideCursorDuringCapture(false);
+		Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		PlayerOwner->SetInputMode(Mode);
+		PlayerOwner->bShowMouseCursor = true;
+	}
+	else
+	{
+		PlayerOwner->SetInputMode(FInputModeGameOnly());
+		PlayerOwner->bShowMouseCursor = false;
+	}
 }
 
 void AJRHUD::DrawHUD()
@@ -39,7 +84,7 @@ void AJRHUD::DrawHUD()
 			TEXT("Kamu baru membuka rental PS di garasi rumah: dua TV tabung, satu PC warnet,"),
 			TEXT("dan MCB 1.300 VA yang gampang turun."),
 			TEXT(""),
-			TEXT("WASD: jalan    Mouse: lihat    E: interaksi (tahan untuk memperbaiki)"),
+			TEXT("WASD: jalan    Mouse: lihat    E: interaksi (tahan untuk memperbaiki)    Tab: HP (belanja, tarif)"),
 			TEXT(""),
 			TEXT("Lihat ke TV yang ditunggu pelanggan lalu tekan E untuk menyalakan."),
 			TEXT("Pelanggan selesai main akan antre di kasir dekat pintu. Jangan biarkan kasir kosong."),
@@ -49,19 +94,26 @@ void AJRHUD::DrawHUD()
 	}
 	if (GM->Phase == EJRGamePhase::Report)
 	{
-		TArray<FString> Lines = GM->ReportLines;
-		Lines.Add(TEXT(""));
-		Lines.Add(TEXT("BELANJA DAN UPGRADE"));
-		Lines.Append(GM->GetShopLines());
-		DrawPanel(FString::Printf(TEXT("Hari %d selesai"), GM->Day), Lines, FString::Printf(TEXT("Tekan ENTER untuk buka toko hari %d"), GM->Day + 1));
+		if (!bPhoneOpen)
+		{
+			TArray<FString> Lines = GM->ReportLines;
+			Lines.Add(TEXT(""));
+			Lines.Add(TEXT("Tekan TAB untuk buka HP: belanja barang dan atur tarif."));
+			DrawPanel(FString::Printf(TEXT("Hari %d selesai"), GM->Day), Lines, FString::Printf(TEXT("Tekan ENTER untuk buka toko hari %d"), GM->Day + 1));
+		}
 		return;
 	}
 
-	// Titik bidik
-	DrawRect(FLinearColor(1, 1, 1, 0.8f), W * 0.5f - 2.f, H * 0.5f - 2.f, 4.f, 4.f);
+	// Titik bidik dan petunjuk HP
+	if (!bPhoneOpen)
+	{
+		DrawRect(FLinearColor(1, 1, 1, 0.8f), W * 0.5f - 2.f, H * 0.5f - 2.f, 4.f, 4.f);
+	}
+	DrawRect(Panel, 12.f, H - 44.f, 150.f, 32.f);
+	DrawText(bPhoneOpen ? TEXT("[Tab] Tutup HP") : TEXT("[Tab] Buka HP"), Led, 24.f, H - 38.f, Font, 1.1f);
 
 	// Petunjuk interaksi
-	if (const AJRCharacter* Ch = Cast<AJRCharacter>(GetOwningPawn()))
+	if (const AJRCharacter* Ch = bPhoneOpen ? nullptr : Cast<AJRCharacter>(GetOwningPawn()))
 	{
 		const FJRInteraction& I = Ch->CurrentInteraction;
 		if (I.Kind != EJRInteractKind::None)
@@ -110,7 +162,7 @@ void AJRHUD::DrawPanel(const FString& Title, const TArray<FString>& Lines, const
 	DrawText(Title, Ink, X + 24.f, Y + 18.f, Big, 1.f);
 	for (int32 i = 0; i < Lines.Num(); ++i)
 	{
-		const bool bHeader = Lines[i] == TEXT("BELANJA DAN UPGRADE");
+		const bool bHeader = Lines[i].StartsWith(TEXT("Tekan TAB"));
 		DrawText(Lines[i], bHeader ? Led : Ink, X + 24.f, Y + 60.f + i * LineH, Font, 1.15f);
 	}
 	DrawText(Footer, Crt, X + 24.f, Y + PH - 36.f, Font, 1.2f);
