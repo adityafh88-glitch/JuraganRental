@@ -1,0 +1,34 @@
+# Unreal Engine: folder yang dibuat ulang otomatis oleh editor/compiler
+Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+Build/
+.vs/
+.idea/
+.vscode/
+
+# Plugin: folder build plugin juga dibuat ulang
+Plugins/**/Binaries/
+Plugins/**/Intermediate/
+
+# File proyek IDE yang dibuat ulang dari .uproject
+*.sln
+*.slnx
+*.suo
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.opendb
+
+# Hasil build / paket game
+*.pdb
+*.exe
+*.dll
+*.pak
+Packaged/
+
+# Sistem operasi
+Thumbs.db
+Desktop.ini
+.DS_Store
