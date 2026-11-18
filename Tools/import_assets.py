@@ -135,6 +135,11 @@ else:
         if isinstance(a, unreal.AnimSequence):
             report["animations"].append({"name": a.get_name(), "length_s": round(a.get_play_length(), 2)})
 
+# Simpan juga aset turunan (skeleton, material) yang tidak tercakup task.save
+for folder in ("/Game/Props", "/Game/Characters"):
+    unreal.EditorAssetLibrary.save_directory(folder, only_if_is_dirty=False, recursive=True)
+report["saved_assets"] = len(unreal.EditorAssetLibrary.list_assets("/Game/Props", recursive=True)) + len(unreal.EditorAssetLibrary.list_assets("/Game/Characters", recursive=True))
+
 os.makedirs(os.path.dirname(REPORT), exist_ok=True)
 with open(REPORT, "w", encoding="utf-8") as fh:
     json.dump(report, fh, indent=2)
