@@ -17,7 +17,9 @@ class JURAGANRENTAL_API AJRRoom : public AActor
 
 public:
 	AJRRoom();
-	virtual void BeginPlay() override;
+
+	/** Bangun ruangan: setengah panjang (X) dan lebar (Y) dalam cm, posisi pintu di dinding depan. */
+	void Build(float HalfX, float HalfY, float DoorY, bool bRuko);
 
 private:
 	UPROPERTY()
@@ -86,4 +88,28 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> PlateMat;
+};
+
+/** Router internet di dinding belakang ruko. Saat internet lemot: tahan E untuk restart. */
+UCLASS()
+class JURAGANRENTAL_API AJRRouter : public AActor, public IJRInteractable
+{
+	GENERATED_BODY()
+
+public:
+	AJRRouter();
+	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaSeconds) override;
+	virtual FJRInteraction GetInteraction() const override;
+	virtual void Interact() override;
+
+private:
+	UPROPERTY()
+	TObjectPtr<USceneComponent> Root;
+
+	UPROPERTY()
+	TObjectPtr<class UTextRenderComponent> Label;
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> LightMat;
 };

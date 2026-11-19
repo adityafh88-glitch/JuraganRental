@@ -83,7 +83,13 @@ FJRInteraction AJRStation::GetInteraction() const
 	{
 		return Out;
 	}
-	if (bBroken)
+	if (bBroken && bVirus)
+	{
+		Out.Kind = EJRInteractKind::Hold;
+		Out.HoldTime = FixSeconds * 2.5f;
+		Out.Prompt = FString::Printf(TEXT("Tahan E: install ulang %s (virus)"), *DisplayName);
+	}
+	else if (bBroken)
 	{
 		Out.Kind = EJRInteractKind::Hold;
 		Out.HoldTime = FixSeconds;
@@ -127,6 +133,7 @@ void AJRStation::Interact()
 	if (bBroken)
 	{
 		bBroken = false;
+		bVirus = false;
 		GM->AddToast(FString::Printf(TEXT("%s beres!"), *DisplayName), FLinearColor(0.36f, 0.79f, 0.54f));
 	}
 	else if (Customer && Customer->State == EJRCustomerState::WaitStart)
@@ -155,8 +162,8 @@ void AJRStation::Tick(float DeltaSeconds)
 
 	if (bBroken)
 	{
-		ScreenColor = Hex(0x8a2a24);
-		Text = DisplayName + TEXT(" RUSAK");
+		ScreenColor = bVirus ? Hex(0x6a2a8a) : Hex(0x8a2a24);
+		Text = DisplayName + (bVirus ? TEXT(" VIRUS") : TEXT(" RUSAK"));
 		TextColor = FColor(239, 107, 91);
 	}
 	else if (bPlaying && GM->bMcbTripped)

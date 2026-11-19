@@ -73,6 +73,15 @@ struct FJRShopItem
 	FString Lock; // kosong = bisa dibeli; selain itu alasan terkunci
 };
 
+/** Kejadian yang meminta pemain memilih (emak datang, rage quit, ngutang, ...). Permainan berhenti sampai dipilih. */
+struct FJRChoice
+{
+	FString Title;
+	FString Body;
+	TArray<FString> Labels;
+	TArray<TFunction<void()>> Actions;
+};
+
 /** Format rupiah: 1500000 -> "Rp 1.500.000". */
 inline FString JRFormatRp(double Value)
 {

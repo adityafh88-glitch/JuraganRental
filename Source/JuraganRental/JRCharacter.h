@@ -28,15 +28,17 @@ public:
 	FJRInteraction CurrentInteraction;
 	float HoldProgress = 0.f;
 
+	/* Aksi pemain (dipanggil keyboard maupun tombol layar sentuh) */
+	void InteractStarted();
+	void InteractCompleted();
+	void Confirm();
+	void TogglePhone();
+
 private:
 	void BuildInput();
 	void UpdateTarget();
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
-	void InteractStarted();
-	void InteractCompleted();
-	void Confirm();
-	void TogglePhone();
 	bool IsPhoneOpen() const;
 
 	UPROPERTY()
@@ -45,6 +47,10 @@ private:
 	/** Mangkuk mi yang dibawa (terlihat di depan kamera). */
 	UPROPERTY()
 	TObjectPtr<UStaticMeshComponent> HeldBowl;
+
+	/** Kardus kiriman kurir yang sedang dibawa. */
+	UPROPERTY()
+	TObjectPtr<UStaticMeshComponent> HeldBox;
 
 	UPROPERTY()
 	TObjectPtr<UInputMappingContext> Mapping;

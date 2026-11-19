@@ -115,6 +115,7 @@ void AJRCustomer::UpdateAnimation()
 		break;
 	case EJRCustomerState::WaitStart:
 	case EJRCustomerState::Playing:
+		if (bRaging) { PlayLoop(LoadAnim(TEXT("A_Rage_Quit"))); break; }
 		PlayLoop(LoadAnim(Station && Station->Type == EJRUnitType::PC ? TEXT("A_Duduk_Kursi_Main") : TEXT("A_Duduk_Lesehan_Main")));
 		break;
 	default:

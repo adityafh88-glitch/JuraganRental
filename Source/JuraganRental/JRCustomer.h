@@ -60,6 +60,13 @@ public:
 	float OrderHours = 0.f;		// sisa waktu sebelum pesanan batal
 	bool bAte = false;
 	int32 MissedOrders = 0;
+	float Played = 0.f;			// jam game sudah dimainkan
+	float EmakAt = -1.f;		// bocil: jam main saat emak datang (-1 = tidak)
+	bool bRaging = false;		// sedang membanting stik
+	bool bFined = false;		// sudah ditagih ganti rugi
+	float SatAdj = 0.f;			// penyesuaian kepuasan dari kejadian
+	bool bLagged = false;		// sudah kena internet lemot
+	bool bPaket = false;		// paket malam warnet
 	FString Mood;
 
 private:

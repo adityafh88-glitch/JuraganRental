@@ -6,6 +6,11 @@
 #include "JRCharacter.h"
 #include "JRGameMode.h"
 #include "JRPhoneWidget.h"
+#include "JRChoiceWidget.h"
+#include "JRTouchWidget.h"
+#include "GameFramework/InputSettings.h"
+#include "GameFramework/TouchInterface.h"
+#include "Misc/CommandLine.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
 
@@ -29,24 +34,63 @@ void AJRHUD::BeginPlay()
 			Phone->AddToViewport(10);
 			Phone->SetVisibility(ESlateVisibility::Collapsed);
 		}
+		// Mode sentuh: otomatis di Android/iOS, atau paksa di PC dengan -jrtouch.
+		bTouchMode = PLATFORM_ANDROID || PLATFORM_IOS || FParse::Param(FCommandLine::Get(), TEXT("jrtouch"));
+		if (bTouchMode)
+		{
+			UInputSettings* Settings = GetMutableDefault<UInputSettings>();
+			Settings->bAlwaysShowTouchInterface = true;
+			Settings->bUseMouseForTouch = !(PLATFORM_ANDROID || PLATFORM_IOS); // uji di PC pakai mouse
+			if (UTouchInterface* Sticks = LoadObject<UTouchInterface>(nullptr, TEXT("/Engine/MobileResources/HUD/DefaultVirtualJoysticks.DefaultVirtualJoysticks")))
+			{
+				PlayerOwner->ActivateTouchInterface(Sticks);
+			}
+			Touch = CreateWidget<UJRTouchWidget>(PlayerOwner, UJRTouchWidget::StaticClass());
+			if (Touch) Touch->AddToViewport(5);
+		}
+
+		Choice = CreateWidget<UJRChoiceWidget>(PlayerOwner, UJRChoiceWidget::StaticClass());
+		if (Choice)
+		{
+			Choice->AddToViewport(20);
+			Choice->SetVisibility(ESlateVisibility::Collapsed);
+			Choice->OnPick = [this](int32 Index)
+			{
+				if (AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>()) GM->ResolveChoice(Index);
+				bChoiceShown = false;
+				Choice->SetVisibility(ESlateVisibility::Collapsed);
+				ApplyInputMode();
+			};
+		}
 	}
 }
 
-void AJRHUD::TogglePhone()
-{
-	SetPhoneOpen(!bPhoneOpen);
-}
-
-void AJRHUD::SetPhoneOpen(bool bOpen)
+void AJRHUD::SyncChoice()
 {
 	const AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
-	if (bOpen && (!GM || GM->Phase == EJRGamePhase::Intro)) return;
-	if (!Phone || !PlayerOwner) return;
-	bPhoneOpen = bOpen;
-	Phone->SetVisibility(bOpen ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
-	if (bOpen)
+	if (!Choice || !GM) return;
+	if (!bChoiceShown && GM->Choices.Num() > 0)
 	{
-		Phone->Refresh(true);
+		if (bPhoneOpen) SetPhoneOpen(false);
+		const FJRChoice& C = GM->Choices[0];
+		Choice->Show(C.Title, C.Body, C.Labels);
+		Choice->SetVisibility(ESlateVisibility::Visible);
+		bChoiceShown = true;
+		ApplyInputMode();
+	}
+	else if (bChoiceShown && GM->Choices.Num() == 0)
+	{
+		bChoiceShown = false;
+		Choice->SetVisibility(ESlateVisibility::Collapsed);
+		ApplyInputMode();
+	}
+}
+
+void AJRHUD::ApplyInputMode()
+{
+	if (!PlayerOwner) return;
+	if (IsUIOpen() || bTouchMode)
+	{
 		FInputModeGameAndUI Mode;
 		Mode.SetHideCursorDuringCapture(false);
 		Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
@@ -60,12 +104,29 @@ void AJRHUD::SetPhoneOpen(bool bOpen)
 	}
 }
 
+void AJRHUD::TogglePhone()
+{
+	SetPhoneOpen(!bPhoneOpen);
+}
+
+void AJRHUD::SetPhoneOpen(bool bOpen)
+{
+	const AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
+	if (bOpen && (!GM || GM->Phase == EJRGamePhase::Intro || bChoiceShown)) return;
+	if (!Phone || !PlayerOwner) return;
+	bPhoneOpen = bOpen;
+	Phone->SetVisibility(bOpen ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	if (bOpen) Phone->Refresh(true);
+	ApplyInputMode();
+}
+
 void AJRHUD::DrawHUD()
 {
 	Super::DrawHUD();
 	const AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
 	if (!GM || !Canvas) return;
 
+	SyncChoice();
 	UFont* Font = GEngine->GetMediumFont();
 	const float W = Canvas->ClipX, H = Canvas->ClipY;
 
@@ -73,8 +134,8 @@ void AJRHUD::DrawHUD()
 	const int32 Hr = FMath::FloorToInt(GM->Hour);
 	const int32 Mn = FMath::FloorToInt((GM->Hour - Hr) * 60.f);
 	const FString Power = GM->bMcbTripped ? FString(TEXT("MCB TURUN")) : FString::Printf(TEXT("%d/%d VA"), GM->PowerVA, GM->CapVA);
-	const FString Top = FString::Printf(TEXT("GARASI  Hari %d   %02d:%02d   Kas %s   Reputasi %d   Daya %s"),
-		GM->Day, Hr, Mn, *JRFormatRp(GM->Money), FMath::RoundToInt(GM->Rep), *Power);
+	const FString Top = FString::Printf(TEXT("%s  Hari %d   %02d:%02d   Kas %s   Reputasi %d   Daya %s"),
+		*GM->Layout().Name, GM->Day, Hr, Mn, *JRFormatRp(GM->Money), FMath::RoundToInt(GM->Rep), *Power);
 	DrawRect(Panel, 0.f, 0.f, W, 40.f);
 	DrawText(Top, Led, 16.f, 9.f, Font, 1.25f);
 
@@ -89,7 +150,7 @@ void AJRHUD::DrawHUD()
 			TEXT("Lihat ke TV yang ditunggu pelanggan lalu tekan E untuk menyalakan."),
 			TEXT("Pelanggan selesai main akan antre di kasir dekat pintu. Jangan biarkan kasir kosong."),
 			TEXT("Target: Rp 1.500.000 dan reputasi 40 untuk membuka Gerbang 1."),
-		}, TEXT("Tekan ENTER untuk buka toko"));
+		}, bTouchMode ? TEXT("Ketuk LANJUT untuk buka toko") : TEXT("Tekan ENTER untuk buka toko"));
 		return;
 	}
 	if (GM->Phase == EJRGamePhase::Report)
@@ -98,8 +159,9 @@ void AJRHUD::DrawHUD()
 		{
 			TArray<FString> Lines = GM->ReportLines;
 			Lines.Add(TEXT(""));
-			Lines.Add(TEXT("Tekan TAB untuk buka HP: belanja barang dan atur tarif."));
-			DrawPanel(FString::Printf(TEXT("Hari %d selesai"), GM->Day), Lines, FString::Printf(TEXT("Tekan ENTER untuk buka toko hari %d"), GM->Day + 1));
+			Lines.Add(bTouchMode ? TEXT("Ketuk tombol HP untuk belanja barang dan atur tarif.") : TEXT("Tekan TAB untuk buka HP: belanja barang dan atur tarif."));
+			DrawPanel(FString::Printf(TEXT("Hari %d selesai"), GM->Day), Lines,
+				bTouchMode ? FString::Printf(TEXT("Ketuk LANJUT untuk buka toko hari %d"), GM->Day + 1) : FString::Printf(TEXT("Tekan ENTER untuk buka toko hari %d"), GM->Day + 1));
 		}
 		return;
 	}
@@ -109,8 +171,11 @@ void AJRHUD::DrawHUD()
 	{
 		DrawRect(FLinearColor(1, 1, 1, 0.8f), W * 0.5f - 2.f, H * 0.5f - 2.f, 4.f, 4.f);
 	}
-	DrawRect(Panel, 12.f, H - 44.f, 150.f, 32.f);
-	DrawText(bPhoneOpen ? TEXT("[Tab] Tutup HP") : TEXT("[Tab] Buka HP"), Led, 24.f, H - 38.f, Font, 1.1f);
+	if (!bTouchMode)
+	{
+		DrawRect(Panel, 12.f, H - 44.f, 150.f, 32.f);
+		DrawText(bPhoneOpen ? TEXT("[Tab] Tutup HP") : TEXT("[Tab] Buka HP"), Led, 24.f, H - 38.f, Font, 1.1f);
+	}
 
 	// Petunjuk interaksi
 	if (const AJRCharacter* Ch = bPhoneOpen ? nullptr : Cast<AJRCharacter>(GetOwningPawn()))
@@ -162,7 +227,7 @@ void AJRHUD::DrawPanel(const FString& Title, const TArray<FString>& Lines, const
 	DrawText(Title, Ink, X + 24.f, Y + 18.f, Big, 1.f);
 	for (int32 i = 0; i < Lines.Num(); ++i)
 	{
-		const bool bHeader = Lines[i].StartsWith(TEXT("Tekan TAB"));
+		const bool bHeader = Lines[i].StartsWith(TEXT("Tekan TAB")) || Lines[i].StartsWith(TEXT("Ketuk tombol HP"));
 		DrawText(Lines[i], bHeader ? Led : Ink, X + 24.f, Y + 60.f + i * LineH, Font, 1.15f);
 	}
 	DrawText(Footer, Crt, X + 24.f, Y + PH - 36.f, Font, 1.2f);

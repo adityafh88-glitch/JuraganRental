@@ -12,7 +12,7 @@
 
 using namespace JRBlockout;
 
-/* ---------- Ruangan garasi (20 x 14 m) ---------- */
+/* ---------- Ruangan (garasi 20 x 14 m, ruko 24 x 16 m) ---------- */
 
 AJRRoom::AJRRoom()
 {
@@ -21,72 +21,85 @@ AJRRoom::AJRRoom()
 	RootComponent = Root;
 }
 
-void AJRRoom::BeginPlay()
+void AJRRoom::Build(float HX, float HY, float DoorY, bool bRuko)
 {
-	Super::BeginPlay();
-	const FLinearColor Wall = Hex(0xd8cdb4), Wall2 = Hex(0xc9bc9f);
+	const FLinearColor Wall = bRuko ? Hex(0xcfd8d4) : Hex(0xd8cdb4);
+	const FLinearColor Wall2 = bRuko ? Hex(0xbac6c2) : Hex(0xc9bc9f);
+	const FLinearColor Floor = bRuko ? Hex(0xb3ada0) : Hex(0x8f8270);
+	const FLinearColor Grout = bRuko ? Hex(0x9f998c) : Hex(0x7d715f);
 
-	// Lantai keramik (atas lantai di Z = 1 cm) + nat
-	AddPart(this, Root, EShape::Cube, FVector(1400, 2000, 10), FVector(0, 0, -4), Hex(0x8f8270));
-	for (int32 i = -6; i <= 6; i += 2)
+	// Lantai keramik (atas lantai di Z = 1 cm) + nat tiap 2 m
+	AddPart(this, Root, EShape::Cube, FVector(2 * HX, 2 * HY, 10), FVector(0, 0, -4), Floor);
+	for (float X = -HX + 100.f; X < HX; X += 200.f)
 	{
-		AddPart(this, Root, EShape::Cube, FVector(3, 2000, 1), FVector(i * 100.f, 0, 1.5f), Hex(0x7d715f), false);
+		AddPart(this, Root, EShape::Cube, FVector(3, 2 * HY, 1), FVector(X, 0, 1.5f), Grout, false);
 	}
-	for (int32 i = -9; i <= 9; i += 2)
+	for (float Y = -HY + 100.f; Y < HY; Y += 200.f)
 	{
-		AddPart(this, Root, EShape::Cube, FVector(1400, 3, 1), FVector(0, i * 100.f, 1.5f), Hex(0x7d715f), false);
+		AddPart(this, Root, EShape::Cube, FVector(2 * HX, 3, 1), FVector(0, Y, 1.5f), Grout, false);
 	}
 
 	// Dinding 3 m. Belakang = +X, depan (pintu) = -X, kiri = -Y, kanan = +Y.
-	AddPart(this, Root, EShape::Cube, FVector(20, 2040, 300), FVector(710, 0, 150), Wall);
-	AddPart(this, Root, EShape::Cube, FVector(1400, 20, 300), FVector(0, -1010, 150), Wall2);
-	AddPart(this, Root, EShape::Cube, FVector(1400, 20, 300), FVector(0, 1010, 150), Wall2);
-	AddPart(this, Root, EShape::Cube, FVector(20, 1330, 300), FVector(-710, -345, 150), Wall2); // depan, kiri pintu
-	AddPart(this, Root, EShape::Cube, FVector(20, 490, 300), FVector(-710, 765, 150), Wall2);   // depan, kanan pintu
-	AddPart(this, Root, EShape::Cube, FVector(20, 200, 80), FVector(-710, 420, 260), Wall2);    // ambang pintu
+	AddPart(this, Root, EShape::Cube, FVector(20, 2 * HY + 40, 300), FVector(HX + 10, 0, 150), Wall);
+	AddPart(this, Root, EShape::Cube, FVector(2 * HX, 20, 300), FVector(0, -(HY + 10), 150), Wall2);
+	AddPart(this, Root, EShape::Cube, FVector(2 * HX, 20, 300), FVector(0, HY + 10, 150), Wall2);
+	const float L0 = -(HY + 10), L1 = DoorY - 100.f, R0 = DoorY + 100.f, R1 = HY + 10;
+	AddPart(this, Root, EShape::Cube, FVector(20, L1 - L0, 300), FVector(-(HX + 10), (L0 + L1) / 2, 150), Wall2); // depan, kiri pintu
+	AddPart(this, Root, EShape::Cube, FVector(20, R1 - R0, 300), FVector(-(HX + 10), (R0 + R1) / 2, 150), Wall2); // depan, kanan pintu
+	AddPart(this, Root, EShape::Cube, FVector(20, 200, 80), FVector(-(HX + 10), DoorY, 260), Wall2);             // ambang pintu
 
-	// Plafon (menutup langit; garasi diterangi lampu neon)
-	AddPart(this, Root, EShape::Cube, FVector(1440, 2040, 10), FVector(0, 0, 305), Hex(0xe8e4da));
+	// Plafon
+	AddPart(this, Root, EShape::Cube, FVector(2 * HX + 40, 2 * HY + 40, 10), FVector(0, 0, 305), Hex(0xe8e4da));
 
-	// Pintu rolling terbuka: kotak gulungan menempel di ambang pintu bagian dalam, dan keset
-	AddProp(this, Root, TEXT("SM_Pintu_Rolling"), FVector(-683, 420, 0), 0.f, false);
-	AddProp(this, Root, TEXT("SM_Keset"), FVector(-650, 420, 1), 0.f, false);
+	// Pintu rolling terbuka dan keset
+	AddProp(this, Root, TEXT("SM_Pintu_Rolling"), FVector(-(HX - 17), DoorY, 0), 0.f, false);
+	AddProp(this, Root, TEXT("SM_Keset"), FVector(-(HX - 50), DoorY, 1), 0.f, false);
 
 	// Papan nama di dinding belakang
-	AddProp(this, Root, TEXT("SM_Papan_Nama"), FVector(702, -420, 205), 180.f, false);
+	const float SignY = -0.42f * HY;
+	AddProp(this, Root, TEXT("SM_Papan_Nama"), FVector(HX + 2, SignY, 205), 180.f, false);
 	UTextRenderComponent* Sign = NewObject<UTextRenderComponent>(this);
 	Sign->SetupAttachment(Root);
-	Sign->SetRelativeLocation(FVector(696, -420, 240));
+	Sign->SetRelativeLocation(FVector(HX - 4, SignY, 240));
 	Sign->SetRelativeRotation(FRotator(0, 180, 0));
 	Sign->SetHorizontalAlignment(EHTA_Center);
 	Sign->SetVerticalAlignment(EVRTA_TextCenter);
 	Sign->SetWorldSize(22.f);
 	Sign->SetTextRenderColor(FColor(255, 194, 75));
-	Sign->SetText(FText::FromString(TEXT("RENTAL PS & WARNET JURAGAN")));
+	Sign->SetText(FText::FromString(bRuko ? TEXT("GAME CENTER JURAGAN") : TEXT("RENTAL PS & WARNET JURAGAN")));
 	Sign->RegisterComponent();
 	AddInstanceComponent(Sign);
 
 	// Bangku antre, rak kaset, poster
-	AddProp(this, Root, TEXT("SM_Bangku_Panjang"), FVector(-650, 30, 0));
-	AddProp(this, Root, TEXT("SM_Rak_Kaset"), FVector(690, 250, 100), 180.f, false);
-	AddProp(this, Root, TEXT("SM_Poster"), FVector(-450, -998, 140), 90.f, false);
-	AddProp(this, Root, TEXT("SM_Poster"), FVector(520, -998, 150), 90.f, false);
-
-	// Lampu neon garasi
-	for (const FVector& Pos : { FVector(450, -450, 296), FVector(450, 450, 296), FVector(50, -450, 296),
-		FVector(50, 450, 296), FVector(-350, -450, 296), FVector(-350, 450, 296) })
+	AddProp(this, Root, TEXT("SM_Bangku_Panjang"), FVector(-(HX - 50), 30, 0));
+	AddProp(this, Root, TEXT("SM_Rak_Kaset"), FVector(HX - 10, 0.25f * HY, 100), 180.f, false);
+	AddProp(this, Root, TEXT("SM_Poster"), FVector(-0.64f * HX, -(HY - 2), 140), 90.f, false);
+	AddProp(this, Root, TEXT("SM_Poster"), FVector(0.74f * HX, -(HY - 2), 150), 90.f, false);
+	if (bRuko)
 	{
-		AddProp(this, Root, TEXT("SM_Lampu_Neon"), Pos, 0.f, false);
-		UPointLightComponent* Light = NewObject<UPointLightComponent>(this);
-		Light->SetupAttachment(Root);
-		Light->SetRelativeLocation(Pos - FVector(0, 0, 10));
-		Light->SetMobility(EComponentMobility::Movable);
-		Light->SetIntensityUnits(ELightUnits::Candelas);
-		Light->SetIntensity(45.f);
-		Light->SetAttenuationRadius(1100.f);
-		Light->SetLightColor(FLinearColor(1.f, 0.97f, 0.9f));
-		Light->RegisterComponent();
-		AddInstanceComponent(Light);
+		AddProp(this, Root, TEXT("SM_Kulkas_Minuman"), FVector(40, -(HY - 35), 0), 90.f); // kulkas minuman dekat kantin
+		AddProp(this, Root, TEXT("SM_Poster"), FVector(0.2f * HX, HY - 2, 150), -90.f, false);
+	}
+
+	// Lampu neon
+	const float Xs[] = { -0.5f * HX, 0.07f * HX, 0.64f * HX };
+	for (float X : Xs)
+	{
+		for (float Y : { -0.45f * HY, 0.45f * HY })
+		{
+			const FVector Pos(X, Y, 296);
+			AddProp(this, Root, TEXT("SM_Lampu_Neon"), Pos, 0.f, false);
+			UPointLightComponent* Light = NewObject<UPointLightComponent>(this);
+			Light->SetupAttachment(Root);
+			Light->SetRelativeLocation(Pos - FVector(0, 0, 10));
+			Light->SetMobility(EComponentMobility::Movable);
+			Light->SetIntensityUnits(ELightUnits::Candelas);
+			Light->SetIntensity(bRuko ? 55.f : 45.f);
+			Light->SetAttenuationRadius(bRuko ? 1300.f : 1100.f);
+			Light->SetLightColor(FLinearColor(1.f, 0.97f, 0.9f));
+			Light->RegisterComponent();
+			AddInstanceComponent(Light);
+		}
 	}
 }
 
@@ -254,6 +267,11 @@ FJRInteraction AJRStove::GetInteraction() const
 		Out.Kind = EJRInteractKind::Info;
 		Out.Prompt = TEXT("Antar mi ke pelanggan yang pesan");
 	}
+	else if (GM->IsCarrying())
+	{
+		Out.Kind = EJRInteractKind::Info;
+		Out.Prompt = TEXT("Tangan penuh. Pasang dulu kardusnya");
+	}
 	else if (GM->StoveState == EJRStoveState::Idle)
 	{
 		Out.Kind = EJRInteractKind::Press;
@@ -275,7 +293,72 @@ FJRInteraction AJRStove::GetInteraction() const
 void AJRStove::Interact()
 {
 	AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
-	if (!GM || GM->bCarryMie) return;
+	if (!GM || GM->IsCarrying()) return;
 	if (GM->StoveState == EJRStoveState::Idle) GM->StartCook();
 	else if (GM->StoveState == EJRStoveState::Ready) GM->TakeMie();
+}
+
+/* ---------- Router (Era 2) ---------- */
+
+AJRRouter::AJRRouter()
+{
+	PrimaryActorTick.bCanEverTick = true;
+	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+	Root->SetMobility(EComponentMobility::Movable);
+	RootComponent = Root;
+	Label = CreateDefaultSubobject<UTextRenderComponent>(TEXT("Label"));
+	Label->SetupAttachment(Root);
+	Label->SetRelativeLocation(FVector(10, 0, 55));
+	Label->SetHorizontalAlignment(EHTA_Center);
+	Label->SetWorldSize(18.f);
+	Label->SetTextRenderColor(FColor(239, 107, 91));
+	Label->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+}
+
+void AJRRouter::BeginPlay()
+{
+	Super::BeginPlay();
+	// Rak kecil di dinding + router. Sumbu lokal +X menghadap ke dalam ruangan.
+	AddPart(this, Root, EShape::Cube, FVector(40, 80, 5), FVector(10, 0, -8), Hex(0x6b4a2f));
+	UStaticMeshComponent* R = AddProp(this, Root, TEXT("SM_Router"), FVector(10, 0, -5), 0.f);
+	LightMat = MakeColorMat(this, Hex(0x3ccf6e));
+	R->SetMaterialByName(TEXT("M_LED_Green"), LightMat);
+}
+
+void AJRRouter::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	const AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
+	const bool bSlow = GM && GM->bNetSlow;
+	const bool bBlink = FMath::FloorToInt(GetWorld()->GetTimeSeconds() * 2.5f) % 2 == 0;
+	if (LightMat) LightMat->SetVectorParameterValue(TEXT("Color"), bSlow ? (bBlink ? Hex(0xff4433) : Hex(0x331111)) : (bBlink ? Hex(0x3ccf6e) : Hex(0x1d6a38)));
+	Label->SetText(FText::FromString(bSlow ? TEXT("INTERNET LEMOT") : TEXT("")));
+	if (APlayerCameraManager* Cam = UGameplayStatics::GetPlayerCameraManager(this, 0))
+	{
+		const FVector ToCam = Cam->GetCameraLocation() - Label->GetComponentLocation();
+		Label->SetWorldRotation(FRotator(0.f, ToCam.Rotation().Yaw, 0.f));
+	}
+}
+
+FJRInteraction AJRRouter::GetInteraction() const
+{
+	FJRInteraction Out;
+	const AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
+	if (GM && GM->bNetSlow)
+	{
+		Out.Kind = EJRInteractKind::Hold;
+		Out.HoldTime = 2.f;
+		Out.Prompt = TEXT("Tahan E: restart router");
+	}
+	else
+	{
+		Out.Kind = EJRInteractKind::Info;
+		Out.Prompt = TEXT("Internet lancar");
+	}
+	return Out;
+}
+
+void AJRRouter::Interact()
+{
+	if (AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>()) GM->RestartRouter();
 }

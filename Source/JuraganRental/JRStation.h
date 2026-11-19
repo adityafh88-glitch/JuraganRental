@@ -39,6 +39,7 @@ public:
 	int32 Index = 0;
 	FString DisplayName;
 	bool bBroken = false;
+	bool bVirus = false;	// PC kena virus: perbaikan lebih lama
 
 	UPROPERTY()
 	TObjectPtr<AJRCustomer> Customer;

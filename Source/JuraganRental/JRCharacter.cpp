@@ -40,6 +40,17 @@ AJRCharacter::AJRCharacter()
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Bowl(TEXT("/Game/Props/SM_Mangkuk_Mi.SM_Mangkuk_Mi"));
 	if (Bowl.Succeeded()) HeldBowl->SetStaticMesh(Bowl.Object);
 
+	HeldBox = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("HeldBox"));
+	HeldBox->SetupAttachment(Camera);
+	HeldBox->SetRelativeLocation(FVector(70.f, 0.f, -45.f));
+	HeldBox->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));
+	HeldBox->SetRelativeScale3D(FVector(1.f, 1.f, 1.3f));
+	HeldBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	HeldBox->SetCastShadow(false);
+	HeldBox->SetVisibility(false);
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> Kardus(TEXT("/Game/Props/SM_Kardus_Mi.SM_Kardus_Mi"));
+	if (Kardus.Succeeded()) HeldBox->SetStaticMesh(Kardus.Object);
+
 	bUseControllerRotationYaw = true;
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationRoll = false;
@@ -84,6 +95,20 @@ void AJRCharacter::BuildInput()
 		M.Modifiers.Add(Ng);
 	}
 	Mapping->MapKey(LookAction, EKeys::Mouse2D).Modifiers.Add(Negate(false, true));
+
+	// Joystick (gamepad dan joystick virtual layar sentuh)
+	Mapping->MapKey(MoveAction, EKeys::Gamepad_Left2D);
+	{
+		UInputModifierScalar* Speed = NewObject<UInputModifierScalar>(Mapping);
+		Speed->Scalar = FVector(2.5f, 2.f, 1.f);
+		UInputModifierNegate* Ng = Negate(false, true);
+		FEnhancedActionKeyMapping& M = Mapping->MapKey(LookAction, EKeys::Gamepad_Right2D);
+		M.Modifiers.Add(Ng);
+		M.Modifiers.Add(Speed);
+	}
+	Mapping->MapKey(InteractAction, EKeys::Gamepad_FaceButton_Bottom);
+	Mapping->MapKey(PhoneAction, EKeys::Gamepad_Special_Right);
+	Mapping->MapKey(ConfirmAction, EKeys::Gamepad_Special_Left);
 	Mapping->MapKey(InteractAction, EKeys::E);
 	Mapping->MapKey(ConfirmAction, EKeys::Enter);
 	Mapping->MapKey(PhoneAction, EKeys::Tab);
@@ -165,7 +190,7 @@ bool AJRCharacter::IsPhoneOpen() const
 {
 	const APlayerController* PC = Cast<APlayerController>(Controller);
 	const AJRHUD* Hud = PC ? Cast<AJRHUD>(PC->GetHUD()) : nullptr;
-	return Hud && Hud->IsPhoneOpen();
+	return Hud && Hud->IsUIOpen();
 }
 
 void AJRCharacter::UpdateTarget()
@@ -205,6 +230,8 @@ void AJRCharacter::Tick(float DeltaSeconds)
 	if (const AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>())
 	{
 		if (HeldBowl->IsVisible() != GM->bCarryMie) HeldBowl->SetVisibility(GM->bCarryMie);
+		const bool bBox = !GM->CarryBox.IsNone();
+		if (HeldBox->IsVisible() != bBox) HeldBox->SetVisibility(bBox);
 	}
 
 	UpdateTarget();

@@ -189,7 +189,7 @@ void UJRPhoneWidget::Refresh(bool bForce)
 	}
 
 	// Tab lain dibangun ulang hanya jika status tombolnya berubah (bukan setiap kali kas bertambah).
-	FString Sig = FString::Printf(TEXT("%d|%d|%d|%d"), CurrentTab, GM->PricePS, GM->PricePC, GM->CapVA);
+	FString Sig = FString::Printf(TEXT("%d|%d|%d|%d|%d|%d|%d"), CurrentTab, GM->PricePS, GM->PricePC, GM->CapVA, GM->Era, GM->bPaketMalam ? 1 : 0, GM->Phase == EJRGamePhase::Playing ? 1 : 0);
 	for (const FJRShopItem& It : GM->GetShopItems())
 	{
 		Sig += It.Lock + (GM->Money >= It.Cost ? TEXT("1") : TEXT("0"));
@@ -212,7 +212,7 @@ void UJRPhoneWidget::Refresh(bool bForce)
 void UJRPhoneWidget::FillToko(AJRGameMode* GM)
 {
 	AddLine(MakeText(TEXT("TOKO GROSIR"), 15, LcdInk, true), 0.f);
-	AddLine(MakeText(TEXT("Barang langsung dipasang di garasi."), 11, LcdMuted), 2.f);
+	AddLine(MakeText(TEXT("Barang diantar kurir besok pagi. Angkat kardusnya di depan pintu."), 11, LcdMuted), 2.f);
 	for (const FJRShopItem& It : GM->GetShopItems())
 	{
 		AddLine(MakeText(It.Name, 14, LcdInk, true), 14.f);
@@ -254,6 +254,16 @@ void UJRPhoneWidget::FillTarif(AJRGameMode* GM)
 		}
 		AddLine(Row, 6.f);
 	}
+	if (GM->Era == 2)
+	{
+		AddLine(MakeText(TEXT("Paket malam warnet"), 14, LcdInk, true), 18.f);
+		AddLine(MakeText(TEXT("Setelah 21.00 gamer bayar Rp 10.000 flat dan main sampai tutup."), 11, LcdMuted), 2.f);
+		AddLine(MakeButton(GM->bPaketMalam ? TEXT("Matikan paket malam") : TEXT("Aktifkan paket malam"), [this]()
+		{
+			if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>()) G->TogglePaketMalam();
+			Refresh(true);
+		}), 6.f);
+	}
 }
 
 void UJRPhoneWidget::FillHariIni(AJRGameMode* GM)
@@ -266,9 +276,10 @@ void UJRPhoneWidget::FillHariIni(AJRGameMode* GM)
 		FString::Printf(TEXT("Belanja bahan kantin: %s"), *JRFormatRp(S.Stock)),
 		FString::Printf(TEXT("Listrik sejauh ini: %s"), *JRFormatRp(S.Elec)),
 		FString::Printf(TEXT("Kabur tanpa bayar: %s"), *JRFormatRp(S.Kabur)),
+		FString::Printf(TEXT("Piutang di buku utang: %s"), *JRFormatRp(GM->TotalDebt())),
 		FString::Printf(TEXT("Reputasi: %d"), FMath::RoundToInt(GM->Rep)),
 		FString::Printf(TEXT("Daya: %d / %d VA"), GM->PowerVA, GM->CapVA),
-		TEXT("Target Gerbang 1: Rp 1.500.000 dan reputasi 40."),
+		GM->Era == 1 ? TEXT("Target Gerbang 1: Rp 1.500.000 dan reputasi 40.") : TEXT("Target Gerbang 2: Rp 8 juta, reputasi 65, 10 unit."),
 	};
 	const int32 N = UE_ARRAY_COUNT(Lines);
 	if (InfoLines.Num() != N)
