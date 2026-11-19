@@ -225,6 +225,7 @@ private:
 	TArray<bool> QueueUsed;
 	FJRDayStats Stats;
 	float RtAt = -1.f;		// jam Pak RT datang malam ini (-1 = tidak)
+	float AmbientTimer = 12.f;	// detik sampai motor lewat berikutnya
 	bool bQuiet = false;	// suara dikecilkan setelah ditegur Pak RT
 
 	// Mode uji otomatis (-jrautotest, -jrera2): main sendiri, ambil screenshot, lalu keluar.

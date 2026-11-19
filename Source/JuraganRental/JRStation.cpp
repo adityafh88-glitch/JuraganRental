@@ -45,12 +45,6 @@ void AJRStation::Setup(EJRUnitType InType, int32 InIndex)
 		AddProp(this, Root, TEXT("SM_Karpet"), FVector(SeatDistance(), 0, 0), 0.f, false);
 		AddProp(this, Root, TEXT("SM_Stik"), FVector(SeatDistance() - 45, 45, 2), 160.f, false);
 		Label->SetRelativeLocation(FVector(0, 0, 140));
-		GameLoop = JRSound::MakeLoop(Root, TEXT("LOOP_Game_PS"), 0.3f);
-		if (GameLoop)
-		{
-			GameLoop->SetRelativeLocation(FVector(0, 0, 100));
-			GameLoop->SetPitchMultiplier(0.94f + 0.04f * InIndex); // tiap TV sedikit beda nada
-		}
 	}
 	else
 	{
@@ -69,6 +63,33 @@ void AJRStation::Setup(EJRUnitType InType, int32 InIndex)
 AJRGameMode* AJRStation::GetGM() const
 {
 	return GetWorld() ? GetWorld()->GetAuthGameMode<AJRGameMode>() : nullptr;
+}
+
+void AJRStation::PlayActivitySound()
+{
+	const FVector Screen = GetActorLocation() + FVector(0, 0, 110);
+	const FVector Hands = GetSeatLocation() + FVector(0, 0, 70);
+	const float R = FMath::FRand();
+	if (Type == EJRUnitType::PS)
+	{
+		if (R < 0.55f)
+		{
+			static const TCHAR* Klik[] = { TEXT("SFX_Stik_Klik_1"), TEXT("SFX_Stik_Klik_2"), TEXT("SFX_Stik_Klik_3") };
+			JRSound::PlayNear(this, Klik[FMath::RandRange(0, 2)], Hands, 0.45f);
+		}
+		else if (R < 0.72f) JRSound::PlayNear(this, TEXT("SFX_TV_Tendang"), Screen, 0.4f);
+		else if (R < 0.90f) JRSound::PlayNear(this, FMath::RandBool() ? TEXT("SFX_TV_Bip_1") : TEXT("SFX_TV_Bip_2"), Screen, 0.3f);
+		else JRSound::PlayNear(this, TEXT("SFX_TV_Gol"), Screen, 0.35f);
+	}
+	else
+	{
+		if (R < 0.75f)
+		{
+			static const TCHAR* Ketik[] = { TEXT("SFX_Keyboard_1"), TEXT("SFX_Keyboard_2"), TEXT("SFX_Keyboard_3") };
+			JRSound::PlayNear(this, Ketik[FMath::RandRange(0, 2)], GetActorLocation() + GetActorForwardVector() * 20.f + FVector(0, 0, 80), 0.45f);
+		}
+		else JRSound::PlayNear(this, TEXT("SFX_Mouse_Klik"), GetActorLocation() + FVector(0, 30, 80), 0.4f);
+	}
 }
 
 FVector AJRStation::GetSeatLocation() const
@@ -194,11 +215,15 @@ void AJRStation::Tick(float DeltaSeconds)
 		TextColor = FColor(255, 194, 75);
 	}
 
-	if (GameLoop)
+	// Bunyi aktivitas pendek dan acak selama unit dipakai (bukan musik terus-menerus).
+	if (bPlaying && !GM->bMcbTripped && !bBroken && GM->IsPlaying())
 	{
-		const bool bWant = bPlaying && !GM->bMcbTripped && !bBroken;
-		if (bWant && !GameLoop->IsPlaying()) GameLoop->Play();
-		else if (!bWant && GameLoop->IsPlaying()) GameLoop->Stop();
+		ActivityTimer -= DeltaSeconds;
+		if (ActivityTimer <= 0.f)
+		{
+			PlayActivitySound();
+			ActivityTimer = Type == EJRUnitType::PS ? FMath::FRandRange(2.5f, 6.f) : FMath::FRandRange(2.f, 5.f);
+		}
 	}
 
 	if (ScreenMat && !ScreenColor.Equals(LastScreenColor))

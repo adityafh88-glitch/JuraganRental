@@ -21,6 +21,9 @@ namespace JRSound
 	/** Efek 3D di lokasi, mengecil dengan jarak. */
 	JURAGANRENTAL_API void PlayAt(const UObject* Context, const TCHAR* Name, const FVector& Location, float Volume = 1.f);
 
+	/** Bunyi kecil yang hanya terdengar dari dekat (aktivitas unit: klik stik, ketikan). */
+	JURAGANRENTAL_API void PlayNear(const UObject* Context, const TCHAR* Name, const FVector& Location, float Volume = 1.f);
+
 	/** Suara karakter: memilih acak VO_<Char>_<Situasi>_1..3 yang tersedia. Mengembalikan false jika belum ada rekaman. */
 	JURAGANRENTAL_API bool Voice(const UObject* Context, const FString& Char, const TCHAR* Situasi, const FVector& Location);
 

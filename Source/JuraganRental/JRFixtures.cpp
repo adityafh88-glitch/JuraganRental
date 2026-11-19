@@ -83,9 +83,6 @@ void AJRRoom::Build(float HX, float HY, float DoorY, bool bRuko)
 		AddProp(this, Root, TEXT("SM_Poster"), FVector(0.2f * HX, HY - 2, 150), -90.f, false);
 	}
 
-	// Suasana: dengung ruangan dan motor lewat
-	if (UAudioComponent* Amb = JRSound::MakeLoop(Root, TEXT("LOOP_Suasana"), 0.45f, false)) Amb->Play();
-
 	// Lampu neon
 	const float Xs[] = { -0.5f * HX, 0.07f * HX, 0.64f * HX };
 	for (float X : Xs)

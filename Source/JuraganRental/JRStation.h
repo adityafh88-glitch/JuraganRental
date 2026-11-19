@@ -58,8 +58,8 @@ private:
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> ScreenMat;
 
-	UPROPERTY()
-	TObjectPtr<class UAudioComponent> GameLoop;
+	float ActivityTimer = 2.f;	// detik sampai bunyi aktivitas berikutnya
+	void PlayActivitySound();
 
 	FLinearColor LastScreenColor = FLinearColor::Black;
 };

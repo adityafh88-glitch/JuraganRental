@@ -346,6 +346,14 @@ void AJRGameMode::Tick(float DeltaSeconds)
 		PakRtEvent();
 	}
 
+	// Suasana: motor lewat di depan sesekali (pengganti dengung terus-menerus)
+	AmbientTimer -= DeltaSeconds;
+	if (AmbientTimer <= 0.f)
+	{
+		AmbientTimer = FMath::FRandRange(25.f, 55.f);
+		JRSound::PlayAt(this, TEXT("SFX_Motor_Lewat"), Layout().DoorOutside() + FVector(0, FMath::FRandRange(-600.f, 600.f), 80.f), 0.5f);
+	}
+
 	ComputePower();
 	if (!bMcbTripped) Stats.Elec += PowerVA * 2.f * DtH; // Rp 2 per VA per jam
 

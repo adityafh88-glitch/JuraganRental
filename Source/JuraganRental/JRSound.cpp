@@ -27,6 +27,23 @@ namespace JRSound
 		return Att.Get();
 	}
 
+	static USoundAttenuation* NearAttenuation()
+	{
+		static TWeakObjectPtr<USoundAttenuation> Att;
+		if (!Att.IsValid())
+		{
+			USoundAttenuation* A = NewObject<USoundAttenuation>(GetTransientPackage(), TEXT("JR_AttenuationNear"));
+			A->AddToRoot();
+			A->Attenuation.bAttenuate = true;
+			A->Attenuation.bSpatialize = true;
+			A->Attenuation.AttenuationShape = EAttenuationShape::Sphere;
+			A->Attenuation.AttenuationShapeExtents = FVector(120.f);
+			A->Attenuation.FalloffDistance = 480.f;
+			Att = A;
+		}
+		return Att.Get();
+	}
+
 	USoundBase* Find(const FString& Name)
 	{
 		if (Missing.Contains(Name)) return nullptr;
@@ -52,6 +69,11 @@ namespace JRSound
 		if (USoundBase* S = Find(Name)) UGameplayStatics::PlaySoundAtLocation(Context, S, Location, Volume, 1.f, 0.f, Attenuation());
 	}
 
+	void PlayNear(const UObject* Context, const TCHAR* Name, const FVector& Location, float Volume)
+	{
+		if (USoundBase* S = Find(Name)) UGameplayStatics::PlaySoundAtLocation(Context, S, Location, Volume, FMath::FRandRange(0.95f, 1.05f), 0.f, NearAttenuation());
+	}
+
 	bool Voice(const UObject* Context, const FString& Char, const TCHAR* Situasi, const FVector& Location)
 	{
 		TArray<USoundBase*> Options;
@@ -60,7 +82,9 @@ namespace JRSound
 			if (USoundBase* S = Find(FString::Printf(TEXT("VO_%s_%s_%d"), *Char, Situasi, i))) Options.Add(S);
 		}
 		if (Options.Num() == 0) return false;
-		UGameplayStatics::PlaySoundAtLocation(Context, Options[FMath::RandRange(0, Options.Num() - 1)], Location + FVector(0, 0, 150), 1.f, 1.f, 0.f, Attenuation());
+		// Nada per karakter: Bocil disuarakan pengisi dewasa, nadanya dinaikkan agar terdengar lebih muda.
+		const float Pitch = Char == TEXT("Bocil") ? 1.15f : 1.f;
+		UGameplayStatics::PlaySoundAtLocation(Context, Options[FMath::RandRange(0, Options.Num() - 1)], Location + FVector(0, 0, 150), 1.f, Pitch, 0.f, Attenuation());
 		return true;
 	}
 
