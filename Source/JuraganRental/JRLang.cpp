@@ -3,6 +3,8 @@
 #include "Internationalization/Culture.h"
 #include "Internationalization/Internationalization.h"
 #include "Misc/CString.h"
+#include "Engine/Engine.h"
+#include "UObject/UObjectGlobals.h"
 #include "JRSettings.h"
 
 namespace
@@ -33,6 +35,8 @@ namespace JRLang
 		static int32 Cached = -1;	// bahasa dibaca sekali per sesi
 		if (Cached < 0)
 		{
+			// Terlalu dini (inisialisasi statis sebelum engine siap): jangan sentuh UObject, jangan simpan.
+			if (!UObjectInitialized() || !GEngine) return false;
 			const UJRSettingsSave* S = JRSettings::Get();
 			if (S->Language == 0)
 			{

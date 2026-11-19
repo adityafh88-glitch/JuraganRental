@@ -35,12 +35,12 @@ namespace JRLocal_GameMode
 
 	// Urutan: bocil, pelajar, mahasiswa, pekerja, gamer, bapak
 	const FTypeDef Types[] = {
-		{ JRT(TEXT("Bocil berseragam")), TEXT("SK_Bocil"),     0.80f, 0 },
-		{ JRT(TEXT("Anak SMA")),         TEXT("SK_Anak_SMA"),  0.95f, 0 },
+		{ TEXT("Bocil berseragam"), TEXT("SK_Bocil"),     0.80f, 0 },
+		{ TEXT("Anak SMA"),         TEXT("SK_Anak_SMA"),  0.95f, 0 },
 		{ TEXT("Mahasiswa"),        TEXT("SK_Mahasiswa"), 1.00f, 1 },
-		{ JRT(TEXT("Mas-mas kantoran")), TEXT("SK_Kantoran"),  1.00f, 2 },
-		{ JRT(TEXT("Gamer online")),     TEXT("SK_Gamer"),     1.00f, 1 },
-		{ JRT(TEXT("Bapak-bapak")),      TEXT("SK_Bapak"),     1.03f, 0 },
+		{ TEXT("Mas-mas kantoran"), TEXT("SK_Kantoran"),  1.00f, 2 },
+		{ TEXT("Gamer online"),     TEXT("SK_Gamer"),     1.00f, 1 },
+		{ TEXT("Bapak-bapak"),      TEXT("SK_Bapak"),     1.03f, 0 },
 	};
 	constexpr int32 Bocil = 0, Pekerja = 3, Gamer = 4;
 	// Kode karakter untuk file suara VO_<Kode>_<Situasi>_<n> (lihat Docs/Naskah_Suara.md)
@@ -1427,7 +1427,7 @@ void AJRGameMode::SpawnCustomer()
 	FActorSpawnParameters SP;
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	AJRCustomer* C = GetWorld()->SpawnActor<AJRCustomer>(Layout().DoorOutside(), FRotator::ZeroRotator, SP);
-	C->Setup(TI, T.Name, T.Mesh, T.Scale, Want, T.Want == 2);
+	C->Setup(TI, JRT(T.Name), T.Mesh, T.Scale, Want, T.Want == 2);	// diterjemahkan saat dipakai, bukan saat inisialisasi statis
 	Customers.Add(C);
 	Stats.Customers++;
 	JRSound::PlayAt(this, TEXT("SFX_Bel_Pintu"), FVector(-(Layout().HalfX - 40.f), Layout().DoorY, 220.f), 0.6f);

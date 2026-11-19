@@ -417,3 +417,4 @@
 		{ TEXT("SUARA"), TEXT("SOUND") },
 		{ TEXT("KONTROL"), TEXT("CONTROLS") },
 		{ TEXT("GARASI"), TEXT("GARAGE") },
+		{ TEXT("Mahasiswa"), TEXT("College student") },
