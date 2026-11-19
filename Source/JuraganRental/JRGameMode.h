@@ -117,6 +117,8 @@ public:
 	void StartCook();
 	void TakeMie();
 	void DeliverMie(AJRStation* Station);
+	void PutBackMie();					// taruh lagi di kompor (pemesan sudah pergi)
+	bool CanOfferMie(const AJRStation* Station) const;	// pelanggan yang main dan belum makan mau dibawakan mi
 
 	/** Waktu berjalan hanya jika toko buka dan tidak ada kejadian yang menunggu pilihan. */
 	bool IsPlaying() const { return Phase == EJRGamePhase::Playing && Choices.Num() == 0; }

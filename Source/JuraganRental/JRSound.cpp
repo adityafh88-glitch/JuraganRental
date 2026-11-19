@@ -4,6 +4,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundBase.h"
+#include "Engine/World.h"
+#include "TimerManager.h"
 
 namespace JRSound
 {
@@ -37,8 +39,8 @@ namespace JRSound
 			A->Attenuation.bAttenuate = true;
 			A->Attenuation.bSpatialize = true;
 			A->Attenuation.AttenuationShape = EAttenuationShape::Sphere;
-			A->Attenuation.AttenuationShapeExtents = FVector(120.f);
-			A->Attenuation.FalloffDistance = 480.f;
+			A->Attenuation.AttenuationShapeExtents = FVector(200.f);
+			A->Attenuation.FalloffDistance = 700.f;
 			Att = A;
 		}
 		return Att.Get();
@@ -71,11 +73,30 @@ namespace JRSound
 
 	void PlayNear(const UObject* Context, const TCHAR* Name, const FVector& Location, float Volume)
 	{
-		if (USoundBase* S = Find(Name)) UGameplayStatics::PlaySoundAtLocation(Context, S, Location, Volume, FMath::FRandRange(0.95f, 1.05f), 0.f, NearAttenuation());
+		USoundBase* S = Find(Name);
+		static int32 Logged = 0;
+		if (Logged < 12)
+		{
+			Logged++;
+			UE_LOG(LogTemp, Display, TEXT("JR_SND %s %s"), Name, S ? TEXT("ok") : TEXT("TIDAK ADA"));
+		}
+		if (S) UGameplayStatics::PlaySoundAtLocation(Context, S, Location, Volume, FMath::FRandRange(0.95f, 1.05f), 0.f, NearAttenuation());
 	}
 
-	bool Voice(const UObject* Context, const FString& Char, const TCHAR* Situasi, const FVector& Location)
+	// Kapan "mulut" bebas lagi (waktu dunia). Disimpan per dunia agar tidak terbawa antar sesi main.
+	static TWeakObjectPtr<UWorld> VoiceWorld;
+	static float VoiceFreeAt = 0.f;
+	static constexpr float VoiceGap = 0.5f;
+
+	bool Voice(const UObject* Context, const FString& Char, const TCHAR* Situasi, const FVector& Location, bool bPriority)
 	{
+		UWorld* World = Context ? Context->GetWorld() : nullptr;
+		if (!World) return false;
+		if (VoiceWorld.Get() != World) { VoiceWorld = World; VoiceFreeAt = 0.f; }
+		const float Now = World->GetTimeSeconds();
+		const bool bBusy = Now < VoiceFreeAt;
+		if (bBusy && !bPriority) return false;
+
 		TArray<USoundBase*> Options;
 		for (int32 i = 1; i <= 3; ++i)
 		{
@@ -84,7 +105,28 @@ namespace JRSound
 		if (Options.Num() == 0) return false;
 		// Nada per karakter: Bocil disuarakan pengisi dewasa, nadanya dinaikkan agar terdengar lebih muda.
 		const float Pitch = Char == TEXT("Bocil") ? 1.15f : 1.f;
-		UGameplayStatics::PlaySoundAtLocation(Context, Options[FMath::RandRange(0, Options.Num() - 1)], Location + FVector(0, 0, 150), 1.f, Pitch, 0.f, Attenuation());
+		USoundBase* Pick = Options[FMath::RandRange(0, Options.Num() - 1)];
+		const FVector At = Location + FVector(0, 0, 150);
+		const float Delay = bBusy ? VoiceFreeAt - Now : 0.f;
+		VoiceFreeAt = Now + Delay + Pick->GetDuration() / Pitch + VoiceGap;
+		if (Delay <= 0.f)
+		{
+			UGameplayStatics::PlaySoundAtLocation(World, Pick, At, 1.f, Pitch, 0.f, Attenuation());
+		}
+		else
+		{
+			// Giliran bicara: putar setelah suara sebelumnya selesai.
+			TWeakObjectPtr<UWorld> WeakWorld = World;
+			TWeakObjectPtr<USoundBase> WeakSound = Pick;
+			FTimerHandle Handle;
+			World->GetTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([WeakWorld, WeakSound, At, Pitch]()
+			{
+				if (WeakWorld.IsValid() && WeakSound.IsValid())
+				{
+					UGameplayStatics::PlaySoundAtLocation(WeakWorld.Get(), WeakSound.Get(), At, 1.f, Pitch, 0.f, Attenuation());
+				}
+			}), Delay, false);
+		}
 		return true;
 	}
 

@@ -351,7 +351,7 @@ void AJRGameMode::Tick(float DeltaSeconds)
 	if (AmbientTimer <= 0.f)
 	{
 		AmbientTimer = FMath::FRandRange(25.f, 55.f);
-		JRSound::PlayAt(this, TEXT("SFX_Motor_Lewat"), Layout().DoorOutside() + FVector(0, FMath::FRandRange(-600.f, 600.f), 80.f), 0.5f);
+		JRSound::PlayAt(this, TEXT("SFX_Motor_Lewat"), Layout().DoorOutside() + FVector(0, FMath::FRandRange(-600.f, 600.f), 80.f), 0.9f);
 	}
 
 	ComputePower();
@@ -629,7 +629,7 @@ void AJRGameMode::EmakEvent(AJRCustomer* C)
 	if (Emak)
 	{
 		Emak->Setup(TEXT("SK_Emak"), TEXT("A_Marah"));
-		JRSound::Voice(this, TEXT("Emak"), TEXT("Datang"), Emak->GetActorLocation());
+		JRSound::Voice(this, TEXT("Emak"), TEXT("Datang"), Emak->GetActorLocation(), true);
 	}
 	const FString Where = C->Station ? C->Station->DisplayName : FString(TEXT("TV"));
 	TWeakObjectPtr<AJRCustomer> WC(C);
@@ -651,8 +651,8 @@ void AJRGameMode::EmakEvent(AJRCustomer* C)
 				Stats.RepDelta += 2.f;
 				B->bOrder = false;
 				B->Mood = TEXT("T_T");
-				if (WE.IsValid()) JRSound::Voice(this, TEXT("Emak"), TEXT("Jewer"), WE->GetActorLocation());
-				JRSound::Voice(this, TEXT("Bocil"), TEXT("Ketahuan"), B->GetActorLocation());
+				if (WE.IsValid()) JRSound::Voice(this, TEXT("Emak"), TEXT("Jewer"), WE->GetActorLocation(), true);
+				JRSound::Voice(this, TEXT("Bocil"), TEXT("Ketahuan"), B->GetActorLocation(), true);
 				AddToast(FString::Printf(TEXT("Bocil dijewer pulang. Emak bayar setengah: %s. Reputasi warga +2"), *JRFormatRp(Paid)), Good);
 				Leave(B);
 			},
@@ -660,7 +660,7 @@ void AJRGameMode::EmakEvent(AJRCustomer* C)
 			{
 				if (WE.IsValid())
 				{
-					JRSound::Voice(this, TEXT("Emak"), TEXT("Pergi"), WE->GetActorLocation());
+					JRSound::Voice(this, TEXT("Emak"), TEXT("Pergi"), WE->GetActorLocation(), true);
 					WE->LeaveTo(Door);
 				}
 				Stats.RepDelta -= 3.f;
@@ -675,7 +675,7 @@ void AJRGameMode::RageQuitEvent(AJRCustomer* C)
 	C->bRaging = true;
 	if (S) S->bBroken = true;
 	JRSound::PlayAt(this, TEXT("SFX_Stik_Banting"), C->GetActorLocation());
-	JRSound::Voice(this, VoiceCode[C->TypeIndex], TEXT("Rage"), C->GetActorLocation());
+	JRSound::Voice(this, VoiceCode[C->TypeIndex], TEXT("Rage"), C->GetActorLocation(), true);
 	TWeakObjectPtr<AJRCustomer> WC(C);
 	PushChoice(TEXT("Rage quit!"),
 		FString::Printf(TEXT("%s kalah adu penalti lalu membanting stik di %s. Stiknya rusak."), *C->DisplayName, S ? *S->DisplayName : TEXT("TV")),
@@ -714,14 +714,14 @@ void AJRGameMode::PakRtEvent()
 	if (Rt)
 	{
 		Rt->Setup(TEXT("SK_Pak_RT"), TEXT("A_Marah"));
-		JRSound::Voice(this, TEXT("PakRT"), TEXT("Datang"), Rt->GetActorLocation());
+		JRSound::Voice(this, TEXT("PakRT"), TEXT("Datang"), Rt->GetActorLocation(), true);
 	}
 	TWeakObjectPtr<AJRVisitor> WR(Rt);
 	const FVector Door = L.DoorOutside();
 	auto Bye = [this, WR, Door](const TCHAR* Line)
 	{
 		if (!WR.IsValid()) return;
-		JRSound::Voice(this, TEXT("PakRT"), Line, WR->GetActorLocation());
+		JRSound::Voice(this, TEXT("PakRT"), Line, WR->GetActorLocation(), true);
 		WR->LeaveTo(Door);
 	};
 	PushChoice(TEXT("Pak RT datang"),
@@ -737,7 +737,7 @@ void AJRGameMode::PakRtEvent()
 void AJRGameMode::JokiEvent(AJRCustomer* C)
 {
 	TWeakObjectPtr<AJRCustomer> WC(C);
-	JRSound::Voice(this, TEXT("Gamer"), TEXT("Joki"), C->GetActorLocation());
+	JRSound::Voice(this, TEXT("Gamer"), TEXT("Joki"), C->GetActorLocation(), true);
 	PushChoice(TEXT("Joki rank datang"),
 		FString::Printf(TEXT("\"Bang, saya joki rank. Pakai %s, kasih diskon dong. Nanti saya bawa satu tim ke sini.\""), C->Station ? *C->Station->DisplayName : TEXT("PC")),
 		{ TEXT("Kasih diskon 20%"), TEXT("Harga normal") },
@@ -788,10 +788,24 @@ void AJRGameMode::TakeMie()
 	bCarryMie = true;
 }
 
+void AJRGameMode::PutBackMie()
+{
+	if (!bCarryMie || StoveState != EJRStoveState::Idle) return;
+	bCarryMie = false;
+	StoveState = EJRStoveState::Ready;
+	AddToast(TEXT("Mi ditaruh lagi di kompor. Siap untuk pesanan berikutnya"));
+}
+
+bool AJRGameMode::CanOfferMie(const AJRStation* S) const
+{
+	const AJRCustomer* C = S ? S->Customer.Get() : nullptr;
+	return bCarryMie && C && C->State == EJRCustomerState::Playing && (C->bOrder || !C->bAte);
+}
+
 void AJRGameMode::DeliverMie(AJRStation* S)
 {
 	AJRCustomer* C = S ? S->Customer.Get() : nullptr;
-	if (!C || !C->bOrder || !bCarryMie) return;
+	if (!C || !CanOfferMie(S)) return;
 	bCarryMie = false;
 	C->bOrder = false;
 	C->bAte = true;

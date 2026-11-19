@@ -75,20 +75,20 @@ void AJRStation::PlayActivitySound()
 		if (R < 0.55f)
 		{
 			static const TCHAR* Klik[] = { TEXT("SFX_Stik_Klik_1"), TEXT("SFX_Stik_Klik_2"), TEXT("SFX_Stik_Klik_3") };
-			JRSound::PlayNear(this, Klik[FMath::RandRange(0, 2)], Hands, 0.45f);
+			JRSound::PlayNear(this, Klik[FMath::RandRange(0, 2)], Hands, 0.85f);
 		}
-		else if (R < 0.72f) JRSound::PlayNear(this, TEXT("SFX_TV_Tendang"), Screen, 0.4f);
-		else if (R < 0.90f) JRSound::PlayNear(this, FMath::RandBool() ? TEXT("SFX_TV_Bip_1") : TEXT("SFX_TV_Bip_2"), Screen, 0.3f);
-		else JRSound::PlayNear(this, TEXT("SFX_TV_Gol"), Screen, 0.35f);
+		else if (R < 0.72f) JRSound::PlayNear(this, TEXT("SFX_TV_Tendang"), Screen, 0.75f);
+		else if (R < 0.90f) JRSound::PlayNear(this, FMath::RandBool() ? TEXT("SFX_TV_Bip_1") : TEXT("SFX_TV_Bip_2"), Screen, 0.6f);
+		else JRSound::PlayNear(this, TEXT("SFX_TV_Gol"), Screen, 0.7f);
 	}
 	else
 	{
 		if (R < 0.75f)
 		{
 			static const TCHAR* Ketik[] = { TEXT("SFX_Keyboard_1"), TEXT("SFX_Keyboard_2"), TEXT("SFX_Keyboard_3") };
-			JRSound::PlayNear(this, Ketik[FMath::RandRange(0, 2)], GetActorLocation() + GetActorForwardVector() * 20.f + FVector(0, 0, 80), 0.45f);
+			JRSound::PlayNear(this, Ketik[FMath::RandRange(0, 2)], GetActorLocation() + GetActorForwardVector() * 20.f + FVector(0, 0, 80), 0.85f);
 		}
-		else JRSound::PlayNear(this, TEXT("SFX_Mouse_Klik"), GetActorLocation() + FVector(0, 30, 80), 0.4f);
+		else JRSound::PlayNear(this, TEXT("SFX_Mouse_Klik"), GetActorLocation() + FVector(0, 30, 80), 0.75f);
 	}
 }
 
@@ -136,18 +136,16 @@ FJRInteraction AJRStation::GetInteraction() const
 		Out.Kind = EJRInteractKind::Press;
 		Out.Prompt = FString::Printf(TEXT("Nyalakan %s  (%s/jam)"), *DisplayName, *JRFormatRp(GM->PriceFor(Type)));
 	}
+	else if (GM->CanOfferMie(this))
+	{
+		Out.Kind = EJRInteractKind::Press;
+		Out.Prompt = FString::Printf(TEXT("%s mi ke %s  (+%s)"), Customer->bOrder ? TEXT("Antar") : TEXT("Tawarkan"),
+			*Customer->DisplayName, *JRFormatRp(AJRGameMode::MiePrice));
+	}
 	else if (Customer && Customer->State == EJRCustomerState::Playing && Customer->bOrder)
 	{
-		if (GM->bCarryMie)
-		{
-			Out.Kind = EJRInteractKind::Press;
-			Out.Prompt = FString::Printf(TEXT("Antar mi ke %s  (+%s)"), *Customer->DisplayName, *JRFormatRp(AJRGameMode::MiePrice));
-		}
-		else
-		{
-			Out.Kind = EJRInteractKind::Info;
-			Out.Prompt = TEXT("Pelanggan pesan mi. Masak di kompor pojok kantin");
-		}
+		Out.Kind = EJRInteractKind::Info;
+		Out.Prompt = TEXT("Pelanggan pesan mi. Masak di kompor pojok kantin");
 	}
 	return Out;
 }
@@ -169,7 +167,7 @@ void AJRStation::Interact()
 	{
 		GM->StartSession(this);
 	}
-	else if (Customer && Customer->bOrder && GM->bCarryMie)
+	else if (GM->CanOfferMie(this))
 	{
 		GM->DeliverMie(this);
 	}

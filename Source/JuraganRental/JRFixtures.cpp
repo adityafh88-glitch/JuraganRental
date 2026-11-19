@@ -274,8 +274,8 @@ FJRInteraction AJRStove::GetInteraction() const
 	if (!GM) return Out;
 	if (GM->bCarryMie)
 	{
-		Out.Kind = EJRInteractKind::Info;
-		Out.Prompt = TEXT("Antar mi ke pelanggan yang pesan");
+		Out.Kind = EJRInteractKind::Press;
+		Out.Prompt = TEXT("Taruh mi lagi di kompor  (antar/tawarkan ke pelanggan yang main)");
 	}
 	else if (GM->IsCarrying())
 	{
@@ -303,7 +303,9 @@ FJRInteraction AJRStove::GetInteraction() const
 void AJRStove::Interact()
 {
 	AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
-	if (!GM || GM->IsCarrying()) return;
+	if (!GM) return;
+	if (GM->bCarryMie) { GM->PutBackMie(); return; }
+	if (GM->IsCarrying()) return;
 	if (GM->StoveState == EJRStoveState::Idle) GM->StartCook();
 	else if (GM->StoveState == EJRStoveState::Ready) GM->TakeMie();
 }
