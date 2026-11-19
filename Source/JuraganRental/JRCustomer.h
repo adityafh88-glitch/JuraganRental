@@ -74,6 +74,7 @@ private:
 	bool MoveStep(float DeltaSeconds);
 	void Arrive(AJRGameMode* GM);
 	void UpdateAnimation();
+	void RandomizeLook();
 	void PlayLoop(UAnimSequence* Anim);
 
 	UPROPERTY()

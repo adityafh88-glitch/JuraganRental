@@ -29,6 +29,9 @@ public:
 
 	UPROPERTY()
 	float LookSpeed = 1.f;		// kepekaan mouse / joystick lihat
+
+	UPROPERTY()
+	int32 Language = 0;			// 0 otomatis (ikut Windows), 1 Indonesia, 2 English
 };
 
 namespace JRSettings

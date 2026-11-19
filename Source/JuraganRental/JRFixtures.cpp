@@ -1,4 +1,5 @@
 #include "JRFixtures.h"
+#include "JRLang.h"
 
 #include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -29,6 +30,44 @@ AJRRoom::AJRRoom()
 	SignMaterial = Unlit.Object;
 }
 
+/* ---------- Panah tutorial ---------- */
+
+AJRTutorialArrow::AJRTutorialArrow()
+{
+	PrimaryActorTick.bCanEverTick = true;
+	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+	Root->SetMobility(EComponentMobility::Movable);
+	RootComponent = Root;
+	Cone = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Cone"));
+	Cone->SetupAttachment(Root);
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> ConeF(TEXT("/Engine/BasicShapes/Cone.Cone"));
+	Cone->SetStaticMesh(ConeF.Object);
+	Cone->SetRelativeRotation(FRotator(180.f, 0.f, 0.f));	// ujung kerucut menunjuk ke bawah
+	Cone->SetRelativeScale3D(FVector(0.35f, 0.35f, 0.5f));
+	Cone->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Cone->CastShadow = false;
+}
+
+void AJRTutorialArrow::Point(bool bShow, const FVector& Target)
+{
+	if (!Cone->GetMaterial(0) || !Cone->GetMaterial(0)->IsA<UMaterialInstanceDynamic>())
+	{
+		Cone->SetMaterial(0, MakeColorMat(this, FLinearColor(0.2f, 1.f, 0.35f)));
+	}
+	SetActorHiddenInGame(!bShow);
+	Base = Target + FVector(0.f, 0.f, 220.f);
+	SetActorLocation(Base);
+}
+
+void AJRTutorialArrow::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	if (IsHidden()) return;
+	Time += DeltaSeconds;
+	SetActorLocation(Base + FVector(0.f, 0.f, 18.f * FMath::Sin(Time * 4.f)));
+	Cone->AddLocalRotation(FRotator(0.f, 90.f * DeltaSeconds, 0.f));
+}
+
 /* ---------- Dekorasi ---------- */
 
 AJRDecor::AJRDecor()
@@ -39,17 +78,22 @@ AJRDecor::AJRDecor()
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeF(TEXT("/Engine/BasicShapes/Cube.Cube"));
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CylF(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> ConeF(TEXT("/Engine/BasicShapes/Cone.Cone"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereF(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> TextF(TEXT("/Engine/EngineMaterials/UnlitText.UnlitText"));
 	Cube = CubeF.Object;
 	Cylinder = CylF.Object;
 	Cone = ConeF.Object;
+	Sphere = SphereF.Object;
+	TextMat = TextF.Object;
 }
 
-UStaticMeshComponent* AJRDecor::Shape(UStaticMesh* Mesh, const FVector& Loc, const FVector& Scale, const FLinearColor& Color, float Glow)
+UStaticMeshComponent* AJRDecor::Shape(UStaticMesh* Mesh, const FVector& Loc, const FVector& Scale, const FLinearColor& Color, float Glow, const FRotator& Rot)
 {
 	UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
 	C->SetupAttachment(Root);
 	C->SetStaticMesh(Mesh);
 	C->SetRelativeLocation(Loc);
+	C->SetRelativeRotation(Rot);
 	C->SetRelativeScale3D(Scale);
 	C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	C->SetMaterial(0, MakeColorMat(this, Color)); // warna jenuh (dikali Glow malah jadi putih)
@@ -57,8 +101,108 @@ UStaticMeshComponent* AJRDecor::Shape(UStaticMesh* Mesh, const FVector& Loc, con
 	return C;
 }
 
+/* ---------- Pemandangan luar: jalan kampung ---------- */
+
+void AJRDecor::Motor(const FVector& L, const FLinearColor& Body)
+{
+	// Motor bebek menghadap jalan (sumbu -X)
+	const FLinearColor Tire(0.06f, 0.06f, 0.07f), Metal(0.55f, 0.57f, 0.6f);
+	for (float Dx : { -48.f, 48.f })
+	{
+		Shape(Cylinder, L + FVector(Dx, 0, 28), FVector(0.56f, 0.56f, 0.1f), Tire, 0.f, FRotator(0, 0, 90));
+	}
+	Shape(Cube, L + FVector(0, 0, 52), FVector(0.95f, 0.26f, 0.22f), Body);			// bodi
+	Shape(Cube, L + FVector(12, 0, 72), FVector(0.48f, 0.26f, 0.1f), FLinearColor(0.08f, 0.08f, 0.09f)); // jok
+	Shape(Cube, L + FVector(-48, 0, 85), FVector(0.06f, 0.06f, 0.55f), Metal);		// setang tegak
+	Shape(Cube, L + FVector(-48, 0, 112), FVector(0.05f, 0.6f, 0.05f), Metal);		// setang
+	Shape(Sphere, L + FVector(-58, 0, 95), FVector(0.14f, 0.14f, 0.14f), FLinearColor(1.f, 0.95f, 0.75f)); // lampu depan
+}
+
+void AJRDecor::House(const FVector& F, float Width, float Height, const FLinearColor& Wall, int32 Seed, const TCHAR* Sign)
+{
+	// F = tengah sisi depan (menghadap +X, ke arah jalan), di lantai
+	const float Depth = 500.f;
+	Shape(Cube, F + FVector(-Depth / 2, 0, Height / 2), FVector(Depth / 100.f, Width / 100.f, Height / 100.f), Wall);
+	// Atap genteng: lempeng miring di depan + penutup atas
+	const FLinearColor Roof = Seed % 2 ? FLinearColor(0.55f, 0.2f, 0.12f) : FLinearColor(0.35f, 0.18f, 0.12f);
+	Shape(Cube, F + FVector(25, 0, Height + 18), FVector(1.4f, (Width + 60.f) / 100.f, 0.12f), Roof, 0.f, FRotator(-18.f, 0, 0));
+	Shape(Cube, F + FVector(-Depth / 2, 0, Height + 8), FVector((Depth + 20.f) / 100.f, (Width + 40.f) / 100.f, 0.16f), Roof * 0.85f);
+	// Pintu dan jendela
+	Shape(Cube, F + FVector(2, -Width * 0.22f, 105), FVector(0.04f, 0.9f, 2.1f), FLinearColor(0.32f, 0.2f, 0.12f));
+	Shape(Cube, F + FVector(2, Width * 0.18f, 150), FVector(0.04f, 1.2f, 0.9f), FLinearColor(0.55f, 0.75f, 0.85f));
+	if (Sign)
+	{
+		Shape(Cube, F + FVector(8, 0, Height - 40), FVector(0.06f, Width / 120.f, 0.5f), FLinearColor(0.95f, 0.85f, 0.2f));
+		UTextRenderComponent* T = NewObject<UTextRenderComponent>(this);
+		T->SetupAttachment(Root);
+		T->SetRelativeLocation(F + FVector(13, 0, Height - 40));
+		T->SetHorizontalAlignment(EHTA_Center);
+		T->SetVerticalAlignment(EVRTA_TextCenter);
+		T->SetWorldSize(30.f);
+		T->SetTextRenderColor(FColor(150, 30, 20));
+		if (TextMat) T->SetTextMaterial(TextMat);
+		T->SetText(FText::FromString(Sign));
+		T->RegisterComponent();
+	}
+}
+
+void AJRDecor::BuildStreet(float HX, float HY, float DoorY, bool bRuko)
+{
+	const float X0 = -HX;					// dinding depan (pintu)
+	const float Len = 2.f * HY + 4000.f;	// panjang jalan
+	const FLinearColor Concrete(0.62f, 0.6f, 0.56f), Asphalt(0.17f, 0.17f, 0.19f), Grass(0.3f, 0.48f, 0.22f);
+	// Trotoar, jalan aspal + marka, trotoar seberang, rumput
+	Shape(Cube, FVector(X0 - 130.f, 0, 1.f), FVector(2.6f, Len / 100.f, 0.1f), Concrete);	// trotoar (sedikit lebih tinggi)
+	Shape(Cube, FVector(X0 - 660.f, 0, -3.f), FVector(8.f, Len / 100.f, 0.1f), Asphalt);	// di atas lantai bawaan level
+	for (float Y = -Len / 2 + 200.f; Y < Len / 2; Y += 450.f)
+	{
+		Shape(Cube, FVector(X0 - 660.f, Y, 2.6f), FVector(0.12f, 2.2f, 0.02f), FLinearColor(0.9f, 0.9f, 0.85f));
+	}
+	Shape(Cube, FVector(X0 - 1170.f, 0, 1.f), FVector(2.2f, Len / 100.f, 0.1f), Concrete);
+	Shape(Cube, FVector(X0 - 2400.f, 0, -3.f), FVector(24.f, Len / 100.f, 0.1f), Grass);
+
+	// Deretan rumah dan warung di seberang jalan
+	static const FLinearColor Walls[] = {
+		FLinearColor(0.93f, 0.88f, 0.72f), FLinearColor(0.72f, 0.86f, 0.74f), FLinearColor(0.7f, 0.8f, 0.92f),
+		FLinearColor(0.95f, 0.76f, 0.62f), FLinearColor(0.88f, 0.88f, 0.88f), FLinearColor(0.93f, 0.8f, 0.85f) };
+	int32 K = 0;
+	for (float Y = -HY - 900.f; Y < HY + 900.f; Y += 720.f, ++K)
+	{
+		const TCHAR* Sign = K == 2 ? JRT(TEXT("WARUNG BU SRI")) : K == 5 ? JRT(TEXT("SERVIS HP")) : nullptr;
+		House(FVector(X0 - 1300.f, Y, 0), 600.f, 300.f + (K * 53 % 3) * 60.f, Walls[K % 6], K, Sign);
+	}
+
+	// Motor parkir dekat pintu (tidak menghalangi jalur masuk pelanggan)
+	Motor(FVector(X0 - 140.f, DoorY + 210.f, 0), FLinearColor(0.8f, 0.12f, 0.12f));
+	Motor(FVector(X0 - 140.f, DoorY + 300.f, 0), FLinearColor(0.15f, 0.3f, 0.75f));
+	if (bRuko) Motor(FVector(X0 - 140.f, DoorY + 390.f, 0), FLinearColor(0.1f, 0.1f, 0.1f));
+
+	// Tiang lampu jalan
+	const FVector Pole(X0 - 250.f, DoorY - 380.f, 0);
+	Shape(Cylinder, Pole + FVector(0, 0, 230), FVector(0.12f, 0.12f, 4.6f), FLinearColor(0.3f, 0.32f, 0.35f));
+	Shape(Cube, Pole + FVector(-70, 0, 455), FVector(1.4f, 0.08f, 0.08f), FLinearColor(0.3f, 0.32f, 0.35f));
+	Shape(Cube, Pole + FVector(-135, 0, 445), FVector(0.4f, 0.22f, 0.1f), FLinearColor(1.f, 0.92f, 0.7f));
+	UPointLightComponent* Lamp = NewObject<UPointLightComponent>(this);
+	Lamp->SetupAttachment(Root);
+	Lamp->SetRelativeLocation(Pole + FVector(-135, 0, 420));
+	Lamp->SetIntensityUnits(ELightUnits::Candelas);
+	Lamp->SetIntensity(60.f);
+	Lamp->SetAttenuationRadius(900.f);
+	Lamp->SetLightColor(FLinearColor(1.f, 0.82f, 0.55f));
+	Lamp->RegisterComponent();
+
+	// Pohon di trotoar seberang
+	for (float Y : { -HY + 200.f, 300.f, HY + 300.f })
+	{
+		const FVector T(X0 - 1170.f, Y, 0);
+		Shape(Cylinder, T + FVector(0, 0, 110), FVector(0.22f, 0.22f, 2.2f), FLinearColor(0.38f, 0.25f, 0.15f));
+		Shape(Sphere, T + FVector(0, 0, 290), FVector(2.f, 2.f, 1.7f), FLinearColor(0.2f, 0.45f, 0.18f));
+	}
+}
+
 void AJRDecor::Setup(FName Id, float HX, float HY, float DoorY)
 {
+	if (Id == TEXT("luar")) { BuildStreet(HX, HY, DoorY, HY > 1100.f); return; }
 	// Ukuran bentuk dasar mesin: kubus/silinder 100 cm (poros di tengah), kerucut 100 cm.
 	if (Id == TEXT("poster"))
 	{
@@ -155,7 +299,7 @@ void AJRRoom::Build(float HX, float HY, float DoorY, bool bRuko)
 	{
 		Sign->SetTextMaterial(SignMaterial); // tanpa cahaya: warna tetap sama di ruangan terang maupun gelap
 	}
-	Sign->SetText(FText::FromString(bRuko ? TEXT("GAME CENTER JURAGAN") : TEXT("RENTAL PS & WARNET JURAGAN")));
+	Sign->SetText(FText::FromString(bRuko ? JRT(TEXT("GAME CENTER JURAGAN")) : JRT(TEXT("RENTAL PS & WARNET JURAGAN"))));
 	Sign->RegisterComponent();
 	AddInstanceComponent(Sign);
 
@@ -238,7 +382,7 @@ FJRInteraction AJRKasir::GetInteraction() const
 	if (const AJRCustomer* Payer = GM ? GM->NextPayer() : nullptr)
 	{
 		Out.Kind = EJRInteractKind::Press;
-		Out.Prompt = FString::Printf(TEXT("Terima bayaran %s  (%s)"), *Payer->DisplayName, *JRFormatRp(Payer->Bill));
+		Out.Prompt = JRPrintf(JRT(TEXT("Terima bayaran %s  (%s)")), *Payer->DisplayName, *JRFormatRp(Payer->Bill));
 	}
 	return Out;
 }
@@ -289,12 +433,12 @@ FJRInteraction AJRMcb::GetInteraction() const
 	if (GM && GM->bMcbTripped)
 	{
 		Out.Kind = EJRInteractKind::Press;
-		Out.Prompt = TEXT("Naikkan MCB");
+		Out.Prompt = JRT(TEXT("Naikkan MCB"));
 	}
 	else
 	{
 		Out.Kind = EJRInteractKind::Info;
-		Out.Prompt = TEXT("MCB menyala");
+		Out.Prompt = JRT(TEXT("MCB menyala"));
 	}
 	return Out;
 }
@@ -348,7 +492,7 @@ void AJRStove::Tick(float DeltaSeconds)
 	FColor Color(255, 194, 75);
 	if (GM->StoveState == EJRStoveState::Cooking)
 	{
-		Text = FString::Printf(TEXT("MASAK %d%%"), FMath::RoundToInt(GM->CookProgress / AJRGameMode::CookSeconds * 100.f));
+		Text = JRPrintf(JRT(TEXT("MASAK %d%%")), FMath::RoundToInt(GM->CookProgress / AJRGameMode::CookSeconds * 100.f));
 	}
 	else if (GM->StoveState == EJRStoveState::Ready)
 	{
@@ -383,27 +527,27 @@ FJRInteraction AJRStove::GetInteraction() const
 	if (GM->bCarryMie)
 	{
 		Out.Kind = EJRInteractKind::Press;
-		Out.Prompt = TEXT("Taruh mi lagi di kompor  (antar/tawarkan ke pelanggan yang main)");
+		Out.Prompt = JRT(TEXT("Taruh mi lagi di kompor  (antar/tawarkan ke pelanggan yang main)"));
 	}
 	else if (GM->IsCarrying())
 	{
 		Out.Kind = EJRInteractKind::Info;
-		Out.Prompt = TEXT("Tangan penuh. Pasang dulu kardusnya");
+		Out.Prompt = JRT(TEXT("Tangan penuh. Pasang dulu kardusnya"));
 	}
 	else if (GM->StoveState == EJRStoveState::Idle)
 	{
 		Out.Kind = EJRInteractKind::Press;
-		Out.Prompt = FString::Printf(TEXT("Masak mi instan  (modal %s, kompor 600 VA)"), *JRFormatRp(AJRGameMode::MieCost));
+		Out.Prompt = JRPrintf(JRT(TEXT("Masak mi instan  (modal %s, kompor 600 VA)")), *JRFormatRp(AJRGameMode::MieCost));
 	}
 	else if (GM->StoveState == EJRStoveState::Cooking)
 	{
 		Out.Kind = EJRInteractKind::Info;
-		Out.Prompt = GM->bMcbTripped ? TEXT("Listrik mati, kompor berhenti") : TEXT("Mi sedang dimasak...");
+		Out.Prompt = GM->bMcbTripped ? JRT(TEXT("Listrik mati, kompor berhenti")) : JRT(TEXT("Mi sedang dimasak..."));
 	}
 	else
 	{
 		Out.Kind = EJRInteractKind::Press;
-		Out.Prompt = TEXT("Angkat mi ke mangkuk");
+		Out.Prompt = JRT(TEXT("Angkat mi ke mangkuk"));
 	}
 	return Out;
 }
@@ -452,7 +596,7 @@ void AJRRouter::Tick(float DeltaSeconds)
 	const bool bSlow = GM && GM->bNetSlow;
 	const bool bBlink = FMath::FloorToInt(GetWorld()->GetTimeSeconds() * 2.5f) % 2 == 0;
 	if (LightMat) LightMat->SetVectorParameterValue(TEXT("Color"), bSlow ? (bBlink ? Hex(0xff4433) : Hex(0x331111)) : (bBlink ? Hex(0x3ccf6e) : Hex(0x1d6a38)));
-	Label->SetText(FText::FromString(bSlow ? TEXT("INTERNET LEMOT") : TEXT("")));
+	Label->SetText(FText::FromString(bSlow ? JRT(TEXT("INTERNET LEMOT")) : TEXT("")));
 	if (APlayerCameraManager* Cam = UGameplayStatics::GetPlayerCameraManager(this, 0))
 	{
 		const FVector ToCam = Cam->GetCameraLocation() - Label->GetComponentLocation();
@@ -468,12 +612,12 @@ FJRInteraction AJRRouter::GetInteraction() const
 	{
 		Out.Kind = EJRInteractKind::Hold;
 		Out.HoldTime = 2.f;
-		Out.Prompt = TEXT("Tahan E: restart router");
+		Out.Prompt = JRT(TEXT("Tahan E: restart router"));
 	}
 	else
 	{
 		Out.Kind = EJRInteractKind::Info;
-		Out.Prompt = TEXT("Internet lancar");
+		Out.Prompt = JRT(TEXT("Internet lancar"));
 	}
 	return Out;
 }

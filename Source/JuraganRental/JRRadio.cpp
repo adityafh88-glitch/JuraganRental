@@ -1,4 +1,5 @@
 #include "JRRadio.h"
+#include "JRLang.h"
 
 #include "Components/AudioComponent.h"
 #include "Sound/SoundAttenuation.h"
@@ -90,32 +91,32 @@ FJRInteraction AJRRadio::GetInteraction() const
 	if (Tracks.Num() == 0)
 	{
 		Out.Kind = EJRInteractKind::Info;
-		Out.Prompt = TEXT("Radio belum ada lagunya");
+		Out.Prompt = JRT(TEXT("Radio belum ada lagunya"));
 	}
 	else if (!JRSettings::Get()->bMusic)
 	{
 		Out.Kind = EJRInteractKind::Info;
-		Out.Prompt = TEXT("Musik dimatikan (HP > Atur)");
+		Out.Prompt = JRT(TEXT("Musik dimatikan (HP > Atur)"));
 	}
 	else if (GM && GM->bMcbTripped)
 	{
 		Out.Kind = EJRInteractKind::Info;
-		Out.Prompt = TEXT("Listrik mati, radio diam");
+		Out.Prompt = JRT(TEXT("Listrik mati, radio diam"));
 	}
 	else if (!bOn)
 	{
 		Out.Kind = EJRInteractKind::Press;
-		Out.Prompt = TEXT("Nyalakan radio");
+		Out.Prompt = JRT(TEXT("Nyalakan radio"));
 	}
 	else if (Track < Tracks.Num() - 1)
 	{
 		Out.Kind = EJRInteractKind::Press;
-		Out.Prompt = FString::Printf(TEXT("Ganti lagu  (lagu %d dari %d)"), Track + 1, Tracks.Num());
+		Out.Prompt = JRPrintf(JRT(TEXT("Ganti lagu  (lagu %d dari %d)")), Track + 1, Tracks.Num());
 	}
 	else
 	{
 		Out.Kind = EJRInteractKind::Press;
-		Out.Prompt = FString::Printf(TEXT("Matikan radio  (lagu %d dari %d)"), Track + 1, Tracks.Num());
+		Out.Prompt = JRPrintf(JRT(TEXT("Matikan radio  (lagu %d dari %d)")), Track + 1, Tracks.Num());
 	}
 	return Out;
 }

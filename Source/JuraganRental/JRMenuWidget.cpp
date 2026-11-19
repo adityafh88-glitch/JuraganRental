@@ -1,4 +1,5 @@
 #include "JRMenuWidget.h"
+#include "JRLang.h"
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -54,7 +55,7 @@ namespace JRMenuStyle
 		}
 	}
 
-	FString OnOff(bool b) { return b ? TEXT("Nyala") : TEXT("Mati"); }
+	FString OnOff(bool b) { return b ? JRT(TEXT("Nyala")) : JRT(TEXT("Mati")); }
 }
 using namespace JRMenuStyle;
 
@@ -181,14 +182,14 @@ void UJRMenuWidget::AddRow(const FString& Label, const FString& Value, TFunction
 
 void UJRMenuWidget::ShowMain()
 {
-	Begin(EJRMenuPage::Main, TEXT("JURAGAN RENTAL"), TEXT("Rental PS & Warnet Simulator"), 460.f);
+	Begin(EJRMenuPage::Main, JRT(TEXT("JURAGAN RENTAL")), JRT(TEXT("Rental PS & Warnet Simulator")), 460.f);
 	AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
 	const FString Summary = AJRGameMode::SaveSummary();
-	AddButton(Summary.IsEmpty() ? FString(TEXT("Lanjutkan")) : FString::Printf(TEXT("Lanjutkan  (%s)"), *Summary), [this, GM]()
+	AddButton(Summary.IsEmpty() ? FString(JRT(TEXT("Lanjutkan"))) : JRPrintf(JRT(TEXT("Lanjutkan  (%s)")), *Summary), [this, GM]()
 	{
 		if (GM && GM->LoadProgress()) Close();
 	}, true, !Summary.IsEmpty());
-	AddButton(TEXT("Main baru"), [this, GM, Summary]()
+	AddButton(JRT(TEXT("Main baru")), [this, GM, Summary]()
 	{
 		if (Summary.IsEmpty())
 		{
@@ -196,37 +197,41 @@ void UJRMenuWidget::ShowMain()
 			Close();
 			return;
 		}
-		ShowConfirm(TEXT("Mulai dari awal?"),
-			FString::Printf(TEXT("Simpanan lama (%s) akan ditimpa saat hari pertama selesai."), *Summary),
-			TEXT("Ya, mulai baru"), [this, GM]() { if (GM) GM->BeginNewGame(); Close(); });
+		ShowConfirm(JRT(TEXT("Mulai dari awal?")),
+			JRPrintf(JRT(TEXT("Simpanan lama (%s) akan ditimpa saat hari pertama selesai.")), *Summary),
+			JRT(TEXT("Ya, mulai baru")), [this, GM]() { if (GM) GM->BeginNewGame(); Close(); });
 	}, Summary.IsEmpty());
-	AddButton(TEXT("Pengaturan"), [this]() { ShowSettings(); });
+	AddButton(JRT(TEXT("Pengaturan")), [this]() { ShowSettings(); });
 	if (!bMobile)
 	{
-		AddButton(TEXT("Keluar"), [this]()
+		AddButton(JRT(TEXT("Keluar")), [this]()
 		{
 			UKismetSystemLibrary::QuitGame(this, GetOwningPlayer(), EQuitPreference::Quit, false);
 		});
 	}
-	UTextBlock* Hint = MakeText(TEXT("Permainan tersimpan otomatis setiap toko tutup."), 12, Muted);
+	UTextBlock* Hint = MakeText(JRT(TEXT("Permainan tersimpan otomatis setiap toko tutup.")), 12, Muted);
 	Hint->SetJustification(ETextJustify::Center);
 	Content->AddChildToVerticalBox(Hint)->SetPadding(FMargin(0.f, 18.f, 0.f, 0.f));
 }
 
 void UJRMenuWidget::ShowPause()
 {
-	Begin(EJRMenuPage::Pause, TEXT("Jeda"), TEXT(""), 420.f);
-	AddButton(TEXT("Lanjut main"), [this]() { Close(); }, true);
-	AddButton(TEXT("Pengaturan"), [this]() { ShowSettings(); });
+	Begin(EJRMenuPage::Pause, JRT(TEXT("Jeda")), TEXT(""), 420.f);
+	AddButton(JRT(TEXT("Lanjut main")), [this]() { Close(); }, true);
+	AddButton(JRT(TEXT("Pengaturan")), [this]() { ShowSettings(); });
 
-	const AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
+	AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
+	if (GM && GM->IsTutorial())
+	{
+		AddButton(JRT(TEXT("Lewati tutorial")), [this, GM]() { GM->SkipTutorial(); Close(); });
+	}
 	const bool bSaved = GM && GM->Phase == EJRGamePhase::Report;
 	const FString Warn = bSaved
-		? FString(TEXT("Progres sampai hari ini sudah tersimpan."))
-		: FString(TEXT("Progres hari ini belum tersimpan. Game tersimpan otomatis setiap toko tutup (pukul 24.00)."));
-	AddButton(TEXT("Keluar ke menu utama"), [this, Warn]()
+		? FString(JRT(TEXT("Progres sampai hari ini sudah tersimpan.")))
+		: FString(JRT(TEXT("Progres hari ini belum tersimpan. Game tersimpan otomatis setiap toko tutup (pukul 24.00).")));
+	AddButton(JRT(TEXT("Keluar ke menu utama")), [this, Warn]()
 	{
-		ShowConfirm(TEXT("Keluar ke menu utama?"), Warn, TEXT("Ya, keluar"), [this]()
+		ShowConfirm(JRT(TEXT("Keluar ke menu utama?")), Warn, JRT(TEXT("Ya, keluar")), [this]()
 		{
 			UGameplayStatics::SetGamePaused(this, false);
 			UGameplayStatics::OpenLevel(this, FName(*UGameplayStatics::GetCurrentLevelName(this)));
@@ -234,9 +239,9 @@ void UJRMenuWidget::ShowPause()
 	});
 	if (!bMobile)
 	{
-		AddButton(TEXT("Keluar dari game"), [this, Warn]()
+		AddButton(JRT(TEXT("Keluar dari game")), [this, Warn]()
 		{
-			ShowConfirm(TEXT("Keluar dari game?"), Warn, TEXT("Ya, keluar"), [this]()
+			ShowConfirm(JRT(TEXT("Keluar dari game?")), Warn, JRT(TEXT("Ya, keluar")), [this]()
 			{
 				UKismetSystemLibrary::QuitGame(this, GetOwningPlayer(), EQuitPreference::Quit, false);
 			});
@@ -250,22 +255,50 @@ void UJRMenuWidget::ShowConfirm(const FString& Title, const FString& Body, const
 	UTextBlock* T = MakeText(Body, 15, Ink);
 	Content->AddChildToVerticalBox(T)->SetPadding(FMargin(0.f, 0.f, 0.f, 16.f));
 	AddButton(Yes, MoveTemp(OnYes), true);
-	AddButton(TEXT("Batal"), [this]() { Back(); });
+	AddButton(JRT(TEXT("Batal")), [this]() { Back(); });
+}
+
+void UJRMenuWidget::ShowDemoEnd()
+{
+	Begin(EJRMenuPage::DemoEnd, JRT(TEXT("Terima kasih sudah main!")), JRT(TEXT("Akhir demo Juragan Rental")), 520.f);
+	AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
+	if (GM)
+	{
+		for (const FString& L : GM->DemoSummary)
+		{
+			Content->AddChildToVerticalBox(MakeText(L, 15, Ink))->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
+		}
+	}
+	UTextBlock* Ask = MakeText(JRT(TEXT("Suka? Bantu kami dengan menambahkan Juragan Rental ke wishlist Steam-mu.")), 15, Led, true);
+	Content->AddChildToVerticalBox(Ask)->SetPadding(FMargin(0.f, 8.f, 0.f, 16.f));
+	if (GM && !GM->DemoStoreURL.IsEmpty())
+	{
+		const FString Url = GM->DemoStoreURL;
+		AddButton(TEXT("Wishlist di Steam"), [Url]() { FPlatformProcess::LaunchURL(*Url, nullptr, nullptr); }, true);
+	}
+	AddButton(JRT(TEXT("Kembali ke menu utama")), [this]()
+	{
+		UGameplayStatics::OpenLevel(this, FName(*UGameplayStatics::GetCurrentLevelName(this)));
+	});
+	if (!bMobile)
+	{
+		AddButton(JRT(TEXT("Keluar")), [this]() { UKismetSystemLibrary::QuitGame(this, GetOwningPlayer(), EQuitPreference::Quit, false); });
+	}
 }
 
 void UJRMenuWidget::ShowSettings()
 {
-	Begin(EJRMenuPage::Settings, TEXT("Pengaturan"), TEXT(""), 620.f);
+	Begin(EJRMenuPage::Settings, JRT(TEXT("Pengaturan")), TEXT(""), 620.f);
 	UJRSettingsSave* S = JRSettings::Get();
 
 	if (!bMobile)
 	{
 		if (UGameUserSettings* G = Gfx())
 		{
-			AddSection(TEXT("GRAFIS"));
+			AddSection(JRT(TEXT("GRAFIS")));
 			const EWindowMode::Type Mode = G->GetFullscreenMode();
-			AddRow(TEXT("Mode layar"),
-				Mode == EWindowMode::Fullscreen ? TEXT("Layar penuh") : Mode == EWindowMode::WindowedFullscreen ? TEXT("Penuh tanpa bingkai") : TEXT("Jendela"),
+			AddRow(JRT(TEXT("Mode layar")),
+				Mode == EWindowMode::Fullscreen ? JRT(TEXT("Layar penuh")) : Mode == EWindowMode::WindowedFullscreen ? JRT(TEXT("Penuh tanpa bingkai")) : JRT(TEXT("Jendela")),
 				[G, Mode]()
 				{
 					G->SetFullscreenMode(Mode == EWindowMode::Fullscreen ? EWindowMode::WindowedFullscreen
@@ -280,7 +313,7 @@ void UJRMenuWidget::ShowSettings()
 			Res.RemoveAll([Desk](const FIntPoint& P) { return P.X < 1024 || P.X > Desk.X || P.Y > Desk.Y; });
 			if (Res.Num() == 0) Res = { FIntPoint(1280, 720), FIntPoint(1600, 900), FIntPoint(1920, 1080) };
 			const FIntPoint Cur = G->GetScreenResolution();
-			AddRow(TEXT("Resolusi"), FString::Printf(TEXT("%d x %d"), Cur.X, Cur.Y), [G, Res, Cur]()
+			AddRow(JRT(TEXT("Resolusi")), FString::Printf(TEXT("%d x %d"), Cur.X, Cur.Y), [G, Res, Cur]()
 			{
 				int32 Next = 0;
 				for (int32 i = 0; i < Res.Num(); ++i) if (Res[i] == Cur) { Next = (i + 1) % Res.Num(); break; }
@@ -288,9 +321,9 @@ void UJRMenuWidget::ShowSettings()
 				ApplyGfx();
 			});
 
-			static const TCHAR* Levels[] = { TEXT("Rendah"), TEXT("Sedang"), TEXT("Tinggi"), TEXT("Ultra") };
+			static const TCHAR* Levels[] = { JRT(TEXT("Rendah")), JRT(TEXT("Sedang")), JRT(TEXT("Tinggi")), JRT(TEXT("Ultra")) };
 			const int32 Q = G->GetOverallScalabilityLevel();
-			AddRow(TEXT("Kualitas grafis"), Q >= 0 && Q <= 3 ? Levels[Q] : TEXT("Kustom"), [G, Q]()
+			AddRow(JRT(TEXT("Kualitas grafis")), Q >= 0 && Q <= 3 ? Levels[Q] : JRT(TEXT("Kustom")), [G, Q]()
 			{
 				G->SetOverallScalabilityLevel(Q < 0 || Q >= 3 ? 0 : Q + 1);
 				ApplyGfx();
@@ -298,7 +331,7 @@ void UJRMenuWidget::ShowSettings()
 			AddRow(TEXT("VSync"), OnOff(G->IsVSyncEnabled()), [G]() { G->SetVSyncEnabled(!G->IsVSyncEnabled()); ApplyGfx(); });
 
 			const float Fps = G->GetFrameRateLimit();
-			AddRow(TEXT("Batas FPS"), Fps <= 0.f ? FString(TEXT("Tanpa batas")) : FString::Printf(TEXT("%d"), FMath::RoundToInt(Fps)), [G, Fps]()
+			AddRow(JRT(TEXT("Batas FPS")), Fps <= 0.f ? FString(JRT(TEXT("Tanpa batas"))) : FString::Printf(TEXT("%d"), FMath::RoundToInt(Fps)), [G, Fps]()
 			{
 				G->SetFrameRateLimit(Fps <= 0.f ? 30.f : Fps < 45.f ? 60.f : Fps < 90.f ? 120.f : 0.f);
 				ApplyGfx();
@@ -306,13 +339,13 @@ void UJRMenuWidget::ShowSettings()
 		}
 	}
 
-	AddSection(TEXT("SUARA"));
-	AddRow(TEXT("Efek suara"), OnOff(S->bSfx), [S]() { S->bSfx = !S->bSfx; JRSettings::Save(); JRSound::ApplySettings(); });
-	AddRow(TEXT("Suara karakter"), OnOff(S->bVoice), [S]() { S->bVoice = !S->bVoice; JRSettings::Save(); });
-	AddRow(TEXT("Musik radio"), OnOff(S->bMusic), [S]() { S->bMusic = !S->bMusic; JRSettings::Save(); });
+	AddSection(JRT(TEXT("SUARA")));
+	AddRow(JRT(TEXT("Efek suara")), OnOff(S->bSfx), [S]() { S->bSfx = !S->bSfx; JRSettings::Save(); JRSound::ApplySettings(); });
+	AddRow(JRT(TEXT("Suara karakter")), OnOff(S->bVoice), [S]() { S->bVoice = !S->bVoice; JRSettings::Save(); });
+	AddRow(JRT(TEXT("Musik radio")), OnOff(S->bMusic), [S]() { S->bMusic = !S->bMusic; JRSettings::Save(); });
 
-	AddSection(TEXT("KONTROL"));
-	AddRow(bMobile ? TEXT("Kepekaan joystick lihat") : TEXT("Kepekaan mouse"), FString::Printf(TEXT("%.2gx"), S->LookSpeed), [S]()
+	AddSection(JRT(TEXT("KONTROL")));
+	AddRow(bMobile ? JRT(TEXT("Kepekaan joystick lihat")) : JRT(TEXT("Kepekaan mouse")), FString::Printf(TEXT("%.2gx"), S->LookSpeed), [S]()
 	{
 		static const float Steps[] = { 0.5f, 0.75f, 1.f, 1.25f, 1.5f, 2.f };
 		int32 Next = 0;
@@ -320,11 +353,20 @@ void UJRMenuWidget::ShowSettings()
 		S->LookSpeed = Steps[Next];
 		JRSettings::Save();
 	});
-	AddRow(TEXT("Arah lihat atas/bawah"), S->bInvertLook ? TEXT("Dibalik") : TEXT("Normal"), [S]() { S->bInvertLook = !S->bInvertLook; JRSettings::Save(); });
+	AddRow(JRT(TEXT("Arah lihat atas/bawah")), S->bInvertLook ? JRT(TEXT("Dibalik")) : JRT(TEXT("Normal")), [S]() { S->bInvertLook = !S->bInvertLook; JRSettings::Save(); });
+
+	// Sengaja dua bahasa agar mudah ditemukan apa pun bahasa yang aktif.
+	AddSection(JRT(TEXT("BAHASA / LANGUAGE")));
+	{
+		static const TCHAR* Names[] = { JRT(TEXT("Otomatis / Auto")), JRT(TEXT("Indonesia")), JRT(TEXT("English")) };
+		AddRow(JRT(TEXT("Bahasa / Language")), Names[FMath::Clamp(S->Language, 0, 2)], [S]() { S->Language = (S->Language + 1) % 3; JRSettings::Save(); });
+		UTextBlock* Note = MakeText(JRT(TEXT("Berlaku setelah game dimulai ulang / Applies after restarting the game")), 12, Muted);
+		Content->AddChildToVerticalBox(Note)->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
+	}
 
 	UJRPhoneButton* B = WidgetTree->ConstructWidget<UJRPhoneButton>(UJRPhoneButton::StaticClass());
 	B->SetBackgroundColor(Crt);
-	UTextBlock* T = MakeText(TEXT("Kembali"), 17, CrtInk, true);
+	UTextBlock* T = MakeText(JRT(TEXT("Kembali")), 17, CrtInk, true);
 	T->SetJustification(ETextJustify::Center);
 	if (UButtonSlot* BS = Cast<UButtonSlot>(B->SetContent(T))) BS->SetPadding(FMargin(16.f, 11.f));
 	B->Bind([this]() { Back(); });
@@ -350,6 +392,6 @@ bool UJRMenuWidget::Back()
 		Close();
 		return true;
 	default:
-		return false;	// menu utama tidak bisa ditutup dengan Esc
+		return false;	// menu utama dan akhir demo tidak bisa ditutup dengan Esc
 	}
 }

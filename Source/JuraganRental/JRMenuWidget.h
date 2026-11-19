@@ -18,7 +18,8 @@ enum class EJRMenuPage : uint8
 	Main,
 	Pause,
 	Settings,
-	Confirm
+	Confirm,
+	DemoEnd
 };
 
 UCLASS()
@@ -31,6 +32,7 @@ public:
 	void ShowPause();
 	void ShowSettings();
 	void ShowConfirm(const FString& Title, const FString& Body, const FString& Yes, TFunction<void()> OnYes);
+	void ShowDemoEnd();
 	void Close();
 	/** Esc saat menu terbuka: kembali satu langkah. Mengembalikan true jika menu jadi tertutup. */
 	bool Back();

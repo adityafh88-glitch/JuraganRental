@@ -1,4 +1,5 @@
 #include "JRTouchWidget.h"
+#include "JRLang.h"
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/Button.h"
@@ -70,7 +71,7 @@ void UJRTouchWidget::BuildTree()
 	};
 
 	// Di atas joystick kanan (joystick bawaan berada di pojok kanan bawah).
-	ActionButton = MakeRound(TEXT("AKSI"), 130.f, FLinearColor(1.f, 0.76f, 0.29f, 0.92f), FLinearColor(0.1f, 0.07f, 0.f));
+	ActionButton = MakeRound(JRT(TEXT("AKSI")), 130.f, FLinearColor(1.f, 0.76f, 0.29f, 0.92f), FLinearColor(0.1f, 0.07f, 0.f));
 	ActionLabel = Cast<UTextBlock>(ActionButton->GetContent());
 	if (ActionLabel) ActionLabel->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 17));
 	ActionButton->OnPressed.AddDynamic(this, &UJRTouchWidget::OnInteractPressed);
@@ -91,7 +92,7 @@ void UJRTouchWidget::BuildTree()
 		S->SetSize(FVector2D(64.f, 64.f));
 	}
 
-	NextButton = MakeRound(TEXT("Lanjut"), 120.f, FLinearColor(0.36f, 0.79f, 0.54f, 0.95f), FLinearColor(0.02f, 0.1f, 0.05f));
+	NextButton = MakeRound(JRT(TEXT("Lanjut")), 120.f, FLinearColor(0.36f, 0.79f, 0.54f, 0.95f), FLinearColor(0.02f, 0.1f, 0.05f));
 	NextButton->OnClicked.AddDynamic(this, &UJRTouchWidget::OnNext);
 	Place(NextButton, FVector2D(60.f, 180.f), 120.f);
 }
@@ -109,7 +110,7 @@ void UJRTouchWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	if (NextButton && NextButton->GetVisibility() != Want) NextButton->SetVisibility(Want);
 
 	// Label tombol aksi = kata kerja dari petunjuk ("Nyalakan PS 1" -> NYALAKAN, "Tahan E: restart" -> TAHAN / RESTART).
-	FString Label = TEXT("AKSI");
+	FString Label = JRT(TEXT("AKSI"));
 	bool bActive = false;
 	if (const AJRCharacter* C = Cast<AJRCharacter>(GetOwningPlayerPawn()))
 	{
@@ -119,11 +120,11 @@ void UJRTouchWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 			bActive = true;
 			FString Prompt = I.Prompt;
 			FString Left, Right;
-			if (Prompt.Split(TEXT(":"), &Left, &Right) && Left.StartsWith(TEXT("Tahan")))
+			if (Prompt.Split(TEXT(":"), &Left, &Right) && Left.StartsWith(JRT(TEXT("Tahan"))))
 			{
 				Right.TrimStartInline();
 				Right.Split(TEXT(" "), &Right, nullptr);
-				Label = TEXT("TAHAN\n") + Right.ToUpper();
+				Label = FString(JRT(TEXT("TAHAN"))) + TEXT("\n") + Right.ToUpper();
 			}
 			else
 			{

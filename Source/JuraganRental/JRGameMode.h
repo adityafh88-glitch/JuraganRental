@@ -170,6 +170,24 @@ public:
 	bool BuyItem(FName Id);
 	void AdjustPrice(EJRUnitType Type, int32 Delta);
 
+	/* ---------- Mode demo (Config/DefaultGame.ini [JuraganRental] bDemo) ---------- */
+	bool bDemo = false;
+	FString DemoStoreURL;
+	static constexpr int32 DemoLastDay = 7;
+	bool bDemoOver = false;
+	TArray<FString> DemoSummary;
+	void CheckDemoOver();
+
+	/* ---------- Tutorial hari pertama (Main baru) ---------- */
+	enum ETut : int32 { TutOff = -1, TutStart = 0, TutPay, TutMie, TutPhone, TutRepair, TutDone };
+	int32 TutStep = TutOff;
+	static constexpr int32 TutCount = 5;
+	bool IsTutorial() const { return TutStep >= 0 && TutStep < TutDone; }
+	/** Judul dan petunjuk langkah tutorial yang sedang aktif. */
+	void TutorialText(bool bTouch, FString& OutTitle, FString& OutBody) const;
+	void TutorialAdvance(int32 FromStep);
+	void SkipTutorial();
+
 	/* ---------- Karyawan (Era 2) ---------- */
 	bool Staff[(int32)EJRStaff::Count] = { false, false, false };
 	static int32 StaffWage(EJRStaff S);
@@ -292,6 +310,11 @@ private:
 	void SaveProgress();
 	void TickMystery(float DeltaSeconds);
 	void TickStaff(float DeltaSeconds);
+	void TickTutorial(float DeltaSeconds);
+	bool TutorialTarget(FVector& Out) const;
+
+	UPROPERTY()
+	TObjectPtr<class AJRTutorialArrow> TutArrow;
 	void FightEvent(AJRCustomer* A, AJRCustomer* B);
 	void TickGuests();
 	void GuestEvent(int32 Which);

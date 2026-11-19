@@ -1,4 +1,5 @@
 #include "JRDelivery.h"
+#include "JRLang.h"
 
 #include "Camera/PlayerCameraManager.h"
 #include "Components/StaticMeshComponent.h"
@@ -68,12 +69,12 @@ FJRInteraction AJRDeliveryBox::GetInteraction() const
 	if (GM->IsCarrying())
 	{
 		Out.Kind = EJRInteractKind::Info;
-		Out.Prompt = TEXT("Tangan penuh. Selesaikan dulu yang sedang dibawa");
+		Out.Prompt = JRT(TEXT("Tangan penuh. Selesaikan dulu yang sedang dibawa"));
 	}
 	else
 	{
 		Out.Kind = EJRInteractKind::Press;
-		Out.Prompt = FString::Printf(TEXT("Angkat kardus: %s"), *ItemName);
+		Out.Prompt = JRPrintf(JRT(TEXT("Angkat kardus: %s")), *ItemName);
 	}
 	return Out;
 }
@@ -96,7 +97,7 @@ AJRSlotMarker::AJRSlotMarker()
 	Label->SetRelativeLocation(FVector(60, 0, 120));
 	Label->SetWorldSize(24.f);
 	Label->SetTextRenderColor(FColor(92, 230, 140));
-	Label->SetText(FText::FromString(TEXT("PASANG DI SINI")));
+	Label->SetText(FText::FromString(JRT(TEXT("PASANG DI SINI"))));
 }
 
 void AJRSlotMarker::BeginPlay()
@@ -138,7 +139,7 @@ FJRInteraction AJRSlotMarker::GetInteraction() const
 	if (bShown)
 	{
 		Out.Kind = EJRInteractKind::Press;
-		Out.Prompt = TEXT("Pasang unit di sini");
+		Out.Prompt = JRT(TEXT("Pasang unit di sini"));
 	}
 	return Out;
 }

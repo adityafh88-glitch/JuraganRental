@@ -1,4 +1,5 @@
 #include "JRHUD.h"
+#include "JRLang.h"
 
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
@@ -109,7 +110,7 @@ void AJRHUD::OnMenuChanged()
 {
 	const AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
 	// Menu jeda menghentikan waktu; menu utama tidak (dunia jadi latar yang hidup).
-	const bool bPause = Menu && Menu->IsOpen() && GM && GM->Phase != EJRGamePhase::Menu;
+	const bool bPause = Menu && Menu->IsOpen() && GM && GM->Phase != EJRGamePhase::Menu && Menu->GetPage() != EJRMenuPage::DemoEnd;
 	if (UGameplayStatics::IsGamePaused(this) != bPause) UGameplayStatics::SetGamePaused(this, bPause);
 	if (Menu && Menu->IsOpen() && bPhoneOpen) SetPhoneOpen(false);
 	ApplyInputMode();
@@ -173,6 +174,7 @@ void AJRHUD::SetPhoneOpen(bool bOpen)
 	bPhoneOpen = bOpen;
 	Phone->SetVisibility(bOpen ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	if (bOpen) Phone->Refresh(true);
+	if (bOpen) if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>()) G->TutorialAdvance(AJRGameMode::TutPhone);
 	JRSound::Play2D(this, bOpen ? TEXT("SFX_HP_Buka") : TEXT("SFX_HP_Tombol"), 0.6f);
 	ApplyInputMode();
 }
@@ -190,6 +192,12 @@ void AJRHUD::DrawHUD()
 		return;
 	}
 
+	if (GM->bDemoOver && Menu && Menu->GetPage() != EJRMenuPage::DemoEnd)
+	{
+		if (bPhoneOpen) SetPhoneOpen(false);
+		Menu->ShowDemoEnd();
+	}
+
 	SyncChoice();
 	UFont* Font = GEngine->GetMediumFont();
 	const float W = Canvas->ClipX, H = Canvas->ClipY;
@@ -197,25 +205,25 @@ void AJRHUD::DrawHUD()
 	// Status atas
 	const int32 Hr = FMath::FloorToInt(GM->Hour);
 	const int32 Mn = FMath::FloorToInt((GM->Hour - Hr) * 60.f);
-	const FString Power = GM->bMcbTripped ? FString(TEXT("MCB TURUN")) : FString::Printf(TEXT("%d/%d VA"), GM->PowerVA, GM->CapVA);
-	const FString Top = FString::Printf(TEXT("%s  Hari %d   %02d:%02d   Kas %s   Reputasi %d   Daya %s"),
+	const FString Power = GM->bMcbTripped ? FString(JRT(TEXT("MCB TURUN"))) : JRPrintf(JRT(TEXT("%d/%d VA")), GM->PowerVA, GM->CapVA);
+	const FString Top = JRPrintf(JRT(TEXT("%s  Hari %d   %02d:%02d   Kas %s   Reputasi %d   Daya %s")),
 		*GM->Layout().Name, GM->Day, Hr, Mn, *JRFormatRp(GM->Money), FMath::RoundToInt(GM->Rep), *Power);
 	DrawRect(Panel, 0.f, 0.f, W, 40.f);
 	DrawText(Top, Led, 16.f, 9.f, Font, 1.25f);
 
 	if (GM->Phase == EJRGamePhase::Intro)
 	{
-		DrawPanel(TEXT("Juragan Rental"), {
-			TEXT("Kamu baru membuka rental PS di garasi rumah: dua TV tabung, satu PC warnet,"),
-			TEXT("dan MCB 1.300 VA yang gampang turun."),
+		DrawPanel(JRT(TEXT("Juragan Rental")), {
+			JRT(TEXT("Kamu baru membuka rental PS di garasi rumah: dua TV tabung, satu PC warnet,")),
+			JRT(TEXT("dan MCB 1.300 VA yang gampang turun.")),
 			TEXT(""),
-			bTouchMode ? TEXT("Joystick kiri: jalan    Joystick kanan: lihat    Tombol aksi: interaksi    HP: belanja, tarif    II: jeda")
-				: TEXT("WASD: jalan    Mouse: lihat    E: interaksi (tahan untuk memperbaiki)    Tab: HP    Esc: menu jeda"),
+			bTouchMode ? JRT(TEXT("Joystick kiri: jalan    Joystick kanan: lihat    Tombol aksi: interaksi    HP: belanja, tarif    II: jeda"))
+				: JRT(TEXT("WASD: jalan    Mouse: lihat    E: interaksi (tahan untuk memperbaiki)    Tab: HP    Esc: menu jeda")),
 			TEXT(""),
-			TEXT("Lihat ke TV yang ditunggu pelanggan lalu tekan E untuk menyalakan."),
-			TEXT("Pelanggan selesai main akan antre di kasir dekat pintu. Jangan biarkan kasir kosong."),
-			TEXT("Target: Rp 600.000 dan reputasi 40 untuk membuka Gerbang 1."),
-		}, bTouchMode ? TEXT("Ketuk LANJUT untuk buka toko") : TEXT("Tekan ENTER untuk buka toko"));
+			JRT(TEXT("Lihat ke TV yang ditunggu pelanggan lalu tekan E untuk menyalakan.")),
+			JRT(TEXT("Pelanggan selesai main akan antre di kasir dekat pintu. Jangan biarkan kasir kosong.")),
+			JRT(TEXT("Target: Rp 600.000 dan reputasi 40 untuk membuka Gerbang 1.")),
+		}, bTouchMode ? JRT(TEXT("Ketuk LANJUT untuk buka toko")) : JRT(TEXT("Tekan ENTER untuk buka toko")));
 		return;
 	}
 	if (GM->Phase == EJRGamePhase::Report)
@@ -224,9 +232,9 @@ void AJRHUD::DrawHUD()
 		{
 			TArray<FString> Lines = GM->ReportLines;
 			Lines.Add(TEXT(""));
-			Lines.Add(bTouchMode ? TEXT("Ketuk tombol HP untuk belanja barang dan atur tarif.") : TEXT("Tekan TAB untuk buka HP: belanja barang dan atur tarif."));
-			DrawPanel(FString::Printf(TEXT("Hari %d selesai"), GM->Day), Lines,
-				bTouchMode ? FString::Printf(TEXT("Ketuk LANJUT untuk buka toko hari %d"), GM->Day + 1) : FString::Printf(TEXT("Tekan ENTER untuk buka toko hari %d"), GM->Day + 1));
+			Lines.Add(bTouchMode ? JRT(TEXT("Ketuk tombol HP untuk belanja barang dan atur tarif.")) : JRT(TEXT("Tekan TAB untuk buka HP: belanja barang dan atur tarif.")));
+			DrawPanel(JRPrintf(JRT(TEXT("Hari %d selesai")), GM->Day), Lines,
+				bTouchMode ? JRPrintf(JRT(TEXT("Ketuk LANJUT untuk buka toko hari %d")), GM->Day + 1) : JRPrintf(JRT(TEXT("Tekan ENTER untuk buka toko hari %d")), GM->Day + 1));
 		}
 		return;
 	}
@@ -239,7 +247,33 @@ void AJRHUD::DrawHUD()
 	if (!bTouchMode)
 	{
 		DrawRect(Panel, 12.f, H - 44.f, 150.f, 32.f);
-		DrawText(bPhoneOpen ? TEXT("[Tab] Tutup HP") : TEXT("[Tab] Buka HP"), Led, 24.f, H - 38.f, Font, 1.1f);
+		DrawText(bPhoneOpen ? JRT(TEXT("[Tab] Tutup HP")) : JRT(TEXT("[Tab] Buka HP")), Led, 24.f, H - 38.f, Font, 1.1f);
+	}
+
+	// Panel tutorial di kiri atas
+	if (GM->IsTutorial() && GM->Phase == EJRGamePhase::Playing && !bPhoneOpen)
+	{
+		FString Title, Body;
+		GM->TutorialText(bTouchMode, Title, Body);
+		const float PX = bTouchMode ? 100.f : 16.f, PY = 52.f, PW = FMath::Min(520.f, W * 0.42f);
+		// Bungkus teks sederhana per kata agar muat di panel
+		TArray<FString> Words, Lines;
+		Body.ParseIntoArray(Words, TEXT(" "));
+		FString Cur;
+		for (const FString& Wd : Words)
+		{
+			const FString Try = Cur.IsEmpty() ? Wd : Cur + TEXT(" ") + Wd;
+			float TW = 0.f, TH = 0.f;
+			GetTextSize(Try, TW, TH, Font, 1.1f);
+			if (TW > PW - 28.f && !Cur.IsEmpty()) { Lines.Add(Cur); Cur = Wd; } else Cur = Try;
+		}
+		if (!Cur.IsEmpty()) Lines.Add(Cur);
+		const float LineH = 24.f;
+		DrawRect(Panel, PX, PY, PW, 46.f + LineH * Lines.Num() + 26.f);
+		DrawRect(FLinearColor(0.2f, 1.f, 0.35f), PX, PY, 5.f, 46.f + LineH * Lines.Num() + 26.f);
+		DrawText(Title, FLinearColor(0.2f, 1.f, 0.35f), PX + 16.f, PY + 10.f, Font, 1.15f);
+		for (int32 i = 0; i < Lines.Num(); ++i) DrawText(Lines[i], Ink, PX + 16.f, PY + 40.f + i * LineH, Font, 1.1f);
+		DrawText(JRT(TEXT("Lewati tutorial: menu jeda (Esc)")), Muted, PX + 16.f, PY + 44.f + LineH * Lines.Num(), Font, 0.9f);
 	}
 
 	// Petunjuk interaksi
@@ -249,7 +283,7 @@ void AJRHUD::DrawHUD()
 		if (I.Kind != EJRInteractKind::None)
 		{
 			FString Text = I.Prompt;
-			if (bTouchMode) Text.ReplaceInline(TEXT("Tahan E:"), TEXT("Tahan tombol:"));
+			if (bTouchMode) Text.ReplaceInline(JRT(TEXT("Tahan E:")), JRT(TEXT("Tahan tombol:")));
 			else if (I.Kind == EJRInteractKind::Press) Text = TEXT("[E] ") + Text;
 			float TW = 0.f, TH = 0.f;
 			GetTextSize(Text, TW, TH, Font, 1.3f);
@@ -294,7 +328,7 @@ void AJRHUD::DrawPanel(const FString& Title, const TArray<FString>& Lines, const
 	DrawText(Title, Ink, X + 24.f, Y + 18.f, Big, 1.f);
 	for (int32 i = 0; i < Lines.Num(); ++i)
 	{
-		const bool bHeader = Lines[i].StartsWith(TEXT("Tekan TAB")) || Lines[i].StartsWith(TEXT("Ketuk tombol HP"));
+		const bool bHeader = Lines[i].StartsWith(JRT(TEXT("Tekan TAB"))) || Lines[i].StartsWith(JRT(TEXT("Ketuk tombol HP")));
 		DrawText(Lines[i], bHeader ? Led : Ink, X + 24.f, Y + 60.f + i * LineH, Font, 1.15f);
 	}
 	DrawText(Footer, Crt, X + 24.f, Y + PH - 36.f, Font, 1.2f);

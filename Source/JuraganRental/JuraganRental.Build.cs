@@ -7,6 +7,9 @@ public class JuraganRental : ModuleRules
 	public JuraganRental(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+		// Tiap file dikompilasi sendiri: warna/fungsi lokal bernama sama di beberapa file tidak bentrok
+		// (pengelompokan unity build berbeda antara Development dan Shipping).
+		bUseUnity = false;
 	
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "UMG", "Slate", "SlateCore" });
 

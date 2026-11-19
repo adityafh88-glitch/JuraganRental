@@ -1,4 +1,5 @@
 #include "JRPhoneWidget.h"
+#include "JRLang.h"
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -157,7 +158,7 @@ void UJRPhoneWidget::BuildTree()
 	Scroll->AddChild(Content);
 
 	// Kaki HP: petunjuk
-	UTextBlock* Foot = MakeText((PLATFORM_ANDROID || PLATFORM_IOS) ? TEXT("Ketuk X untuk tutup HP") : TEXT("Tab atau X: tutup HP"), 12, FLinearColor(0.55f, 0.58f, 0.62f));
+	UTextBlock* Foot = MakeText((PLATFORM_ANDROID || PLATFORM_IOS) ? JRT(TEXT("Ketuk X untuk tutup HP")) : JRT(TEXT("Tab atau X: tutup HP")), 12, FLinearColor(0.55f, 0.58f, 0.62f));
 	Foot->SetJustification(ETextJustify::Center);
 	Col->AddChildToVerticalBox(Foot)->SetPadding(FMargin(0.f, 12.f, 0.f, 0.f));
 }
@@ -179,7 +180,7 @@ void UJRPhoneWidget::BuildTabs()
 {
 	TabRow->ClearChildren();
 	UHorizontalBox* Tabs = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	const TCHAR* Names[] = { TEXT("Toko"), TEXT("Kelola"), TEXT("Hari ini"), TEXT("Atur") };
+	const TCHAR* Names[] = { JRT(TEXT("Toko")), JRT(TEXT("Kelola")), JRT(TEXT("Hari ini")), JRT(TEXT("Atur")) };
 	for (int32 i = 0; i < 4; ++i)
 	{
 		UJRPhoneButton* B = MakeButton(Names[i], [this, i]() { CurrentTab = i; Refresh(true); }, true, CurrentTab == i);
@@ -230,8 +231,8 @@ void UJRPhoneWidget::Refresh(bool bForce)
 
 void UJRPhoneWidget::FillToko(AJRGameMode* GM)
 {
-	AddLine(MakeText(TEXT("TOKO GROSIR"), 15, LcdInk, true), 0.f);
-	AddLine(MakeText(TEXT("Barang diantar kurir besok pagi. Angkat kardusnya di depan pintu."), 11, LcdMuted), 2.f);
+	AddLine(MakeText(JRT(TEXT("TOKO GROSIR")), 15, LcdInk, true), 0.f);
+	AddLine(MakeText(JRT(TEXT("Barang diantar kurir besok pagi. Angkat kardusnya di depan pintu.")), 11, LcdMuted), 2.f);
 	for (const FJRShopItem& It : GM->GetShopItems())
 	{
 		AddLine(MakeText(It.Name, 14, LcdInk, true), 14.f);
@@ -239,8 +240,8 @@ void UJRPhoneWidget::FillToko(AJRGameMode* GM)
 		const bool bCanPay = GM->Money >= It.Cost;
 		FString Label;
 		if (!It.Lock.IsEmpty()) Label = It.Lock;
-		else if (!bCanPay) Label = FString::Printf(TEXT("Kas kurang (%s)"), *JRFormatRp(It.Cost));
-		else Label = FString::Printf(TEXT("Beli %s"), *JRFormatRp(It.Cost));
+		else if (!bCanPay) Label = JRPrintf(JRT(TEXT("Kas kurang (%s)")), *JRFormatRp(It.Cost));
+		else Label = JRPrintf(JRT(TEXT("Beli %s")), *JRFormatRp(It.Cost));
 		const FName Id = It.Id;
 		AddLine(MakeButton(Label, [this, Id]()
 		{
@@ -252,17 +253,17 @@ void UJRPhoneWidget::FillToko(AJRGameMode* GM)
 
 void UJRPhoneWidget::FillTarif(AJRGameMode* GM)
 {
-	AddLine(MakeText(TEXT("TARIF PER JAM"), 15, LcdInk, true), 0.f);
-	AddLine(MakeText(TEXT("Lebih murah: lebih ramai dan pelanggan lebih puas. Lebih mahal: untung per jam naik."), 11, LcdMuted), 2.f);
+	AddLine(MakeText(JRT(TEXT("TARIF PER JAM")), 15, LcdInk, true), 0.f);
+	AddLine(MakeText(JRT(TEXT("Lebih murah: lebih ramai dan pelanggan lebih puas. Lebih mahal: untung per jam naik.")), 11, LcdMuted), 2.f);
 	for (EJRUnitType Type : { EJRUnitType::PS, EJRUnitType::PC })
 	{
-		const FString Name = Type == EJRUnitType::PS ? TEXT("Rental PS") : TEXT("Warnet");
-		AddLine(MakeText(FString::Printf(TEXT("%s: %s/jam"), *Name, *JRFormatRp(GM->PriceFor(Type))), 14, LcdInk, true), 16.f);
-		AddLine(MakeText(FString::Printf(TEXT("Harga wajar %s"), *JRFormatRp(GM->FairFor(Type))), 11, LcdMuted), 2.f);
+		const FString Name = Type == EJRUnitType::PS ? JRT(TEXT("Rental PS")) : JRT(TEXT("Warnet"));
+		AddLine(MakeText(JRPrintf(JRT(TEXT("%s: %s/jam")), *Name, *JRFormatRp(GM->PriceFor(Type))), 14, LcdInk, true), 16.f);
+		AddLine(MakeText(JRPrintf(JRT(TEXT("Harga wajar %s")), *JRFormatRp(GM->FairFor(Type))), 11, LcdMuted), 2.f);
 		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		for (int32 Delta : { -500, 500 })
 		{
-			UJRPhoneButton* B = MakeButton(Delta < 0 ? TEXT("- Rp 500") : TEXT("+ Rp 500"), [this, Type, Delta]()
+			UJRPhoneButton* B = MakeButton(Delta < 0 ? JRT(TEXT("- Rp 500")) : JRT(TEXT("+ Rp 500")), [this, Type, Delta]()
 			{
 				if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>()) G->AdjustPrice(Type, Delta);
 				Refresh(true);
@@ -275,9 +276,9 @@ void UJRPhoneWidget::FillTarif(AJRGameMode* GM)
 	}
 	if (GM->Era == 2)
 	{
-		AddLine(MakeText(TEXT("Paket malam warnet"), 14, LcdInk, true), 18.f);
-		AddLine(MakeText(TEXT("Setelah 21.00 gamer bayar Rp 10.000 flat dan main sampai tutup."), 11, LcdMuted), 2.f);
-		AddLine(MakeButton(GM->bPaketMalam ? TEXT("Matikan paket malam") : TEXT("Aktifkan paket malam"), [this]()
+		AddLine(MakeText(JRT(TEXT("Paket malam warnet")), 14, LcdInk, true), 18.f);
+		AddLine(MakeText(JRT(TEXT("Setelah 21.00 gamer bayar Rp 10.000 flat dan main sampai tutup.")), 11, LcdMuted), 2.f);
+		AddLine(MakeButton(GM->bPaketMalam ? JRT(TEXT("Matikan paket malam")) : JRT(TEXT("Aktifkan paket malam")), [this]()
 		{
 			if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>()) G->TogglePaketMalam();
 			Refresh(true);
@@ -290,18 +291,18 @@ void UJRPhoneWidget::FillTarif(AJRGameMode* GM)
 void UJRPhoneWidget::FillInternet(AJRGameMode* GM)
 {
 	if (GM->Era < 2) return;
-	AddLine(MakeText(TEXT("PROVIDER INTERNET"), 15, LcdInk, true), 22.f);
-	AddLine(MakeText(TEXT("Ganti provider berlaku mulai besok pagi."), 11, LcdMuted), 2.f);
+	AddLine(MakeText(JRT(TEXT("PROVIDER INTERNET")), 15, LcdInk, true), 22.f);
+	AddLine(MakeText(JRT(TEXT("Ganti provider berlaku mulai besok pagi.")), 11, LcdMuted), 2.f);
 	for (int32 Plan = 0; Plan < 3; ++Plan)
 	{
 		const bool bNow = GM->NetPlan == Plan;
 		const bool bNext = GM->PendingNetPlan == Plan;
-		AddLine(MakeText(FString::Printf(TEXT("%s  (%s/hari)%s"), AJRGameMode::NetName(Plan), *JRFormatRp(AJRGameMode::NetCost(Plan)),
-			bNow ? TEXT("  - DIPAKAI") : bNext ? TEXT("  - MULAI BESOK") : TEXT("")), 14, LcdInk, true), 12.f);
+		AddLine(MakeText(JRPrintf(JRT(TEXT("%s  (%s/hari)%s")), AJRGameMode::NetName(Plan), *JRFormatRp(AJRGameMode::NetCost(Plan)),
+			bNow ? JRT(TEXT("  - DIPAKAI")) : bNext ? JRT(TEXT("  - MULAI BESOK")) : TEXT("")), 14, LcdInk, true), 12.f);
 		AddLine(MakeText(AJRGameMode::NetDesc(Plan), 11, LcdMuted), 2.f);
 		if (!bNow && !bNext)
 		{
-			AddLine(MakeButton(TEXT("Pilih"), [this, Plan]()
+			AddLine(MakeButton(JRT(TEXT("Pilih")), [this, Plan]()
 			{
 				if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>()) G->ChooseNetPlan(Plan);
 				Refresh(true);
@@ -335,17 +336,17 @@ void UJRPhoneWidget::FillAtur()
 		}), 6.f);
 	};
 
-	Toggle(TEXT("Efek suara"), TEXT("Bunyi unit, kasir, kompor, motor lewat."),
-		S->bSfx ? TEXT("NYALA (ketuk untuk matikan)") : TEXT("MATI (ketuk untuk nyalakan)"),
+	Toggle(JRT(TEXT("Efek suara")), JRT(TEXT("Bunyi unit, kasir, kompor, motor lewat.")),
+		S->bSfx ? JRT(TEXT("NYALA (ketuk untuk matikan)")) : JRT(TEXT("MATI (ketuk untuk nyalakan)")),
 		[S]() { S->bSfx = !S->bSfx; JRSound::ApplySettings(); });
-	Toggle(TEXT("Suara karakter"), TEXT("Celetukan pelanggan, Emak, dan Pak RT."),
-		S->bVoice ? TEXT("NYALA (ketuk untuk matikan)") : TEXT("MATI (ketuk untuk nyalakan)"),
+	Toggle(JRT(TEXT("Suara karakter")), JRT(TEXT("Celetukan pelanggan, Emak, dan Pak RT.")),
+		S->bVoice ? JRT(TEXT("NYALA (ketuk untuk matikan)")) : JRT(TEXT("MATI (ketuk untuk nyalakan)")),
 		[S]() { S->bVoice = !S->bVoice; });
-	Toggle(TEXT("Musik radio"), TEXT("Lagu dari radio di meja kasir. Tekan radionya untuk ganti lagu."),
-		S->bMusic ? TEXT("NYALA (ketuk untuk matikan)") : TEXT("MATI (ketuk untuk nyalakan)"),
+	Toggle(JRT(TEXT("Musik radio")), JRT(TEXT("Lagu dari radio di meja kasir. Tekan radionya untuk ganti lagu.")),
+		S->bMusic ? JRT(TEXT("NYALA (ketuk untuk matikan)")) : JRT(TEXT("MATI (ketuk untuk nyalakan)")),
 		[S]() { S->bMusic = !S->bMusic; });
-	Toggle(TEXT("Joystick layar"), TEXT("Tetap: joystick diam di pojok dan selalu terlihat. Ikut jari: muncul di tempat jari menyentuh."),
-		S->bJoystickFixed ? TEXT("TETAP (ketuk untuk ikut jari)") : TEXT("IKUT JARI (ketuk untuk tetap)"),
+	Toggle(JRT(TEXT("Joystick layar")), JRT(TEXT("Tetap: joystick diam di pojok dan selalu terlihat. Ikut jari: muncul di tempat jari menyentuh.")),
+		S->bJoystickFixed ? JRT(TEXT("TETAP (ketuk untuk ikut jari)")) : JRT(TEXT("IKUT JARI (ketuk untuk tetap)")),
 		[this, S]()
 		{
 			S->bJoystickFixed = !S->bJoystickFixed;
@@ -354,8 +355,8 @@ void UJRPhoneWidget::FillAtur()
 				if (AJRHUD* Hud = Cast<AJRHUD>(PC->GetHUD())) Hud->ApplyTouchSettings();
 			}
 		});
-	Toggle(TEXT("Arah lihat atas/bawah"), TEXT("Dibalik: geser ke atas untuk melihat ke bawah."),
-		S->bInvertLook ? TEXT("DIBALIK (ketuk untuk normal)") : TEXT("NORMAL (ketuk untuk dibalik)"),
+	Toggle(JRT(TEXT("Arah lihat atas/bawah")), JRT(TEXT("Dibalik: geser ke atas untuk melihat ke bawah.")),
+		S->bInvertLook ? JRT(TEXT("DIBALIK (ketuk untuk normal)")) : JRT(TEXT("NORMAL (ketuk untuk dibalik)")),
 		[S]() { S->bInvertLook = !S->bInvertLook; });
 
 }
@@ -365,17 +366,17 @@ void UJRPhoneWidget::FillStaff(AJRGameMode* GM)
 	AddLine(MakeText(TEXT("KARYAWAN"), 15, LcdInk, true), 22.f);
 	if (GM->Era < 2)
 	{
-		AddLine(MakeText(TEXT("Karyawan bisa direkrut setelah pindah ke ruko."), 11, LcdMuted), 2.f);
+		AddLine(MakeText(JRT(TEXT("Karyawan bisa direkrut setelah pindah ke ruko.")), 11, LcdMuted), 2.f);
 		return;
 	}
-	AddLine(MakeText(TEXT("Gaji dipotong setiap toko tutup."), 11, LcdMuted), 2.f);
+	AddLine(MakeText(JRT(TEXT("Gaji dipotong setiap toko tutup.")), 11, LcdMuted), 2.f);
 	for (int32 i = 0; i < (int32)EJRStaff::Count; ++i)
 	{
 		const EJRStaff S = (EJRStaff)i;
 		const bool bHired = GM->HasStaff(S);
-		AddLine(MakeText(FString::Printf(TEXT("%s  (%s/hari)%s"), AJRGameMode::StaffName(S), *JRFormatRp(AJRGameMode::StaffWage(S)), bHired ? TEXT("  - BEKERJA") : TEXT("")), 14, LcdInk, true), 12.f);
+		AddLine(MakeText(JRPrintf(JRT(TEXT("%s  (%s/hari)%s")), AJRGameMode::StaffName(S), *JRFormatRp(AJRGameMode::StaffWage(S)), bHired ? JRT(TEXT("  - BEKERJA")) : TEXT("")), 14, LcdInk, true), 12.f);
 		AddLine(MakeText(AJRGameMode::StaffDesc(S), 11, LcdMuted), 2.f);
-		AddLine(MakeButton(bHired ? TEXT("Berhentikan") : TEXT("Rekrut"), [this, S]()
+		AddLine(MakeButton(bHired ? JRT(TEXT("Berhentikan")) : JRT(TEXT("Rekrut")), [this, S]()
 		{
 			if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>()) G->ToggleStaff(S);
 			Refresh(true);
@@ -387,16 +388,16 @@ void UJRPhoneWidget::FillHariIni(AJRGameMode* GM)
 {
 	const FJRDayStats& S = GM->GetStats();
 	const FString Lines[] = {
-		FString::Printf(TEXT("HARI %d"), GM->Day),
-		FString::Printf(TEXT("Pelanggan datang: %d"), S.Customers),
-		FString::Printf(TEXT("Pemasukan: %s"), *JRFormatRp(S.Income)),
-		FString::Printf(TEXT("Belanja bahan kantin: %s"), *JRFormatRp(S.Stock)),
-		FString::Printf(TEXT("Listrik sejauh ini: %s"), *JRFormatRp(S.Elec)),
-		FString::Printf(TEXT("Kabur tanpa bayar: %s"), *JRFormatRp(S.Kabur)),
-		FString::Printf(TEXT("Piutang di buku utang: %s"), *JRFormatRp(GM->TotalDebt())),
-		FString::Printf(TEXT("Reputasi: %d"), FMath::RoundToInt(GM->Rep)),
-		FString::Printf(TEXT("Daya: %d / %d VA"), GM->PowerVA, GM->CapVA),
-		GM->Era == 1 ? TEXT("Target Gerbang 1: Rp 600.000 dan reputasi 40.") : TEXT("Target Gerbang 2: Rp 3 juta, reputasi 60, 10 unit."),
+		JRPrintf(JRT(TEXT("HARI %d")), GM->Day),
+		JRPrintf(JRT(TEXT("Pelanggan datang: %d")), S.Customers),
+		JRPrintf(JRT(TEXT("Pemasukan: %s")), *JRFormatRp(S.Income)),
+		JRPrintf(JRT(TEXT("Belanja bahan kantin: %s")), *JRFormatRp(S.Stock)),
+		JRPrintf(JRT(TEXT("Listrik sejauh ini: %s")), *JRFormatRp(S.Elec)),
+		JRPrintf(JRT(TEXT("Kabur tanpa bayar: %s")), *JRFormatRp(S.Kabur)),
+		JRPrintf(JRT(TEXT("Piutang di buku utang: %s")), *JRFormatRp(GM->TotalDebt())),
+		JRPrintf(JRT(TEXT("Reputasi: %d")), FMath::RoundToInt(GM->Rep)),
+		JRPrintf(JRT(TEXT("Daya: %d / %d VA")), GM->PowerVA, GM->CapVA),
+		GM->Era == 1 ? JRT(TEXT("Target Gerbang 1: Rp 600.000 dan reputasi 40.")) : JRT(TEXT("Target Gerbang 2: Rp 3 juta, reputasi 60, 10 unit.")),
 	};
 	const int32 N = UE_ARRAY_COUNT(Lines);
 	if (InfoLines.Num() != N)

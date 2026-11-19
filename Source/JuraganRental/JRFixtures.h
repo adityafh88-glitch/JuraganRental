@@ -61,6 +61,29 @@ private:
 	TObjectPtr<USceneComponent> Root;
 };
 
+/** Panah hijau melayang di atas sasaran tutorial. */
+UCLASS()
+class JURAGANRENTAL_API AJRTutorialArrow : public AActor
+{
+	GENERATED_BODY()
+
+public:
+	AJRTutorialArrow();
+	virtual void Tick(float DeltaSeconds) override;
+	/** Tampilkan di atas Target (cm, titik lantai/benda); bShow=false menyembunyikan. */
+	void Point(bool bShow, const FVector& Target);
+
+private:
+	UPROPERTY()
+	TObjectPtr<USceneComponent> Root;
+
+	UPROPERTY()
+	TObjectPtr<UStaticMeshComponent> Cone;
+
+	FVector Base = FVector::ZeroVector;
+	float Time = 0.f;
+};
+
 /** Dekorasi yang dibeli lewat HP: poster, kipas, tanaman, neon RGB, AC. */
 UCLASS()
 class JURAGANRENTAL_API AJRDecor : public AActor
@@ -73,7 +96,10 @@ public:
 	void Setup(FName Id, float HalfX, float HalfY, float DoorY);
 
 private:
-	UStaticMeshComponent* Shape(UStaticMesh* Mesh, const FVector& Loc, const FVector& Scale, const FLinearColor& Color, float Glow = 0.f);
+	UStaticMeshComponent* Shape(UStaticMesh* Mesh, const FVector& Loc, const FVector& Scale, const FLinearColor& Color, float Glow = 0.f, const FRotator& Rot = FRotator::ZeroRotator);
+	void BuildStreet(float HX, float HY, float DoorY, bool bRuko);
+	void House(const FVector& FrontCenter, float Width, float Height, const FLinearColor& Wall, int32 Seed, const TCHAR* Sign = nullptr);
+	void Motor(const FVector& Loc, const FLinearColor& Body);
 
 	UPROPERTY()
 	TObjectPtr<USceneComponent> Root;
@@ -86,6 +112,12 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UStaticMesh> Cone;
+
+	UPROPERTY()
+	TObjectPtr<UStaticMesh> Sphere;
+
+	UPROPERTY()
+	TObjectPtr<class UMaterialInterface> TextMat;
 };
 
 /** Kotak MCB di dinding. Turun saat daya melebihi kapasitas. */

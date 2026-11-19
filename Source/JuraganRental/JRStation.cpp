@@ -1,4 +1,5 @@
 #include "JRStation.h"
+#include "JRLang.h"
 
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -154,36 +155,36 @@ FJRInteraction AJRStation::GetInteraction() const
 	{
 		Out.Kind = EJRInteractKind::Hold;
 		Out.HoldTime = FixSeconds * 2.5f;
-		Out.Prompt = FString::Printf(TEXT("Tahan E: install ulang %s (virus)"), *DisplayName);
+		Out.Prompt = JRPrintf(JRT(TEXT("Tahan E: install ulang %s (virus)")), *DisplayName);
 	}
 	else if (bBroken)
 	{
 		Out.Kind = EJRInteractKind::Hold;
 		Out.HoldTime = FixSeconds;
 		Out.Prompt = Type == EJRUnitType::PS
-			? FString::Printf(TEXT("Tahan E: perbaiki stik %s"), *DisplayName)
-			: FString::Printf(TEXT("Tahan E: restart %s"), *DisplayName);
+			? JRPrintf(JRT(TEXT("Tahan E: perbaiki stik %s")), *DisplayName)
+			: JRPrintf(JRT(TEXT("Tahan E: restart %s")), *DisplayName);
 	}
 	else if (Customer && Customer->State == EJRCustomerState::Playing && GM->bMcbTripped)
 	{
 		Out.Kind = EJRInteractKind::Info;
-		Out.Prompt = TEXT("Listrik mati. Naikkan MCB di dinding kiri");
+		Out.Prompt = JRT(TEXT("Listrik mati. Naikkan MCB di dinding kiri"));
 	}
 	else if (Customer && Customer->State == EJRCustomerState::WaitStart)
 	{
 		Out.Kind = EJRInteractKind::Press;
-		Out.Prompt = FString::Printf(TEXT("Nyalakan %s  (%s/jam)"), *DisplayName, *JRFormatRp(GM->PriceFor(Type)));
+		Out.Prompt = JRPrintf(JRT(TEXT("Nyalakan %s  (%s/jam)")), *DisplayName, *JRFormatRp(GM->PriceFor(Type)));
 	}
 	else if (GM->CanOfferMie(this))
 	{
 		Out.Kind = EJRInteractKind::Press;
-		Out.Prompt = FString::Printf(TEXT("%s mi ke %s  (+%s)"), Customer->bOrder ? TEXT("Antar") : TEXT("Tawarkan"),
+		Out.Prompt = JRPrintf(JRT(TEXT("%s mi ke %s  (+%s)")), Customer->bOrder ? JRT(TEXT("Antar")) : JRT(TEXT("Tawarkan")),
 			*Customer->DisplayName, *JRFormatRp(AJRGameMode::MiePrice));
 	}
 	else if (Customer && Customer->State == EJRCustomerState::Playing && Customer->bOrder)
 	{
 		Out.Kind = EJRInteractKind::Info;
-		Out.Prompt = TEXT("Pelanggan pesan mi. Masak di kompor pojok kantin");
+		Out.Prompt = JRT(TEXT("Pelanggan pesan mi. Masak di kompor pojok kantin"));
 	}
 	return Out;
 }
@@ -199,7 +200,8 @@ void AJRStation::Interact()
 	{
 		bBroken = false;
 		bVirus = false;
-		GM->AddToast(FString::Printf(TEXT("%s beres!"), *DisplayName), FLinearColor(0.36f, 0.79f, 0.54f));
+		GM->AddToast(JRPrintf(JRT(TEXT("%s beres!")), *DisplayName), FLinearColor(0.36f, 0.79f, 0.54f));
+		GM->TutorialAdvance(AJRGameMode::TutRepair);
 	}
 	else if (Customer && Customer->State == EJRCustomerState::WaitStart)
 	{
@@ -229,18 +231,18 @@ void AJRStation::Tick(float DeltaSeconds)
 	{
 		const bool bFlick = FMath::FRand() < 0.85f;
 		ScreenColor = bFlick ? Hex(0x2433a8) : Hex(0x0d0f12);
-		Text = TEXT("LANJUTKAN?  (Y/N)");
+		Text = JRT(TEXT("LANJUTKAN?  (Y/N)"));
 		TextColor = FColor(150, 170, 255);
 	}
 	else if (bBroken)
 	{
 		ScreenColor = bVirus ? Hex(0x6a2a8a) : Hex(0x8a2a24);
-		Text = DisplayName + (bVirus ? TEXT(" VIRUS") : TEXT(" RUSAK"));
+		Text = DisplayName + (bVirus ? JRT(TEXT(" VIRUS")) : JRT(TEXT(" RUSAK")));
 		TextColor = FColor(239, 107, 91);
 	}
 	else if (bPlaying && GM->bMcbTripped)
 	{
-		Text = TEXT("MATI LISTRIK");
+		Text = JRT(TEXT("MATI LISTRIK"));
 		TextColor = FColor(239, 107, 91);
 	}
 	else if (Customer && Customer->State == EJRCustomerState::WaitStart)
@@ -254,7 +256,7 @@ void AJRStation::Tick(float DeltaSeconds)
 		const bool bBlink = FMath::FloorToInt(GetWorld()->GetTimeSeconds() * 2.5f) % 2 == 0;
 		ScreenColor = Type == EJRUnitType::PS ? (bBlink ? Hex(0x3a7bd5) : Hex(0x2f9e6a)) : Hex(0x6fb3ff);
 		const int32 Minutes = FMath::Max(0, FMath::CeilToInt(Customer->HoursLeft * 60.f));
-		Text = FString::Printf(TEXT("%d:%02d%s"), Minutes / 60, Minutes % 60, Customer->bOrder ? TEXT("  + MI") : TEXT(""));
+		Text = FString::Printf(TEXT("%d:%02d%s"), Minutes / 60, Minutes % 60, Customer->bOrder ? JRT(TEXT("  + MI")) : TEXT(""));
 		TextColor = FColor(255, 194, 75);
 	}
 
