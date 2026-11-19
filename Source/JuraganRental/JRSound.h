@@ -24,10 +24,16 @@ namespace JRSound
 	/** Bunyi kecil yang hanya terdengar dari dekat (aktivitas unit: klik stik, ketikan). */
 	JURAGANRENTAL_API void PlayNear(const UObject* Context, const TCHAR* Name, const FVector& Location, float Volume = 1.f);
 
+	/** Waktu dunia saat karakter selesai bicara (untuk mengecilkan musik radio). */
+	JURAGANRENTAL_API float VoiceBusyUntil(const UWorld* World);
+
 	/** Suara karakter: memilih acak VO_<Char>_<Situasi>_1..3 yang tersedia. Mengembalikan false jika tidak diputar.
 	 *  Hanya satu orang bicara pada satu waktu: suara biasa dilewati jika ada yang sedang bicara,
 	 *  suara penting (bPriority, mis. dialog kejadian) diantrekan dan diputar bergiliran. */
 	JURAGANRENTAL_API bool Voice(const UObject* Context, const FString& Char, const TCHAR* Situasi, const FVector& Location, bool bPriority = false);
+
+	/** Terapkan ulang volume semua suara loop (setelah pengaturan efek suara diubah). */
+	JURAGANRENTAL_API void ApplySettings();
 
 	/** Komponen suara loop yang menempel di Parent (mis. musik TV, desis kompor). Belum diputar. */
 	JURAGANRENTAL_API UAudioComponent* MakeLoop(USceneComponent* Parent, const TCHAR* Name, float Volume, bool b3D = true);

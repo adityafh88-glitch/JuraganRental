@@ -18,6 +18,7 @@ class AJRRoom;
 class AJRRouter;
 class AJRDeliveryBox;
 class AJRSlotMarker;
+class AJRRadio;
 
 struct FJRToast
 {
@@ -218,6 +219,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<AJRSlotMarker> SlotMarker;
+
+	UPROPERTY()
+	TObjectPtr<AJRRadio> Radio;
 
 	UPROPERTY()
 	TArray<TObjectPtr<AJRDeliveryBox>> Boxes;

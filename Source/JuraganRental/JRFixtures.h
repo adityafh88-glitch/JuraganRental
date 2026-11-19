@@ -21,6 +21,10 @@ public:
 	/** Bangun ruangan: setengah panjang (X) dan lebar (Y) dalam cm, posisi pintu di dinding depan. */
 	void Build(float HalfX, float HalfY, float DoorY, bool bRuko);
 
+	/** Material teks tanpa cahaya untuk papan nama (direferensikan di sini agar ikut dikemas). */
+	UPROPERTY()
+	TObjectPtr<class UMaterialInterface> SignMaterial;
+
 private:
 	UPROPERTY()
 	TObjectPtr<USceneComponent> Root;

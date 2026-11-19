@@ -25,6 +25,8 @@ public:
 	/** HP atau dialog kejadian sedang terbuka: pemain tidak bisa jalan/menoleh. */
 	bool IsUIOpen() const { return bPhoneOpen || bChoiceShown; }
 	bool IsTouchMode() const { return bTouchMode; }
+	/** Pasang ulang joystick layar sesuai pengaturan (tetap/ikut jari). */
+	void ApplyTouchSettings();
 
 private:
 	void DrawPanel(const FString& Title, const TArray<FString>& Lines, const FString& Footer);

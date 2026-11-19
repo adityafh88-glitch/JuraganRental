@@ -8,6 +8,7 @@
 #include "JRPhoneWidget.h"
 #include "JRChoiceWidget.h"
 #include "JRTouchWidget.h"
+#include "JRSettings.h"
 #include "JRSound.h"
 #include "GameFramework/InputSettings.h"
 #include "GameFramework/TouchInterface.h"
@@ -42,10 +43,7 @@ void AJRHUD::BeginPlay()
 			UInputSettings* Settings = GetMutableDefault<UInputSettings>();
 			Settings->bAlwaysShowTouchInterface = true;
 			Settings->bUseMouseForTouch = !(PLATFORM_ANDROID || PLATFORM_IOS); // uji di PC pakai mouse
-			if (UTouchInterface* Sticks = LoadObject<UTouchInterface>(nullptr, TEXT("/Engine/MobileResources/HUD/DefaultVirtualJoysticks.DefaultVirtualJoysticks")))
-			{
-				PlayerOwner->ActivateTouchInterface(Sticks);
-			}
+			ApplyTouchSettings();
 			Touch = CreateWidget<UJRTouchWidget>(PlayerOwner, UJRTouchWidget::StaticClass());
 			if (Touch) Touch->AddToViewport(5);
 		}
@@ -104,6 +102,23 @@ void AJRHUD::ApplyInputMode()
 		PlayerOwner->SetInputMode(FInputModeGameOnly());
 		PlayerOwner->bShowMouseCursor = false;
 	}
+}
+
+void AJRHUD::ApplyTouchSettings()
+{
+	if (!bTouchMode || !PlayerOwner) return;
+	UTouchInterface* Base = LoadObject<UTouchInterface>(nullptr, TEXT("/Engine/MobileResources/HUD/DefaultVirtualJoysticks.DefaultVirtualJoysticks"));
+	if (!Base) return;
+	UTouchInterface* Sticks = DuplicateObject<UTouchInterface>(Base, this);
+	const bool bFixed = JRSettings::Get()->bJoystickFixed;
+	Sticks->bPreventRecenter = bFixed;			// tetap: joystick tidak pindah ke posisi jari
+	Sticks->InactiveOpacity = bFixed ? 0.35f : 0.f;	// tetap: selalu terlihat samar
+	for (FTouchInputControl& C : Sticks->Controls)
+	{
+		// Joystick lihat bawaan Unreal terbalik untuk kamera orang pertama: geser ke atas harus lihat ke atas.
+		if (C.MainInputKey == EKeys::Gamepad_RightX) C.InputScale.Y = -C.InputScale.Y;
+	}
+	PlayerOwner->ActivateTouchInterface(Sticks);
 }
 
 void AJRHUD::TogglePhone()
@@ -186,7 +201,9 @@ void AJRHUD::DrawHUD()
 		const FJRInteraction& I = Ch->CurrentInteraction;
 		if (I.Kind != EJRInteractKind::None)
 		{
-			const FString Text = I.Kind == EJRInteractKind::Info ? I.Prompt : (I.Kind == EJRInteractKind::Press ? TEXT("[E] ") + I.Prompt : I.Prompt);
+			FString Text = I.Prompt;
+			if (bTouchMode) Text.ReplaceInline(TEXT("Tahan E:"), TEXT("Tahan tombol:"));
+			else if (I.Kind == EJRInteractKind::Press) Text = TEXT("[E] ") + Text;
 			float TW = 0.f, TH = 0.f;
 			GetTextSize(Text, TW, TH, Font, 1.3f);
 			const float X = (W - TW) * 0.5f, Y = H * 0.62f;

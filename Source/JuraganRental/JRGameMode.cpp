@@ -14,6 +14,7 @@
 #include "JRFixtures.h"
 #include "JRHUD.h"
 #include "JRSound.h"
+#include "JRRadio.h"
 #include "JRStation.h"
 #include "JRVisitor.h"
 
@@ -129,6 +130,7 @@ void AJRGameMode::BuildWorld()
 	Room = World->SpawnActor<AJRRoom>(FVector::ZeroVector, FRotator::ZeroRotator, SP);
 	Room->Build(L.HalfX, L.HalfY, L.DoorY, Era == 2);
 	Kasir = World->SpawnActor<AJRKasir>(L.Kasir(), FRotator::ZeroRotator, SP);
+	Radio = World->SpawnActor<AJRRadio>(L.Kasir() + FVector(0, -6, 100), FRotator::ZeroRotator, SP); // di atas meja, antara laci dan buku utang
 	Mcb = World->SpawnActor<AJRMcb>(L.Mcb(), FRotator(0.f, 90.f, 0.f), SP);
 	Stove = World->SpawnActor<AJRStove>(L.Stove(), FRotator(0.f, 90.f, 0.f), SP);
 	Router = L.bRouter ? World->SpawnActor<AJRRouter>(L.Router(), FRotator(0.f, 180.f, 0.f), SP) : nullptr;
@@ -149,7 +151,7 @@ void AJRGameMode::MoveToEra2()
 	Boxes.Reset();
 	for (AJRStation* S : Stations) if (S) S->Destroy();
 	Stations.Reset();
-	for (AActor* A : TArray<AActor*>{ Room, Kasir, Mcb, Stove, Router }) if (A) A->Destroy();
+	for (AActor* A : TArray<AActor*>{ Room, Kasir, Radio, Mcb, Stove, Router }) if (A) A->Destroy();
 
 	Era = 2;
 	CapVA = FMath::Max(CapVA, 2200);

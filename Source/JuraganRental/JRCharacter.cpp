@@ -1,4 +1,5 @@
 #include "JRCharacter.h"
+#include "JRSettings.h"
 
 #include "Camera/CameraComponent.h"
 #include "UObject/ConstructorHelpers.h"
@@ -156,7 +157,7 @@ void AJRCharacter::Look(const FInputActionValue& Value)
 	if (IsPhoneOpen()) return;
 	const FVector2D Axis = Value.Get<FVector2D>();
 	AddControllerYawInput(Axis.X);
-	AddControllerPitchInput(Axis.Y);
+	AddControllerPitchInput(JRSettings::Get()->bInvertLook ? -Axis.Y : Axis.Y);
 }
 
 void AJRCharacter::InteractStarted()

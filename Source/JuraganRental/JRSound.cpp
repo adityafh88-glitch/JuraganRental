@@ -6,6 +6,7 @@
 #include "Sound/SoundBase.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
+#include "JRSettings.h"
 
 namespace JRSound
 {
@@ -53,7 +54,8 @@ namespace JRSound
 		{
 			if (Hit->IsValid()) return Hit->Get();
 		}
-		const FString Folder = Name.StartsWith(TEXT("VO_")) ? TEXT("/Game/Audio/Voice/") : TEXT("/Game/Audio/");
+		const FString Folder = Name.StartsWith(TEXT("VO_")) ? TEXT("/Game/Audio/Voice/")
+			: Name.StartsWith(TEXT("MUS_")) ? TEXT("/Game/Audio/Music/") : TEXT("/Game/Audio/");
 		const FString Path = Folder + Name + TEXT(".") + Name;
 		USoundBase* S = Cast<USoundBase>(StaticLoadObject(USoundBase::StaticClass(), nullptr, *Path, nullptr, LOAD_NoWarn | LOAD_Quiet));
 		if (S) Cache.Add(Name, S);
@@ -61,18 +63,33 @@ namespace JRSound
 		return S;
 	}
 
+	static bool SfxOn() { return JRSettings::Get()->bSfx; }
+
+	// Loop yang dibuat MakeLoop beserta volume aslinya, untuk dibisukan lewat pengaturan.
+	static TArray<TPair<TWeakObjectPtr<UAudioComponent>, float>> Loops;
+
+	void ApplySettings()
+	{
+		const float Mul = SfxOn() ? 1.f : 0.f;
+		Loops.RemoveAll([](const TPair<TWeakObjectPtr<UAudioComponent>, float>& L) { return !L.Key.IsValid(); });
+		for (const TPair<TWeakObjectPtr<UAudioComponent>, float>& L : Loops) L.Key->SetVolumeMultiplier(L.Value * Mul);
+	}
+
 	void Play2D(const UObject* Context, const TCHAR* Name, float Volume)
 	{
+		if (!SfxOn()) return;
 		if (USoundBase* S = Find(Name)) UGameplayStatics::PlaySound2D(Context, S, Volume);
 	}
 
 	void PlayAt(const UObject* Context, const TCHAR* Name, const FVector& Location, float Volume)
 	{
+		if (!SfxOn()) return;
 		if (USoundBase* S = Find(Name)) UGameplayStatics::PlaySoundAtLocation(Context, S, Location, Volume, 1.f, 0.f, Attenuation());
 	}
 
 	void PlayNear(const UObject* Context, const TCHAR* Name, const FVector& Location, float Volume)
 	{
+		if (!SfxOn()) return;
 		USoundBase* S = Find(Name);
 		static int32 Logged = 0;
 		if (Logged < 12)
@@ -88,10 +105,15 @@ namespace JRSound
 	static float VoiceFreeAt = 0.f;
 	static constexpr float VoiceGap = 0.5f;
 
+	float VoiceBusyUntil(const UWorld* World)
+	{
+		return VoiceWorld.Get() == World ? VoiceFreeAt : 0.f;
+	}
+
 	bool Voice(const UObject* Context, const FString& Char, const TCHAR* Situasi, const FVector& Location, bool bPriority)
 	{
 		UWorld* World = Context ? Context->GetWorld() : nullptr;
-		if (!World) return false;
+		if (!World || !JRSettings::Get()->bVoice) return false;
 		if (VoiceWorld.Get() != World) { VoiceWorld = World; VoiceFreeAt = 0.f; }
 		const float Now = World->GetTimeSeconds();
 		const bool bBusy = Now < VoiceFreeAt;
@@ -137,7 +159,8 @@ namespace JRSound
 		UAudioComponent* A = NewObject<UAudioComponent>(Parent->GetOwner());
 		A->SetupAttachment(Parent);
 		A->SetSound(S);
-		A->SetVolumeMultiplier(Volume);
+		A->SetVolumeMultiplier(SfxOn() ? Volume : 0.f);
+		Loops.Emplace(A, Volume);
 		A->bAutoActivate = false;
 		if (b3D) A->AttenuationSettings = Attenuation();
 		else A->bAllowSpatialization = false;

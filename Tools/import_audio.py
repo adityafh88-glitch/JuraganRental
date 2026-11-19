@@ -1,4 +1,4 @@
-# Impor efek suara (ArtSource/Audio/*.wav) dan suara karakter (ArtSource/Audio/Voice/*.wav) ke Unreal.
+# Impor efek suara (ArtSource/Audio/*.wav), suara karakter (Audio/Voice) dan lagu radio (Audio/Music) ke Unreal.
 # Jalankan dengan Unreal Editor tertutup:
 #   UnrealEditor-Cmd.exe JuraganRental.uproject -run=pythonscript -script="Tools/import_audio.py" -unattended -nullrhi
 # File LOOP_* otomatis diset berulang. File suara karakter yang belum ada cukup dilewati.
@@ -41,4 +41,5 @@ def import_folder(folder, dest):
 
 sfx = import_folder(SRC, "/Game/Audio")
 vo = import_folder(os.path.join(SRC, "Voice"), "/Game/Audio/Voice")
-unreal.log("JR_AUDIO_DONE sfx=%d voice=%d %s" % (len(sfx), len(vo), ",".join(sfx)))
+mus = import_folder(os.path.join(SRC, "Music"), "/Game/Audio/Music")
+unreal.log("JR_AUDIO_DONE sfx=%d voice=%d music=%d %s" % (len(sfx), len(vo), len(mus), ",".join(sfx)))

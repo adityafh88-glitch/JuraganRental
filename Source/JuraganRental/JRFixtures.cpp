@@ -3,6 +3,8 @@
 #include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
+#include "Materials/MaterialInterface.h"
+#include "UObject/ConstructorHelpers.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Kismet/GameplayStatics.h"
@@ -21,6 +23,8 @@ AJRRoom::AJRRoom()
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	Root->SetMobility(EComponentMobility::Movable);
 	RootComponent = Root;
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Unlit(TEXT("/Engine/EngineMaterials/UnlitText.UnlitText"));
+	SignMaterial = Unlit.Object;
 }
 
 void AJRRoom::Build(float HX, float HY, float DoorY, bool bRuko)
@@ -62,12 +66,16 @@ void AJRRoom::Build(float HX, float HY, float DoorY, bool bRuko)
 	AddProp(this, Root, TEXT("SM_Papan_Nama"), FVector(HX + 2, SignY, 205), 180.f, false);
 	UTextRenderComponent* Sign = NewObject<UTextRenderComponent>(this);
 	Sign->SetupAttachment(Root);
-	Sign->SetRelativeLocation(FVector(HX - 4, SignY, 240));
+	Sign->SetRelativeLocation(FVector(HX - 16, SignY, 240)); // cukup jauh dari papan agar tidak tenggelam (z-fighting di HP)
 	Sign->SetRelativeRotation(FRotator(0, 180, 0));
 	Sign->SetHorizontalAlignment(EHTA_Center);
 	Sign->SetVerticalAlignment(EVRTA_TextCenter);
-	Sign->SetWorldSize(22.f);
-	Sign->SetTextRenderColor(FColor(255, 194, 75));
+	Sign->SetWorldSize(19.f);
+	Sign->SetTextRenderColor(FColor(45, 8, 4)); // hampir hitam di atas papan terang: kontras tinggi
+	if (SignMaterial)
+	{
+		Sign->SetTextMaterial(SignMaterial); // tanpa cahaya: warna tetap sama di ruangan terang maupun gelap
+	}
 	Sign->SetText(FText::FromString(bRuko ? TEXT("GAME CENTER JURAGAN") : TEXT("RENTAL PS & WARNET JURAGAN")));
 	Sign->RegisterComponent();
 	AddInstanceComponent(Sign);

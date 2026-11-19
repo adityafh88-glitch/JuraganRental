@@ -1,4 +1,4 @@
-// Tombol layar sentuh (Android / -jrtouch): E (tekan atau tahan), HP, dan Lanjut.
+// Tombol layar sentuh (Android / -jrtouch): tombol aksi (labelnya mengikuti benda yang dilihat), HP, dan Lanjut.
 // Joystick gerak dan lihat memakai virtual joystick bawaan Unreal.
 
 #pragma once
@@ -37,4 +37,12 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UButton> NextButton;
+
+	UPROPERTY()
+	TObjectPtr<UButton> ActionButton;
+
+	UPROPERTY()
+	TObjectPtr<UTextBlock> ActionLabel;
+
+	FString ShownLabel;
 };

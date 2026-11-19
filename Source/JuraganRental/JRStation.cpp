@@ -49,8 +49,8 @@ void AJRStation::Setup(EJRUnitType InType, int32 InIndex)
 	else
 	{
 		AddProp(this, Root, TEXT("SM_Meja_Warnet"), FVector(0, 0, 0));
-		UStaticMeshComponent* Crt = AddProp(this, Root, TEXT("SM_Monitor_CRT"), FVector(-8, 0, 75));
-		Crt->SetMaterialByName(TEXT("M_TV_Screen"), ScreenMat);
+		UStaticMeshComponent* Monitor = AddProp(this, Root, TEXT("SM_Monitor_CRT"), FVector(-8, 0, 75));
+		Monitor->SetMaterialByName(TEXT("M_TV_Screen"), ScreenMat);
 		AddProp(this, Root, TEXT("SM_CPU"), FVector(-5, 30, 0));
 		AddProp(this, Root, TEXT("SM_Keyboard"), FVector(18, 0, 75), 0.f, false);
 		AddProp(this, Root, TEXT("SM_Mouse"), FVector(16, 30, 75), 0.f, false);

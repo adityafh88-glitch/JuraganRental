@@ -46,6 +46,8 @@ private:
 	void FillToko(AJRGameMode* GM);
 	void FillTarif(AJRGameMode* GM);
 	void FillHariIni(AJRGameMode* GM);
+	void FillAtur();
+	void ClosePhone();
 	UTextBlock* MakeText(const FString& Text, int32 Size, const FLinearColor& Color, bool bBold = false);
 	UJRPhoneButton* MakeButton(const FString& Label, TFunction<void()> Action, bool bEnabled = true, bool bSelected = false);
 	void AddLine(UWidget* Widget, float Top = 4.f);

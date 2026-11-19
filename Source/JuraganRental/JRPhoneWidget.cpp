@@ -15,6 +15,9 @@
 #include "Styling/CoreStyle.h"
 #include "JRGameMode.h"
 #include "JRSound.h"
+#include "JRHUD.h"
+#include "JRSettings.h"
+#include "GameFramework/PlayerController.h"
 
 namespace
 {
@@ -122,7 +125,17 @@ void UJRPhoneWidget::BuildTree()
 	Head->AddChildToHorizontalBox(Brand)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	HeaderMoney = MakeText(TEXT(""), 14, Led, true);
 	HeaderMoney->SetAutoWrapText(false);
-	Head->AddChildToHorizontalBox(HeaderMoney);
+	Head->AddChildToHorizontalBox(HeaderMoney)->SetVerticalAlignment(VAlign_Center);
+	// Tombol tutup (wajib untuk layar sentuh: tombol HP di layar tertutup oleh HP ini)
+	USizeBox* CloseBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+	CloseBox->SetWidthOverride(64.f);
+	CloseBox->SetHeightOverride(40.f);
+	UJRPhoneButton* Close = MakeButton(TEXT("X"), [this]() { ClosePhone(); });
+	Close->SetBackgroundColor(FLinearColor(0.75f, 0.2f, 0.17f));
+	CloseBox->AddChild(Close);
+	UHorizontalBoxSlot* CloseSlot = Head->AddChildToHorizontalBox(CloseBox);
+	CloseSlot->SetPadding(FMargin(12.f, 0.f, 0.f, 0.f));
+	CloseSlot->SetVerticalAlignment(VAlign_Center);
 	Col->AddChildToVerticalBox(Head)->SetPadding(FMargin(4.f, 0.f, 4.f, 10.f));
 
 	// Layar LCD
@@ -143,7 +156,7 @@ void UJRPhoneWidget::BuildTree()
 	Scroll->AddChild(Content);
 
 	// Kaki HP: petunjuk
-	UTextBlock* Foot = MakeText(TEXT("Tab: tutup HP"), 12, FLinearColor(0.55f, 0.58f, 0.62f));
+	UTextBlock* Foot = MakeText((PLATFORM_ANDROID || PLATFORM_IOS) ? TEXT("Ketuk X untuk tutup HP") : TEXT("Tab atau X: tutup HP"), 12, FLinearColor(0.55f, 0.58f, 0.62f));
 	Foot->SetJustification(ETextJustify::Center);
 	Col->AddChildToVerticalBox(Foot)->SetPadding(FMargin(0.f, 12.f, 0.f, 0.f));
 }
@@ -165,8 +178,8 @@ void UJRPhoneWidget::BuildTabs()
 {
 	TabRow->ClearChildren();
 	UHorizontalBox* Tabs = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	const TCHAR* Names[] = { TEXT("Toko"), TEXT("Tarif"), TEXT("Hari ini") };
-	for (int32 i = 0; i < 3; ++i)
+	const TCHAR* Names[] = { TEXT("Toko"), TEXT("Tarif"), TEXT("Hari ini"), TEXT("Atur") };
+	for (int32 i = 0; i < 4; ++i)
 	{
 		UJRPhoneButton* B = MakeButton(Names[i], [this, i]() { CurrentTab = i; Refresh(true); }, true, CurrentTab == i);
 		UHorizontalBoxSlot* S = Tabs->AddChildToHorizontalBox(B);
@@ -207,6 +220,7 @@ void UJRPhoneWidget::Refresh(bool bForce)
 	{
 	case 0: FillToko(GM); break;
 	case 1: FillTarif(GM); break;
+	case 3: FillAtur(); break;
 	default: FillHariIni(GM); break;
 	}
 }
@@ -266,6 +280,56 @@ void UJRPhoneWidget::FillTarif(AJRGameMode* GM)
 			Refresh(true);
 		}), 6.f);
 	}
+}
+
+void UJRPhoneWidget::ClosePhone()
+{
+	if (APlayerController* PC = GetOwningPlayer())
+	{
+		if (AJRHUD* Hud = Cast<AJRHUD>(PC->GetHUD())) Hud->SetPhoneOpen(false);
+	}
+}
+
+void UJRPhoneWidget::FillAtur()
+{
+	UJRSettingsSave* S = JRSettings::Get();
+	AddLine(MakeText(TEXT("PENGATURAN"), 15, LcdInk, true), 0.f);
+
+	auto Toggle = [this](const FString& Title, const FString& Desc, const FString& Label, TFunction<void()> Change)
+	{
+		AddLine(MakeText(Title, 14, LcdInk, true), 16.f);
+		AddLine(MakeText(Desc, 11, LcdMuted), 2.f);
+		AddLine(MakeButton(Label, [this, Change]()
+		{
+			Change();
+			JRSettings::Save();
+			Refresh(true);
+		}), 6.f);
+	};
+
+	Toggle(TEXT("Efek suara"), TEXT("Bunyi unit, kasir, kompor, motor lewat."),
+		S->bSfx ? TEXT("NYALA (ketuk untuk matikan)") : TEXT("MATI (ketuk untuk nyalakan)"),
+		[S]() { S->bSfx = !S->bSfx; JRSound::ApplySettings(); });
+	Toggle(TEXT("Suara karakter"), TEXT("Celetukan pelanggan, Emak, dan Pak RT."),
+		S->bVoice ? TEXT("NYALA (ketuk untuk matikan)") : TEXT("MATI (ketuk untuk nyalakan)"),
+		[S]() { S->bVoice = !S->bVoice; });
+	Toggle(TEXT("Musik radio"), TEXT("Lagu dari radio di meja kasir. Tekan radionya untuk ganti lagu."),
+		S->bMusic ? TEXT("NYALA (ketuk untuk matikan)") : TEXT("MATI (ketuk untuk nyalakan)"),
+		[S]() { S->bMusic = !S->bMusic; });
+	Toggle(TEXT("Joystick layar"), TEXT("Tetap: joystick diam di pojok dan selalu terlihat. Ikut jari: muncul di tempat jari menyentuh."),
+		S->bJoystickFixed ? TEXT("TETAP (ketuk untuk ikut jari)") : TEXT("IKUT JARI (ketuk untuk tetap)"),
+		[this, S]()
+		{
+			S->bJoystickFixed = !S->bJoystickFixed;
+			if (APlayerController* PC = GetOwningPlayer())
+			{
+				if (AJRHUD* Hud = Cast<AJRHUD>(PC->GetHUD())) Hud->ApplyTouchSettings();
+			}
+		});
+	Toggle(TEXT("Arah lihat atas/bawah"), TEXT("Dibalik: geser ke atas untuk melihat ke bawah."),
+		S->bInvertLook ? TEXT("DIBALIK (ketuk untuk normal)") : TEXT("NORMAL (ketuk untuk dibalik)"),
+		[S]() { S->bInvertLook = !S->bInvertLook; });
+
 }
 
 void UJRPhoneWidget::FillHariIni(AJRGameMode* GM)

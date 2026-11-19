@@ -69,10 +69,12 @@ void UJRTouchWidget::BuildTree()
 	};
 
 	// Di atas joystick kanan (joystick bawaan berada di pojok kanan bawah).
-	UButton* E = MakeRound(TEXT("E"), 130.f, FLinearColor(1.f, 0.76f, 0.29f, 0.92f), FLinearColor(0.1f, 0.07f, 0.f));
-	E->OnPressed.AddDynamic(this, &UJRTouchWidget::OnInteractPressed);
-	E->OnReleased.AddDynamic(this, &UJRTouchWidget::OnInteractReleased);
-	Place(E, FVector2D(60.f, 330.f), 130.f);
+	ActionButton = MakeRound(TEXT("AKSI"), 130.f, FLinearColor(1.f, 0.76f, 0.29f, 0.92f), FLinearColor(0.1f, 0.07f, 0.f));
+	ActionLabel = Cast<UTextBlock>(ActionButton->GetContent());
+	if (ActionLabel) ActionLabel->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 17));
+	ActionButton->OnPressed.AddDynamic(this, &UJRTouchWidget::OnInteractPressed);
+	ActionButton->OnReleased.AddDynamic(this, &UJRTouchWidget::OnInteractReleased);
+	Place(ActionButton, FVector2D(60.f, 330.f), 130.f);
 
 	UButton* Phone = MakeRound(TEXT("HP"), 96.f, FLinearColor(0.37f, 0.70f, 1.f, 0.9f), FLinearColor(0.03f, 0.07f, 0.12f));
 	Phone->OnClicked.AddDynamic(this, &UJRTouchWidget::OnPhone);
@@ -90,6 +92,37 @@ void UJRTouchWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	const bool bShowNext = GM && GM->Phase != EJRGamePhase::Playing;
 	const ESlateVisibility Want = bShowNext ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
 	if (NextButton && NextButton->GetVisibility() != Want) NextButton->SetVisibility(Want);
+
+	// Label tombol aksi = kata kerja dari petunjuk ("Nyalakan PS 1" -> NYALAKAN, "Tahan E: restart" -> TAHAN / RESTART).
+	FString Label = TEXT("AKSI");
+	bool bActive = false;
+	if (const AJRCharacter* C = Cast<AJRCharacter>(GetOwningPlayerPawn()))
+	{
+		const FJRInteraction& I = C->CurrentInteraction;
+		if (I.Kind == EJRInteractKind::Press || I.Kind == EJRInteractKind::Hold)
+		{
+			bActive = true;
+			FString Prompt = I.Prompt;
+			FString Left, Right;
+			if (Prompt.Split(TEXT(":"), &Left, &Right) && Left.StartsWith(TEXT("Tahan")))
+			{
+				Right.TrimStartInline();
+				Right.Split(TEXT(" "), &Right, nullptr);
+				Label = TEXT("TAHAN\n") + Right.ToUpper();
+			}
+			else
+			{
+				Prompt.Split(TEXT(" "), &Left, nullptr);
+				Label = (Left.IsEmpty() ? Prompt : Left).ToUpper();
+			}
+		}
+	}
+	if (Label != ShownLabel && ActionLabel)
+	{
+		ShownLabel = Label;
+		ActionLabel->SetText(FText::FromString(Label));
+	}
+	if (ActionButton) ActionButton->SetRenderOpacity(bActive ? 1.f : 0.45f);
 }
 
 void UJRTouchWidget::OnInteractPressed()
