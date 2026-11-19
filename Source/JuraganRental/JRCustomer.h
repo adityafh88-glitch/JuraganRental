@@ -50,6 +50,7 @@ public:
 	TObjectPtr<AJRStation> Station;
 
 	int32 QueueIdx = -1;
+	bool bBenchSeat = false;	// antre sambil duduk di bangku
 	float WaitMinutes = 0.f;	// total menit game menunggu
 	float Patience = 0.f;		// jam game sebelum menyerah
 	float HoursLeft = 0.f;

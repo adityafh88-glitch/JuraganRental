@@ -8,6 +8,7 @@
 #include "JRPhoneWidget.h"
 #include "JRChoiceWidget.h"
 #include "JRTouchWidget.h"
+#include "JRSound.h"
 #include "GameFramework/InputSettings.h"
 #include "GameFramework/TouchInterface.h"
 #include "Misc/CommandLine.h"
@@ -74,6 +75,7 @@ void AJRHUD::SyncChoice()
 		if (bPhoneOpen) SetPhoneOpen(false);
 		const FJRChoice& C = GM->Choices[0];
 		Choice->Show(C.Title, C.Body, C.Labels);
+		JRSound::Play2D(this, TEXT("SFX_Notif"), 0.8f);
 		Choice->SetVisibility(ESlateVisibility::Visible);
 		bChoiceShown = true;
 		ApplyInputMode();
@@ -117,6 +119,7 @@ void AJRHUD::SetPhoneOpen(bool bOpen)
 	bPhoneOpen = bOpen;
 	Phone->SetVisibility(bOpen ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	if (bOpen) Phone->Refresh(true);
+	JRSound::Play2D(this, bOpen ? TEXT("SFX_HP_Buka") : TEXT("SFX_HP_Tombol"), 0.6f);
 	ApplyInputMode();
 }
 

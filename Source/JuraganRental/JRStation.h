@@ -58,5 +58,8 @@ private:
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> ScreenMat;
 
+	UPROPERTY()
+	TObjectPtr<class UAudioComponent> GameLoop;
+
 	FLinearColor LastScreenColor = FLinearColor::Black;
 };

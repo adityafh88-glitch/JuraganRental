@@ -1,0 +1,1 @@
+﻿Taruh file suara dari ElevenLabs di sini, nama file sesuai Docs/Naskah_Suara.md (contoh: VO_Bocil_Datang_1.wav).

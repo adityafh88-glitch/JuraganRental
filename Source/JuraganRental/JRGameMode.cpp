@@ -13,6 +13,7 @@
 #include "JRDelivery.h"
 #include "JRFixtures.h"
 #include "JRHUD.h"
+#include "JRSound.h"
 #include "JRStation.h"
 #include "JRVisitor.h"
 
@@ -36,6 +37,8 @@ namespace
 		{ TEXT("Bapak-bapak"),      TEXT("SK_Bapak"),     1.03f, 0 },
 	};
 	constexpr int32 Bocil = 0, Pekerja = 3, Gamer = 4;
+	// Kode karakter untuk file suara VO_<Kode>_<Situasi>_<n> (lihat Docs/Naskah_Suara.md)
+	const TCHAR* VoiceCode[] = { TEXT("Bocil"), TEXT("SMA"), TEXT("Mahasiswa"), TEXT("Kantoran"), TEXT("Gamer"), TEXT("Bapak") };
 
 	const FLinearColor Good(0.36f, 0.79f, 0.54f);
 	const FLinearColor Bad(0.94f, 0.42f, 0.36f);
@@ -49,7 +52,7 @@ namespace
 		L.HalfX = 700.f; L.HalfY = 1000.f; L.DoorY = 420.f;
 		L.PsY = { -800.f, -550.f, -300.f, -50.f };
 		L.PcX = { 500.f, 250.f, 0.f, -250.f };
-		L.Queue = { FVector(-590, -150, 0), FVector(-590, -50, 0), FVector(-590, 50, 0), FVector(-590, 150, 0), FVector(-520, 250, 0) };
+		L.Queue = { FVector(-650, -40, 0), FVector(-650, 30, 0), FVector(-650, 100, 0), FVector(-575, 200, 0), FVector(-575, 275, 0) };
 		return L;
 	}
 
@@ -60,8 +63,8 @@ namespace
 		L.HalfX = 800.f; L.HalfY = 1200.f; L.DoorY = 540.f;
 		L.PsY = { -1000.f, -750.f, -500.f, -250.f, 0.f, 250.f };
 		L.PcX = { 600.f, 380.f, 160.f, -60.f, -280.f, -500.f };
-		L.Queue = { FVector(-690, -150, 0), FVector(-690, -50, 0), FVector(-690, 50, 0), FVector(-690, 150, 0),
-			FVector(-620, 260, 0), FVector(-540, 260, 0), FVector(-460, 260, 0) };
+		L.Queue = { FVector(-750, -40, 0), FVector(-750, 30, 0), FVector(-750, 100, 0),
+			FVector(-675, 200, 0), FVector(-675, 280, 0), FVector(-600, 200, 0), FVector(-600, 280, 0) };
 		L.Rent = 75000.f;		// GDD awal 150rb; diturunkan setelah simulasi prototype
 		L.Internet = 25000.f;
 		L.bRouter = true;
@@ -197,7 +200,7 @@ void AJRGameMode::TickAutoTest(float DeltaSeconds)
 	static const FShot ShotsGarasi[] = {
 		{ 20.f, FVector(-560.f, -880.f, 250.f), FRotator(-18.f, 38.f, 0.f), TEXT("JR_Shot_RentalPS") },
 		{ 23.f, FVector(-500.f, 300.f, 240.f), FRotator(-15.f, 15.f, 0.f), TEXT("JR_Shot_Warnet") },
-		{ 26.f, FVector(120.f, -700.f, 190.f), FRotator(-18.f, -132.f, 0.f), TEXT("JR_Shot_Kantin") },
+		{ 26.f, FVector(-280.f, -230.f, 190.f), FRotator(-14.f, 148.f, 0.f), TEXT("JR_Shot_Bangku") },
 	};
 	static const FShot ShotsRuko[] = {
 		{ 20.f, FVector(-700.f, -1100.f, 260.f), FRotator(-16.f, 32.f, 0.f), TEXT("JR_Shot_Ruko_PS") },
@@ -321,6 +324,7 @@ void AJRGameMode::Tick(float DeltaSeconds)
 		if (CookProgress >= CookSeconds)
 		{
 			StoveState = EJRStoveState::Ready;
+			JRSound::PlayAt(this, TEXT("SFX_Ding"), Layout().Stove() + FVector(0, 0, 100));
 			AddToast(TEXT("Mi matang! Angkat di kompor."), Good);
 		}
 	}
@@ -329,6 +333,11 @@ void AJRGameMode::Tick(float DeltaSeconds)
 	if (Era == 2 && !bNetSlow && !bAutoTest && FMath::FRand() < (bFastNet ? 0.04f : 0.12f) * DtH)
 	{
 		bNetSlow = true;
+		JRSound::Play2D(this, TEXT("SFX_Modem"), 0.6f);
+		for (AJRCustomer* X : Customers)
+		{
+			if (X->State == EJRCustomerState::Playing && X->Used == EJRUnitType::PC && JRSound::Voice(this, VoiceCode[X->TypeIndex], TEXT("Lemot"), X->GetActorLocation())) break;
+		}
 		AddToast(TEXT("Internet lemot! Gamer mulai ngomel. Tahan E di router (dinding belakang) untuk restart."), Bad);
 	}
 	if (RtAt >= 0.f && Hour >= RtAt)
@@ -405,6 +414,7 @@ void AJRGameMode::SpawnCustomer()
 	C->Setup(TI, T.Name, T.Mesh, T.Scale, Want, T.Want == 2);
 	Customers.Add(C);
 	Stats.Customers++;
+	JRSound::PlayAt(this, TEXT("SFX_Bel_Pintu"), FVector(-(Layout().HalfX - 40.f), Layout().DoorY, 220.f), 0.6f);
 	if (!Assign(C)) ToQueue(C);
 }
 
@@ -414,6 +424,7 @@ bool AJRGameMode::Assign(AJRCustomer* C)
 	if (!S && C->bFlex) S = FindFree(C->Want == EJRUnitType::PS ? EJRUnitType::PC : EJRUnitType::PS);
 	if (!S) return false;
 	if (C->QueueIdx >= 0) { QueueUsed[C->QueueIdx] = false; C->QueueIdx = -1; }
+	C->bBenchSeat = false;
 	S->Customer = C;
 	C->Station = S;
 	C->Patience = 1.f;
@@ -427,6 +438,7 @@ bool AJRGameMode::ToQueue(AJRCustomer* C)
 	if (I == INDEX_NONE) return false;
 	QueueUsed[I] = true;
 	C->QueueIdx = I;
+	C->bBenchSeat = I < 3;
 	C->Patience = 1.25f;
 	C->WalkTo(Layout().Queue[I], EJRCustomerState::Queue);
 	return true;
@@ -454,6 +466,7 @@ void AJRGameMode::LeaveAngry(AJRCustomer* C, const FString& Message)
 {
 	Stats.Satisfaction.Add(12);
 	C->Mood = TEXT(">:(");
+	JRSound::Voice(this, VoiceCode[C->TypeIndex], TEXT("Marah_Pulang"), C->GetActorLocation());
 	AddToast(Message, Bad);
 	Leave(C);
 }
@@ -482,6 +495,8 @@ void AJRGameMode::StartSession(AJRStation* S)
 		C->bPaket = true;
 		C->HoursLeft = 24.f - Hour;
 		C->Bill = 10000.f;
+		JRSound::PlayAt(this, TEXT("SFX_TV_Nyala"), S->GetActorLocation(), 0.6f);
+		JRSound::Voice(this, VoiceCode[C->TypeIndex], TEXT("Paket"), C->GetActorLocation());
 		AddToast(FString::Printf(TEXT("%s: %s ambil paket malam sampai tutup (Rp 10.000)"), *S->DisplayName, *C->DisplayName));
 		return;
 	}
@@ -496,6 +511,7 @@ void AJRGameMode::StartSession(AJRStation* S)
 	{
 		C->EmakAt = bAutoTest ? 0.05f : FMath::FRandRange(0.25f, 0.7f);
 	}
+	JRSound::PlayAt(this, S->Type == EJRUnitType::PS ? TEXT("SFX_Konsol_Boot") : TEXT("SFX_TV_Nyala"), S->GetActorLocation() + FVector(0, 0, 100), S->Type == EJRUnitType::PS ? 0.8f : 0.6f);
 	AddToast(FString::Printf(TEXT("%s menyala: %s main %s jam (%s)"), *S->DisplayName, *C->DisplayName,
 		*FString::SanitizeFloat(Hours), *JRFormatRp(C->Bill)));
 
@@ -535,20 +551,24 @@ void AJRGameMode::TickPlaying(AJRCustomer* C, float DtH)
 		if (S->Type == EJRUnitType::PC && Era == 2 && FMath::FRand() < (bAntivirus ? 0.1f : 0.45f))
 		{
 			S->bVirus = true;
+			JRSound::PlayAt(this, TEXT("SFX_Error_PC"), S->GetActorLocation() + FVector(0, 0, 100));
 			AddToast(FString::Printf(TEXT("%s kena virus! Tahan E lebih lama di sana untuk install ulang."), *S->DisplayName), Bad);
 		}
 		else
 		{
+			JRSound::PlayAt(this, S->Type == EJRUnitType::PS ? TEXT("SFX_Stik_Rusak") : TEXT("SFX_Error_PC"), S->GetActorLocation() + FVector(0, 0, 100));
 			AddToast(S->Type == EJRUnitType::PS
 				? FString::Printf(TEXT("Stik di %s rusak! Tahan E di sana untuk memperbaiki."), *S->DisplayName)
 				: FString::Printf(TEXT("%s hang! Tahan E di sana untuk restart."), *S->DisplayName), Bad);
 		}
+		JRSound::Voice(this, VoiceCode[C->TypeIndex], TEXT("Rusak"), C->GetActorLocation());
 	}
 	// Pesan mi instan
 	if (!C->bOrder && !C->bAte && FMath::FRand() < (bAutoTest ? 6.f : 0.4f) * DtH)
 	{
 		C->bOrder = true;
 		C->OrderHours = 1.f;
+		JRSound::Voice(this, VoiceCode[C->TypeIndex], TEXT("Pesan_Mi"), C->GetActorLocation());
 		AddToast(FString::Printf(TEXT("%s di %s pesan mi instan"), *C->DisplayName, *S->DisplayName));
 	}
 	if (C->bOrder)
@@ -598,7 +618,11 @@ void AJRGameMode::EmakEvent(AJRCustomer* C)
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	const FJRLayout& L = Layout();
 	AJRVisitor* Emak = GetWorld()->SpawnActor<AJRVisitor>(FVector(-(L.HalfX - 100.f), L.DoorY, 0.f), FRotator::ZeroRotator, SP);
-	if (Emak) Emak->Setup(TEXT("SK_Emak"), TEXT("A_Marah"));
+	if (Emak)
+	{
+		Emak->Setup(TEXT("SK_Emak"), TEXT("A_Marah"));
+		JRSound::Voice(this, TEXT("Emak"), TEXT("Datang"), Emak->GetActorLocation());
+	}
 	const FString Where = C->Station ? C->Station->DisplayName : FString(TEXT("TV"));
 	TWeakObjectPtr<AJRCustomer> WC(C);
 	TWeakObjectPtr<AJRVisitor> WE(Emak);
@@ -619,12 +643,18 @@ void AJRGameMode::EmakEvent(AJRCustomer* C)
 				Stats.RepDelta += 2.f;
 				B->bOrder = false;
 				B->Mood = TEXT("T_T");
+				if (WE.IsValid()) JRSound::Voice(this, TEXT("Emak"), TEXT("Jewer"), WE->GetActorLocation());
+				JRSound::Voice(this, TEXT("Bocil"), TEXT("Ketahuan"), B->GetActorLocation());
 				AddToast(FString::Printf(TEXT("Bocil dijewer pulang. Emak bayar setengah: %s. Reputasi warga +2"), *JRFormatRp(Paid)), Good);
 				Leave(B);
 			},
 			[this, WE, Door]()
 			{
-				if (WE.IsValid()) WE->LeaveTo(Door);
+				if (WE.IsValid())
+				{
+					JRSound::Voice(this, TEXT("Emak"), TEXT("Pergi"), WE->GetActorLocation());
+					WE->LeaveTo(Door);
+				}
 				Stats.RepDelta -= 3.f;
 				AddToast(TEXT("Emak pergi sambil ngomel. Reputasi warga -3"), Bad);
 			}
@@ -636,6 +666,8 @@ void AJRGameMode::RageQuitEvent(AJRCustomer* C)
 	AJRStation* S = C->Station;
 	C->bRaging = true;
 	if (S) S->bBroken = true;
+	JRSound::PlayAt(this, TEXT("SFX_Stik_Banting"), C->GetActorLocation());
+	JRSound::Voice(this, VoiceCode[C->TypeIndex], TEXT("Rage"), C->GetActorLocation());
 	TWeakObjectPtr<AJRCustomer> WC(C);
 	PushChoice(TEXT("Rage quit!"),
 		FString::Printf(TEXT("%s kalah adu penalti lalu membanting stik di %s. Stiknya rusak."), *C->DisplayName, S ? *S->DisplayName : TEXT("TV")),
@@ -671,23 +703,33 @@ void AJRGameMode::PakRtEvent()
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	const FJRLayout& L = Layout();
 	AJRVisitor* Rt = GetWorld()->SpawnActor<AJRVisitor>(FVector(-(L.HalfX - 100.f), L.DoorY, 0.f), FRotator::ZeroRotator, SP);
-	if (Rt) Rt->Setup(TEXT("SK_Pak_RT"), TEXT("A_Marah"));
+	if (Rt)
+	{
+		Rt->Setup(TEXT("SK_Pak_RT"), TEXT("A_Marah"));
+		JRSound::Voice(this, TEXT("PakRT"), TEXT("Datang"), Rt->GetActorLocation());
+	}
 	TWeakObjectPtr<AJRVisitor> WR(Rt);
 	const FVector Door = L.DoorOutside();
-	auto Bye = [WR, Door]() { if (WR.IsValid()) WR->LeaveTo(Door); };
+	auto Bye = [this, WR, Door](const TCHAR* Line)
+	{
+		if (!WR.IsValid()) return;
+		JRSound::Voice(this, TEXT("PakRT"), Line, WR->GetActorLocation());
+		WR->LeaveTo(Door);
+	};
 	PushChoice(TEXT("Pak RT datang"),
 		TEXT("\"Mas, sudah jam sepuluh lewat. Warga komplain suara teriakan main game sampai ke gang sebelah.\""),
 		{ TEXT("Kecilkan suara"), TEXT("Kasih kopi gratis (Rp 5.000)"), TEXT("Abaikan") },
 		{
-			[this, Bye]() { Bye(); bQuiet = true; AddToast(TEXT("Suara dikecilkan. Malam ini pelanggan lebih sepi")); },
-			[this, Bye]() { Bye(); Money -= 5000.f; Stats.Stock += 5000.f; Stats.RepDelta += 1.f; AddToast(TEXT("Pak RT ngopi dulu, urusan beres. Reputasi +1"), Good); },
-			[this, Bye]() { Bye(); Stats.RepDelta -= 3.f; AddToast(TEXT("Pak RT tersinggung. Reputasi warga -3"), Bad); }
+			[this, Bye]() { Bye(TEXT("Kecil")); bQuiet = true; AddToast(TEXT("Suara dikecilkan. Malam ini pelanggan lebih sepi")); },
+			[this, Bye]() { Bye(TEXT("Kopi")); Money -= 5000.f; Stats.Stock += 5000.f; Stats.RepDelta += 1.f; AddToast(TEXT("Pak RT ngopi dulu, urusan beres. Reputasi +1"), Good); },
+			[this, Bye]() { Bye(TEXT("Abai")); Stats.RepDelta -= 3.f; AddToast(TEXT("Pak RT tersinggung. Reputasi warga -3"), Bad); }
 		});
 }
 
 void AJRGameMode::JokiEvent(AJRCustomer* C)
 {
 	TWeakObjectPtr<AJRCustomer> WC(C);
+	JRSound::Voice(this, TEXT("Gamer"), TEXT("Joki"), C->GetActorLocation());
 	PushChoice(TEXT("Joki rank datang"),
 		FString::Printf(TEXT("\"Bang, saya joki rank. Pakai %s, kasih diskon dong. Nanti saya bawa satu tim ke sini.\""), C->Station ? *C->Station->DisplayName : TEXT("PC")),
 		{ TEXT("Kasih diskon 20%"), TEXT("Harga normal") },
@@ -746,6 +788,7 @@ void AJRGameMode::DeliverMie(AJRStation* S)
 	C->bOrder = false;
 	C->bAte = true;
 	C->Bill += MiePrice;
+	JRSound::PlayAt(this, TEXT("SFX_Notif"), S->GetActorLocation(), 0.7f);
 	AddToast(FString::Printf(TEXT("Mi diantar ke %s. +%s masuk tagihan"), *S->DisplayName, *JRFormatRp(MiePrice)), Good);
 }
 
@@ -791,6 +834,7 @@ void AJRGameMode::CollectPayer(AJRCustomer* C)
 	{
 		static const TCHAR* Excuses[] = { TEXT("Besok bayar, bang. Sumpah."), TEXT("Gajian minggu depan, bang."), TEXT("Dompet ketinggalan di motor, bang.") };
 		TWeakObjectPtr<AJRCustomer> WC(C);
+		JRSound::Voice(this, VoiceCode[C->TypeIndex], TEXT("Ngutang"), C->GetActorLocation());
 		PushChoice(TEXT("Bang, ngutang dulu ya"),
 			FString::Printf(TEXT("\"%s\" Tagihannya %s."), Excuses[FMath::RandRange(0, 2)], *JRFormatRp(C->Bill)),
 			{ TEXT("Catat di buku utang"), TEXT("Tolak, harus bayar") },
@@ -825,7 +869,12 @@ void AJRGameMode::FinishPayment(AJRCustomer* C, float Paid)
 	const int32 S = CalcSatisfaction(C);
 	Stats.Satisfaction.Add(S);
 	C->Mood = Paid <= 0.f ? TEXT(";)") : S >= 60 ? TEXT(":)") : S >= 35 ? TEXT(":|") : TEXT(">:(");
-	if (Paid > 0.f) AddToast(FString::Printf(TEXT("+%s dari %s"), *JRFormatRp(Paid), *C->DisplayName), Good);
+	if (Paid > 0.f)
+	{
+		JRSound::PlayAt(this, TEXT("SFX_Kaching"), Layout().Kasir() + FVector(0, 0, 110));
+		if (FMath::FRand() < 0.5f) JRSound::Voice(this, VoiceCode[C->TypeIndex], TEXT("Bayar"), C->GetActorLocation());
+		AddToast(FString::Printf(TEXT("+%s dari %s"), *JRFormatRp(Paid), *C->DisplayName), Good);
+	}
 	Leave(C);
 }
 
@@ -869,6 +918,7 @@ void AJRGameMode::Trip()
 	{
 		if (C->State == EJRCustomerState::Playing) C->Breakdowns++;
 	}
+	JRSound::Play2D(this, TEXT("SFX_MCB_Turun"));
 	AddToast(TEXT("JEGLEK! Daya lewat batas, MCB turun. Naikkan MCB di dinding kiri."), Bad);
 }
 
@@ -876,6 +926,7 @@ void AJRGameMode::ResetMcb()
 {
 	if (!bMcbTripped) return;
 	bMcbTripped = false;
+	JRSound::Play2D(this, TEXT("SFX_MCB_Naik"));
 	AddToast(TEXT("Listrik menyala lagi"), Good);
 }
 
@@ -883,6 +934,7 @@ void AJRGameMode::RestartRouter()
 {
 	if (!bNetSlow) return;
 	bNetSlow = false;
+	JRSound::Play2D(this, TEXT("SFX_Notif"), 0.7f);
 	AddToast(TEXT("Internet lancar lagi"), Good);
 }
 
@@ -1072,6 +1124,7 @@ void AJRGameMode::PickBox(AJRDeliveryBox* Box)
 	if (!Box || IsCarrying()) return;
 	const FName Id = Box->ItemId;
 	Boxes.Remove(Box);
+	JRSound::PlayAt(this, TEXT("SFX_Kardus"), Box->GetActorLocation());
 	Box->Destroy();
 	if (Id == TEXT("stik"))
 	{
@@ -1106,6 +1159,7 @@ void AJRGameMode::InstallBox()
 	const EJRUnitType Type = CarryBox == TEXT("pc") ? EJRUnitType::PC : EJRUnitType::PS;
 	if (Count(Type) >= Layout().MaxUnits()) return;
 	SpawnStation(Type);
+	JRSound::PlayAt(this, TEXT("SFX_Pasang"), Stations.Last()->GetActorLocation() + FVector(0, 0, 80));
 	CarryBox = NAME_None;
 	AddToast(FString::Printf(TEXT("%s terpasang dan siap dipakai"), *Stations.Last()->DisplayName), Good);
 }

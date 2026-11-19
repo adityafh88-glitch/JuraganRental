@@ -88,6 +88,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> PlateMat;
+
+	UPROPERTY()
+	TObjectPtr<class UAudioComponent> Sizzle;
 };
 
 /** Router internet di dinding belakang ruko. Saat internet lemot: tahan E untuk restart. */

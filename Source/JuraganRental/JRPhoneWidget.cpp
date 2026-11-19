@@ -14,6 +14,7 @@
 #include "Components/VerticalBoxSlot.h"
 #include "Styling/CoreStyle.h"
 #include "JRGameMode.h"
+#include "JRSound.h"
 
 namespace
 {
@@ -46,6 +47,7 @@ void UJRPhoneButton::Bind(TFunction<void()> InAction)
 
 void UJRPhoneButton::HandleClicked()
 {
+	JRSound::Play2D(this, TEXT("SFX_HP_Tombol"), 0.6f);
 	if (Action) Action();
 }
 

@@ -47,7 +47,7 @@ struct FJRLayout
 	float DoorY = 420.f;
 	TArray<float> PsY;		// posisi Y deretan TV (di X = HalfX - 80)
 	TArray<float> PcX;		// posisi X deretan PC (di Y = HalfY - 70)
-	TArray<FVector> Queue;
+	TArray<FVector> Queue;	// 3 pertama = duduk di bangku antre
 	float Rent = 0.f;
 	float Internet = 0.f;
 	bool bRouter = false;

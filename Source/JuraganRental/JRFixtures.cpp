@@ -9,6 +9,8 @@
 #include "JRBlockout.h"
 #include "JRCustomer.h"
 #include "JRGameMode.h"
+#include "JRSound.h"
+#include "Components/AudioComponent.h"
 
 using namespace JRBlockout;
 
@@ -80,6 +82,9 @@ void AJRRoom::Build(float HX, float HY, float DoorY, bool bRuko)
 		AddProp(this, Root, TEXT("SM_Kulkas_Minuman"), FVector(40, -(HY - 35), 0), 90.f); // kulkas minuman dekat kantin
 		AddProp(this, Root, TEXT("SM_Poster"), FVector(0.2f * HX, HY - 2, 150), -90.f, false);
 	}
+
+	// Suasana: dengung ruangan dan motor lewat
+	if (UAudioComponent* Amb = JRSound::MakeLoop(Root, TEXT("LOOP_Suasana"), 0.45f, false)) Amb->Play();
 
 	// Lampu neon
 	const float Xs[] = { -0.5f * HX, 0.07f * HX, 0.64f * HX };
@@ -222,6 +227,8 @@ void AJRStove::BeginPlay()
 	PlateMat = MakeColorMat(this, Hex(0x2a2c30));
 	Kompor->SetMaterialByName(TEXT("M_Plat_Kompor"), PlateMat);
 	AddProp(this, Root, TEXT("SM_Panci"), FVector(2, 30, 98), 0.f, false);
+	Sizzle = JRSound::MakeLoop(Root, TEXT("LOOP_Masak"), 0.6f);
+	if (Sizzle) Sizzle->SetRelativeLocation(FVector(0, 30, 100));
 	AddProp(this, Root, TEXT("SM_Mangkuk_Mi"), FVector(6, -45, 90), 0.f, false);
 	AddProp(this, Root, TEXT("SM_Gelas_EsTeh"), FVector(-19, -15, 90), 0.f, false);
 	AddProp(this, Root, TEXT("SM_Kardus_Mi"), FVector(-9, 110, 0), 0.f);
@@ -245,6 +252,12 @@ void AJRStove::Tick(float DeltaSeconds)
 	}
 	Label->SetText(FText::FromString(Text));
 	Label->SetTextRenderColor(Color);
+	if (Sizzle)
+	{
+		const bool bCook = GM->StoveState == EJRStoveState::Cooking && !GM->bMcbTripped;
+		if (bCook && !Sizzle->IsPlaying()) Sizzle->Play();
+		else if (!bCook && Sizzle->IsPlaying()) Sizzle->Stop();
+	}
 	if (PlateMat)
 	{
 		const bool bHot = GM->StoveState == EJRStoveState::Cooking && !GM->bMcbTripped;

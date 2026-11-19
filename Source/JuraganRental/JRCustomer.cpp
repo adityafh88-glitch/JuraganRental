@@ -9,6 +9,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "JRGameMode.h"
 #include "JRStation.h"
+#include "JRSound.h"
 
 namespace
 {
@@ -118,6 +119,9 @@ void AJRCustomer::UpdateAnimation()
 		if (bRaging) { PlayLoop(LoadAnim(TEXT("A_Rage_Quit"))); break; }
 		PlayLoop(LoadAnim(Station && Station->Type == EJRUnitType::PC ? TEXT("A_Duduk_Kursi_Main") : TEXT("A_Duduk_Lesehan_Main")));
 		break;
+	case EJRCustomerState::Queue:
+		PlayLoop(LoadAnim(bBenchSeat ? TEXT("A_Duduk_Bangku") : TEXT("A_Idle")));
+		break;
 	default:
 		PlayLoop(LoadAnim(TEXT("A_Idle")));
 		break;
@@ -158,6 +162,18 @@ void AJRCustomer::Arrive(AJRGameMode* GM)
 		{
 			SetActorLocation(Station->GetSeatLocation()); // animasi duduk yang menurunkan pinggul
 			SetActorRotation(Station->GetSeatRotation());
+			if (FMath::FRand() < 0.6f)
+			{
+				static const TCHAR* Codes[] = { TEXT("Bocil"), TEXT("SMA"), TEXT("Mahasiswa"), TEXT("Kantoran"), TEXT("Gamer"), TEXT("Bapak") };
+				JRSound::Voice(this, Codes[FMath::Clamp(TypeIndex, 0, 5)], TEXT("Datang"), GetActorLocation());
+			}
+		}
+		break;
+	case EJRCustomerState::Queue:
+		if (bBenchSeat)
+		{
+			SetActorLocation(Target);
+			SetActorRotation(FRotator(0.f, 0.f, 0.f)); // duduk menghadap ke dalam ruangan
 		}
 		break;
 	case EJRCustomerState::WaitPay:

@@ -7,6 +7,8 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "JRBlockout.h"
 #include "JRCustomer.h"
+#include "JRSound.h"
+#include "Components/AudioComponent.h"
 #include "JRGameMode.h"
 
 using namespace JRBlockout;
@@ -43,6 +45,12 @@ void AJRStation::Setup(EJRUnitType InType, int32 InIndex)
 		AddProp(this, Root, TEXT("SM_Karpet"), FVector(SeatDistance(), 0, 0), 0.f, false);
 		AddProp(this, Root, TEXT("SM_Stik"), FVector(SeatDistance() - 45, 45, 2), 160.f, false);
 		Label->SetRelativeLocation(FVector(0, 0, 140));
+		GameLoop = JRSound::MakeLoop(Root, TEXT("LOOP_Game_PS"), 0.3f);
+		if (GameLoop)
+		{
+			GameLoop->SetRelativeLocation(FVector(0, 0, 100));
+			GameLoop->SetPitchMultiplier(0.94f + 0.04f * InIndex); // tiap TV sedikit beda nada
+		}
 	}
 	else
 	{
@@ -184,6 +192,13 @@ void AJRStation::Tick(float DeltaSeconds)
 		const int32 Minutes = FMath::Max(0, FMath::CeilToInt(Customer->HoursLeft * 60.f));
 		Text = FString::Printf(TEXT("%d:%02d%s"), Minutes / 60, Minutes % 60, Customer->bOrder ? TEXT("  + MI") : TEXT(""));
 		TextColor = FColor(255, 194, 75);
+	}
+
+	if (GameLoop)
+	{
+		const bool bWant = bPlaying && !GM->bMcbTripped && !bBroken;
+		if (bWant && !GameLoop->IsPlaying()) GameLoop->Play();
+		else if (!bWant && GameLoop->IsPlaying()) GameLoop->Stop();
 	}
 
 	if (ScreenMat && !ScreenColor.Equals(LastScreenColor))
