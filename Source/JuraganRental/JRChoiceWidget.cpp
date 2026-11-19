@@ -11,7 +11,7 @@
 #include "Styling/CoreStyle.h"
 #include "JRPhoneWidget.h"
 
-namespace
+namespace JRLocal_ChoiceWidget
 {
 	const FLinearColor Card(0.10f, 0.12f, 0.15f, 0.97f);
 	const FLinearColor Ink(0.95f, 0.93f, 0.89f);
@@ -29,6 +29,7 @@ namespace
 		return B;
 	}
 }
+using namespace JRLocal_ChoiceWidget;
 
 TSharedRef<SWidget> UJRChoiceWidget::RebuildWidget()
 {

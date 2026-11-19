@@ -1,6 +1,7 @@
 #include "JRStation.h"
 
 #include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 #include "Components/TextRenderComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Camera/PlayerCameraManager.h"
@@ -42,7 +43,7 @@ void AJRStation::Setup(EJRUnitType InType, int32 InIndex)
 		UStaticMeshComponent* Tv = AddProp(this, Root, TEXT("SM_TV_Tabung"), FVector(-4, 0, 50));
 		Tv->SetMaterialByName(TEXT("M_TV_Screen"), ScreenMat);
 		AddProp(this, Root, TEXT("SM_Konsol_PlayStasiun"), FVector(0, 16.5f, 28.5f));
-		AddProp(this, Root, TEXT("SM_Karpet"), FVector(SeatDistance(), 0, 0), 0.f, false);
+		Seat = AddProp(this, Root, TEXT("SM_Karpet"), FVector(SeatDistance(), 0, 0), 0.f, false);
 		AddProp(this, Root, TEXT("SM_Stik"), FVector(SeatDistance() - 45, 45, 2), 160.f, false);
 		Label->SetRelativeLocation(FVector(0, 0, 140));
 	}
@@ -54,9 +55,46 @@ void AJRStation::Setup(EJRUnitType InType, int32 InIndex)
 		AddProp(this, Root, TEXT("SM_CPU"), FVector(-5, 30, 0));
 		AddProp(this, Root, TEXT("SM_Keyboard"), FVector(18, 0, 75), 0.f, false);
 		AddProp(this, Root, TEXT("SM_Mouse"), FVector(16, 30, 75), 0.f, false);
-		AddProp(this, Root, TEXT("SM_Kursi_Plastik"), FVector(SeatDistance(), 0, 0), 180.f, false); // menghadap meja
+		Seat = AddProp(this, Root, TEXT("SM_Kursi_Plastik"), FVector(SeatDistance(), 0, 0), 180.f, false); // menghadap meja
 		AddProp(this, Root, TEXT("SM_Sekat_Bilik"), FVector(30, 112, 0));
 		Label->SetRelativeLocation(FVector(0, 0, 165));
+	}
+}
+
+void AJRStation::ApplySeatTier(int32 Tier)
+{
+	if (Tier == SeatTier || !Seat) return;
+	SeatTier = Tier;
+	static UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+	if (Tier <= 0)
+	{
+		if (SeatExtra) SeatExtra->SetVisibility(false);
+		return;
+	}
+	if (!SeatExtra && Cube)
+	{
+		SeatExtra = NewObject<UStaticMeshComponent>(this);
+		SeatExtra->SetupAttachment(Root);
+		SeatExtra->SetStaticMesh(Cube);
+		SeatExtra->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		SeatExtra->RegisterComponent();
+	}
+	if (!SeatExtra) return;
+	SeatExtra->SetVisibility(true);
+	const bool bGaming = Tier >= 2;
+	const FLinearColor Col = bGaming ? FLinearColor(0.75f, 0.08f, 0.08f) : FLinearColor(0.15f, 0.3f, 0.65f);
+	SeatExtra->SetMaterial(0, MakeColorMat(this, Col));
+	if (Type == EJRUnitType::PS)
+	{
+		// Bantal duduk (empuk) atau bean bag (gaming) di atas karpet
+		SeatExtra->SetRelativeLocation(FVector(SeatDistance() + 10.f, 0.f, bGaming ? 12.f : 4.f));
+		SeatExtra->SetRelativeScale3D(bGaming ? FVector(0.7f, 0.7f, 0.25f) : FVector(0.5f, 0.5f, 0.08f));
+	}
+	else
+	{
+		// Sandaran tinggi di belakang kursi (busa: biru, gaming: merah)
+		SeatExtra->SetRelativeLocation(FVector(SeatDistance() + 22.f, 0.f, bGaming ? 85.f : 70.f));
+		SeatExtra->SetRelativeScale3D(bGaming ? FVector(0.08f, 0.48f, 0.75f) : FVector(0.07f, 0.42f, 0.45f));
 	}
 }
 
@@ -94,9 +132,9 @@ void AJRStation::PlayActivitySound()
 
 FVector AJRStation::GetSeatLocation() const
 {
-	FVector Seat = GetActorLocation() + GetActorForwardVector() * SeatDistance();
-	Seat.Z = 0.f;
-	return Seat;
+	FVector SeatLoc = GetActorLocation() + GetActorForwardVector() * SeatDistance();
+	SeatLoc.Z = 0.f;
+	return SeatLoc;
 }
 
 FRotator AJRStation::GetSeatRotation() const
@@ -187,7 +225,14 @@ void AJRStation::Tick(float DeltaSeconds)
 	FString Text = DisplayName;
 	FColor TextColor(160, 165, 175);
 
-	if (bBroken)
+	if (bHaunted && !Customer)
+	{
+		const bool bFlick = FMath::FRand() < 0.85f;
+		ScreenColor = bFlick ? Hex(0x2433a8) : Hex(0x0d0f12);
+		Text = TEXT("LANJUTKAN?  (Y/N)");
+		TextColor = FColor(150, 170, 255);
+	}
+	else if (bBroken)
 	{
 		ScreenColor = bVirus ? Hex(0x6a2a8a) : Hex(0x8a2a24);
 		Text = DisplayName + (bVirus ? TEXT(" VIRUS") : TEXT(" RUSAK"));

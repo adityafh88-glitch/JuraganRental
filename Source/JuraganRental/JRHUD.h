@@ -9,6 +9,7 @@
 class UJRPhoneWidget;
 class UJRChoiceWidget;
 class UJRTouchWidget;
+class UJRMenuWidget;
 
 UCLASS()
 class JURAGANRENTAL_API AJRHUD : public AHUD
@@ -20,10 +21,14 @@ public:
 	virtual void DrawHUD() override;
 
 	void TogglePhone();
+	/** Esc: tutup HP, kembali di menu, atau buka menu jeda. */
+	void TogglePause();
+	UJRMenuWidget* GetMenu() const { return Menu; }
+	class UJRPhoneWidget* GetPhone() const { return Phone; }
 	void SetPhoneOpen(bool bOpen);
 	bool IsPhoneOpen() const { return bPhoneOpen; }
 	/** HP atau dialog kejadian sedang terbuka: pemain tidak bisa jalan/menoleh. */
-	bool IsUIOpen() const { return bPhoneOpen || bChoiceShown; }
+	bool IsUIOpen() const;
 	bool IsTouchMode() const { return bTouchMode; }
 	/** Pasang ulang joystick layar sesuai pengaturan (tetap/ikut jari). */
 	void ApplyTouchSettings();
@@ -41,10 +46,16 @@ private:
 	TObjectPtr<UJRChoiceWidget> Choice;
 
 	bool bChoiceShown = false;
+	int32 ShownChoiceSerial = 0;
 	bool bTouchMode = false;
 
 	UPROPERTY()
 	TObjectPtr<UJRTouchWidget> Touch;
+
+	UPROPERTY()
+	TObjectPtr<UJRMenuWidget> Menu;
+
+	void OnMenuChanged();
 
 	bool bPhoneOpen = false;
 };

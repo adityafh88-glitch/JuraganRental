@@ -11,13 +11,14 @@
 #include "JRStation.h"
 #include "JRSound.h"
 
-namespace
+namespace JRLocal_Customer
 {
 	UAnimSequence* LoadAnim(const TCHAR* Name)
 	{
 		return LoadObject<UAnimSequence>(nullptr, *FString::Printf(TEXT("/Game/Characters/Animations/%s.%s"), Name, Name));
 	}
 }
+using namespace JRLocal_Customer;
 
 AJRCustomer::AJRCustomer()
 {
@@ -213,6 +214,7 @@ void AJRCustomer::Tick(float DeltaSeconds)
 		Patience -= DtH;
 		if (Patience <= 0.f)
 		{
+			GM->CountAngry(true);
 			GM->LeaveAngry(this, DisplayName + TEXT(" bosan antre lalu pulang"));
 		}
 		break;
@@ -221,6 +223,7 @@ void AJRCustomer::Tick(float DeltaSeconds)
 		Patience -= DtH;
 		if (Patience <= 0.f)
 		{
+			GM->CountAngry(false);
 			GM->LeaveAngry(this, FString::Printf(TEXT("%s pulang, unitnya tidak dinyalakan"), *DisplayName));
 		}
 		break;

@@ -33,6 +33,7 @@ public:
 	void InteractCompleted();
 	void Confirm();
 	void TogglePhone();
+	void TogglePause();
 
 private:
 	void BuildInput();
@@ -69,6 +70,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UInputAction> PhoneAction;
+
+	UPROPERTY()
+	TObjectPtr<UInputAction> PauseAction;
 
 	TWeakObjectPtr<AActor> TargetActor;
 	bool bInteractHeld = false;

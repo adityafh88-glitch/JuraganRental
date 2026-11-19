@@ -36,6 +36,7 @@ class JURAGANRENTAL_API UJRPhoneWidget : public UUserWidget
 public:
 	/** Bangun ulang isi layar (dipanggil saat dibuka dan setelah membeli). */
 	void Refresh(bool bForce = false);
+	void SetTab(int32 Tab) { CurrentTab = Tab; Refresh(true); }
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -45,6 +46,8 @@ private:
 	void BuildTree();
 	void FillToko(AJRGameMode* GM);
 	void FillTarif(AJRGameMode* GM);
+	void FillStaff(AJRGameMode* GM);
+	void FillInternet(AJRGameMode* GM);
 	void FillHariIni(AJRGameMode* GM);
 	void FillAtur();
 	void ClosePhone();

@@ -9,6 +9,8 @@
 #include "JRChoiceWidget.h"
 #include "JRTouchWidget.h"
 #include "JRSettings.h"
+#include "JRMenuWidget.h"
+#include "Kismet/GameplayStatics.h"
 #include "JRSound.h"
 #include "GameFramework/InputSettings.h"
 #include "GameFramework/TouchInterface.h"
@@ -16,7 +18,7 @@
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
 
-namespace
+namespace JRLocal_HUD
 {
 	const FLinearColor Led(1.f, 0.76f, 0.29f);
 	const FLinearColor Ink(0.95f, 0.93f, 0.89f);
@@ -24,6 +26,7 @@ namespace
 	const FLinearColor Panel(0.07f, 0.08f, 0.10f, 0.85f);
 	const FLinearColor Crt(0.37f, 0.70f, 1.f);
 }
+using namespace JRLocal_HUD;
 
 void AJRHUD::BeginPlay()
 {
@@ -48,6 +51,14 @@ void AJRHUD::BeginPlay()
 			if (Touch) Touch->AddToViewport(5);
 		}
 
+		Menu = CreateWidget<UJRMenuWidget>(PlayerOwner, UJRMenuWidget::StaticClass());
+		if (Menu)
+		{
+			Menu->AddToViewport(30);
+			Menu->SetVisibility(ESlateVisibility::Collapsed);
+			Menu->OnChanged = [this]() { OnMenuChanged(); };
+		}
+
 		Choice = CreateWidget<UJRChoiceWidget>(PlayerOwner, UJRChoiceWidget::StaticClass());
 		if (Choice)
 		{
@@ -68,8 +79,11 @@ void AJRHUD::SyncChoice()
 {
 	const AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
 	if (!Choice || !GM) return;
+	// Dialog berganti tanpa jeda (mis. kejadian berantai): tampilkan yang baru.
+	if (bChoiceShown && GM->Choices.Num() > 0 && GM->Choices[0].Serial != ShownChoiceSerial) bChoiceShown = false;
 	if (!bChoiceShown && GM->Choices.Num() > 0)
 	{
+		ShownChoiceSerial = GM->Choices[0].Serial;
 		if (bPhoneOpen) SetPhoneOpen(false);
 		const FJRChoice& C = GM->Choices[0];
 		Choice->Show(C.Title, C.Body, C.Labels);
@@ -84,6 +98,31 @@ void AJRHUD::SyncChoice()
 		Choice->SetVisibility(ESlateVisibility::Collapsed);
 		ApplyInputMode();
 	}
+}
+
+bool AJRHUD::IsUIOpen() const
+{
+	return bPhoneOpen || bChoiceShown || (Menu && Menu->IsOpen());
+}
+
+void AJRHUD::OnMenuChanged()
+{
+	const AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
+	// Menu jeda menghentikan waktu; menu utama tidak (dunia jadi latar yang hidup).
+	const bool bPause = Menu && Menu->IsOpen() && GM && GM->Phase != EJRGamePhase::Menu;
+	if (UGameplayStatics::IsGamePaused(this) != bPause) UGameplayStatics::SetGamePaused(this, bPause);
+	if (Menu && Menu->IsOpen() && bPhoneOpen) SetPhoneOpen(false);
+	ApplyInputMode();
+}
+
+void AJRHUD::TogglePause()
+{
+	const AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
+	if (!Menu || !GM) return;
+	if (Menu->IsOpen()) { Menu->Back(); return; }
+	if (bPhoneOpen) { SetPhoneOpen(false); return; }
+	if (bChoiceShown || GM->Phase == EJRGamePhase::Menu) return;
+	Menu->ShowPause();
 }
 
 void AJRHUD::ApplyInputMode()
@@ -129,7 +168,7 @@ void AJRHUD::TogglePhone()
 void AJRHUD::SetPhoneOpen(bool bOpen)
 {
 	const AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
-	if (bOpen && (!GM || GM->Phase == EJRGamePhase::Intro || bChoiceShown)) return;
+	if (bOpen && (!GM || GM->Phase == EJRGamePhase::Intro || GM->Phase == EJRGamePhase::Menu || bChoiceShown || (Menu && Menu->IsOpen()))) return;
 	if (!Phone || !PlayerOwner) return;
 	bPhoneOpen = bOpen;
 	Phone->SetVisibility(bOpen ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
@@ -143,6 +182,13 @@ void AJRHUD::DrawHUD()
 	Super::DrawHUD();
 	const AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
 	if (!GM || !Canvas) return;
+
+	// Menu utama: tampilkan menunya saja, tanpa status toko.
+	if (GM->Phase == EJRGamePhase::Menu)
+	{
+		if (Menu && !Menu->IsOpen()) Menu->ShowMain();
+		return;
+	}
 
 	SyncChoice();
 	UFont* Font = GEngine->GetMediumFont();
@@ -163,11 +209,12 @@ void AJRHUD::DrawHUD()
 			TEXT("Kamu baru membuka rental PS di garasi rumah: dua TV tabung, satu PC warnet,"),
 			TEXT("dan MCB 1.300 VA yang gampang turun."),
 			TEXT(""),
-			TEXT("WASD: jalan    Mouse: lihat    E: interaksi (tahan untuk memperbaiki)    Tab: HP (belanja, tarif)"),
+			bTouchMode ? TEXT("Joystick kiri: jalan    Joystick kanan: lihat    Tombol aksi: interaksi    HP: belanja, tarif    II: jeda")
+				: TEXT("WASD: jalan    Mouse: lihat    E: interaksi (tahan untuk memperbaiki)    Tab: HP    Esc: menu jeda"),
 			TEXT(""),
 			TEXT("Lihat ke TV yang ditunggu pelanggan lalu tekan E untuk menyalakan."),
 			TEXT("Pelanggan selesai main akan antre di kasir dekat pintu. Jangan biarkan kasir kosong."),
-			TEXT("Target: Rp 1.500.000 dan reputasi 40 untuk membuka Gerbang 1."),
+			TEXT("Target: Rp 600.000 dan reputasi 40 untuk membuka Gerbang 1."),
 		}, bTouchMode ? TEXT("Ketuk LANJUT untuk buka toko") : TEXT("Tekan ENTER untuk buka toko"));
 		return;
 	}

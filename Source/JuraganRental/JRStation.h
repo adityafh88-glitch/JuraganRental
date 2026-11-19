@@ -40,6 +40,12 @@ public:
 	FString DisplayName;
 	bool bBroken = false;
 	bool bVirus = false;	// PC kena virus: perbaikan lebih lama
+	bool bHaunted = false;	// cerita misteri: layar menyala sendiri
+	bool bUsed = false;		// barang bekas dari loak: lebih sering rusak
+	void MarkUsed() { bUsed = true; DisplayName += TEXT(" (bekas)"); }
+
+	/** Tingkat tempat duduk: 0 standar, 1 empuk, 2 gaming. */
+	void ApplySeatTier(int32 Tier);
 
 	UPROPERTY()
 	TObjectPtr<AJRCustomer> Customer;
@@ -57,6 +63,14 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> ScreenMat;
+
+	UPROPERTY()
+	TObjectPtr<class UStaticMeshComponent> Seat;
+
+	UPROPERTY()
+	TObjectPtr<class UStaticMeshComponent> SeatExtra;	// bantal (PS) atau sandaran tinggi (PC)
+
+	int32 SeatTier = -1;
 
 	float ActivityTimer = 2.f;	// detik sampai bunyi aktivitas berikutnya
 	void PlayActivitySound();

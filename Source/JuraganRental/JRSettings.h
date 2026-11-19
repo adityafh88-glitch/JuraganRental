@@ -26,6 +26,9 @@ public:
 
 	UPROPERTY()
 	bool bInvertLook = false;	// geser ke atas = lihat ke bawah
+
+	UPROPERTY()
+	float LookSpeed = 1.f;		// kepekaan mouse / joystick lihat
 };
 
 namespace JRSettings

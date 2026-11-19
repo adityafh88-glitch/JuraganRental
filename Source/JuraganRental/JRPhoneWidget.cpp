@@ -19,7 +19,7 @@
 #include "JRSettings.h"
 #include "GameFramework/PlayerController.h"
 
-namespace
+namespace JRLocal_PhoneWidget
 {
 	// Palet HP jadul: bodi abu tua, layar LCD hijau.
 	const FLinearColor BodyColor = FLinearColor(0.035f, 0.04f, 0.05f, 0.97f);
@@ -39,6 +39,7 @@ namespace
 		return B;
 	}
 }
+using namespace JRLocal_PhoneWidget;
 
 /* ---------- Tombol ---------- */
 
@@ -178,7 +179,7 @@ void UJRPhoneWidget::BuildTabs()
 {
 	TabRow->ClearChildren();
 	UHorizontalBox* Tabs = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	const TCHAR* Names[] = { TEXT("Toko"), TEXT("Tarif"), TEXT("Hari ini"), TEXT("Atur") };
+	const TCHAR* Names[] = { TEXT("Toko"), TEXT("Kelola"), TEXT("Hari ini"), TEXT("Atur") };
 	for (int32 i = 0; i < 4; ++i)
 	{
 		UJRPhoneButton* B = MakeButton(Names[i], [this, i]() { CurrentTab = i; Refresh(true); }, true, CurrentTab == i);
@@ -204,7 +205,9 @@ void UJRPhoneWidget::Refresh(bool bForce)
 	}
 
 	// Tab lain dibangun ulang hanya jika status tombolnya berubah (bukan setiap kali kas bertambah).
-	FString Sig = FString::Printf(TEXT("%d|%d|%d|%d|%d|%d|%d"), CurrentTab, GM->PricePS, GM->PricePC, GM->CapVA, GM->Era, GM->bPaketMalam ? 1 : 0, GM->Phase == EJRGamePhase::Playing ? 1 : 0);
+	FString Sig = FString::Printf(TEXT("%d|%d|%d|%d|%d|%d|%d|%d%d%d"), CurrentTab, GM->PricePS, GM->PricePC, GM->CapVA, GM->Era, GM->bPaketMalam ? 1 : 0, GM->Phase == EJRGamePhase::Playing ? 1 : 0,
+		GM->HasStaff(EJRStaff::Kasir) ? 1 : 0, GM->HasStaff(EJRStaff::Teknisi) ? 1 : 0, GM->HasStaff(EJRStaff::Koki) ? 1 : 0);
+	Sig += FString::Printf(TEXT("|n%d%d"), GM->NetPlan, GM->PendingNetPlan);
 	for (const FJRShopItem& It : GM->GetShopItems())
 	{
 		Sig += It.Lock + (GM->Money >= It.Cost ? TEXT("1") : TEXT("0"));
@@ -280,6 +283,31 @@ void UJRPhoneWidget::FillTarif(AJRGameMode* GM)
 			Refresh(true);
 		}), 6.f);
 	}
+	FillInternet(GM);
+	FillStaff(GM);
+}
+
+void UJRPhoneWidget::FillInternet(AJRGameMode* GM)
+{
+	if (GM->Era < 2) return;
+	AddLine(MakeText(TEXT("PROVIDER INTERNET"), 15, LcdInk, true), 22.f);
+	AddLine(MakeText(TEXT("Ganti provider berlaku mulai besok pagi."), 11, LcdMuted), 2.f);
+	for (int32 Plan = 0; Plan < 3; ++Plan)
+	{
+		const bool bNow = GM->NetPlan == Plan;
+		const bool bNext = GM->PendingNetPlan == Plan;
+		AddLine(MakeText(FString::Printf(TEXT("%s  (%s/hari)%s"), AJRGameMode::NetName(Plan), *JRFormatRp(AJRGameMode::NetCost(Plan)),
+			bNow ? TEXT("  - DIPAKAI") : bNext ? TEXT("  - MULAI BESOK") : TEXT("")), 14, LcdInk, true), 12.f);
+		AddLine(MakeText(AJRGameMode::NetDesc(Plan), 11, LcdMuted), 2.f);
+		if (!bNow && !bNext)
+		{
+			AddLine(MakeButton(TEXT("Pilih"), [this, Plan]()
+			{
+				if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>()) G->ChooseNetPlan(Plan);
+				Refresh(true);
+			}), 6.f);
+		}
+	}
 }
 
 void UJRPhoneWidget::ClosePhone()
@@ -332,6 +360,29 @@ void UJRPhoneWidget::FillAtur()
 
 }
 
+void UJRPhoneWidget::FillStaff(AJRGameMode* GM)
+{
+	AddLine(MakeText(TEXT("KARYAWAN"), 15, LcdInk, true), 22.f);
+	if (GM->Era < 2)
+	{
+		AddLine(MakeText(TEXT("Karyawan bisa direkrut setelah pindah ke ruko."), 11, LcdMuted), 2.f);
+		return;
+	}
+	AddLine(MakeText(TEXT("Gaji dipotong setiap toko tutup."), 11, LcdMuted), 2.f);
+	for (int32 i = 0; i < (int32)EJRStaff::Count; ++i)
+	{
+		const EJRStaff S = (EJRStaff)i;
+		const bool bHired = GM->HasStaff(S);
+		AddLine(MakeText(FString::Printf(TEXT("%s  (%s/hari)%s"), AJRGameMode::StaffName(S), *JRFormatRp(AJRGameMode::StaffWage(S)), bHired ? TEXT("  - BEKERJA") : TEXT("")), 14, LcdInk, true), 12.f);
+		AddLine(MakeText(AJRGameMode::StaffDesc(S), 11, LcdMuted), 2.f);
+		AddLine(MakeButton(bHired ? TEXT("Berhentikan") : TEXT("Rekrut"), [this, S]()
+		{
+			if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>()) G->ToggleStaff(S);
+			Refresh(true);
+		}), 6.f);
+	}
+}
+
 void UJRPhoneWidget::FillHariIni(AJRGameMode* GM)
 {
 	const FJRDayStats& S = GM->GetStats();
@@ -345,7 +396,7 @@ void UJRPhoneWidget::FillHariIni(AJRGameMode* GM)
 		FString::Printf(TEXT("Piutang di buku utang: %s"), *JRFormatRp(GM->TotalDebt())),
 		FString::Printf(TEXT("Reputasi: %d"), FMath::RoundToInt(GM->Rep)),
 		FString::Printf(TEXT("Daya: %d / %d VA"), GM->PowerVA, GM->CapVA),
-		GM->Era == 1 ? TEXT("Target Gerbang 1: Rp 1.500.000 dan reputasi 40.") : TEXT("Target Gerbang 2: Rp 8 juta, reputasi 65, 10 unit."),
+		GM->Era == 1 ? TEXT("Target Gerbang 1: Rp 600.000 dan reputasi 40.") : TEXT("Target Gerbang 2: Rp 3 juta, reputasi 60, 10 unit."),
 	};
 	const int32 N = UE_ARRAY_COUNT(Lines);
 	if (InfoLines.Num() != N)

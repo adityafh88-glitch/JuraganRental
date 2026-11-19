@@ -25,6 +25,12 @@ public:
 	UPROPERTY()
 	TObjectPtr<class UMaterialInterface> SignMaterial;
 
+	/** Nyalakan/matikan semua lampu neon (untuk efek berkedip di cerita misteri). */
+	void SetLightsOn(bool bOn);
+
+	UPROPERTY()
+	TArray<TObjectPtr<class UPointLightComponent>> Lights;
+
 private:
 	UPROPERTY()
 	TObjectPtr<USceneComponent> Root;
@@ -39,12 +45,47 @@ class JURAGANRENTAL_API AJRKasir : public AActor, public IJRInteractable
 public:
 	AJRKasir();
 	virtual void BeginPlay() override;
+	/** Hadiah tamat cerita misteri: kaset emas dipajang di meja. */
+	void ShowGoldCassette(bool bShow);
+
+	UPROPERTY()
+	TObjectPtr<class UStaticMesh> CubeMesh;
+
+	UPROPERTY()
+	TObjectPtr<class UStaticMeshComponent> GoldCassette;
 	virtual FJRInteraction GetInteraction() const override;
 	virtual void Interact() override;
 
 private:
 	UPROPERTY()
 	TObjectPtr<USceneComponent> Root;
+};
+
+/** Dekorasi yang dibeli lewat HP: poster, kipas, tanaman, neon RGB, AC. */
+UCLASS()
+class JURAGANRENTAL_API AJRDecor : public AActor
+{
+	GENERATED_BODY()
+
+public:
+	AJRDecor();
+	/** Bangun dekorasi Id di posisi yang sesuai ukuran ruangan. */
+	void Setup(FName Id, float HalfX, float HalfY, float DoorY);
+
+private:
+	UStaticMeshComponent* Shape(UStaticMesh* Mesh, const FVector& Loc, const FVector& Scale, const FLinearColor& Color, float Glow = 0.f);
+
+	UPROPERTY()
+	TObjectPtr<USceneComponent> Root;
+
+	UPROPERTY()
+	TObjectPtr<UStaticMesh> Cube;
+
+	UPROPERTY()
+	TObjectPtr<UStaticMesh> Cylinder;
+
+	UPROPERTY()
+	TObjectPtr<UStaticMesh> Cone;
 };
 
 /** Kotak MCB di dinding. Turun saat daya melebihi kapasitas. */

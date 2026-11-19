@@ -37,6 +37,8 @@ struct FJRDayStats
 	float RepDelta = 0.f;
 	int32 Customers = 0;
 	TArray<int32> Satisfaction;
+	// Catatan untuk keseimbangan ekonomi (-jrbalance)
+	int32 AngryQueue = 0, AngryStart = 0, Ran = 0, Breaks = 0, Trips = 0, Paid = 0;
 };
 
 /** Tata letak satu era: ukuran ruangan dan posisi semua perabot (cm). */
@@ -98,8 +100,26 @@ public:
 	/* ---------- Era 2: ruko ---------- */
 	bool bPS2 = false;			// semua TV pakai PlayStasiun 2 (harga wajar Rp 3.000)
 	bool bAntivirus = false;
-	bool bFastNet = false;
+	bool bFastNet = false;		// (simpanan lama) setara KilatNet
+	/* Provider internet ruko: 0 NetRakyat, 1 KilatNet, 2 FiberNusa */
+	int32 NetPlan = 0;
+	int32 PendingNetPlan = -1;	// ganti provider mulai besok
+
+	/* Tawaran loak hari ini: "psbekas" / "pcbekas" (None = tidak ada) */
+	FName LoakOffer;
+	static bool IsPCItem(FName Id) { return Id == TEXT("pc") || Id == TEXT("pcbekas"); }
+	static bool IsUsedItem(FName Id) { return Id == TEXT("psbekas") || Id == TEXT("pcbekas"); }
+	static const TCHAR* NetName(int32 Plan);
+	static int32 NetCost(int32 Plan);
+	static const TCHAR* NetDesc(int32 Plan);
+	void ChooseNetPlan(int32 Plan);
+	float InternetToday() const { return Layout().bRouter ? (float)NetCost(NetPlan) : 0.f; }
 	bool bPaketMalam = false;
+	int32 SeatTier = 0;			// 0 standar, 1 empuk/busa, 2 gaming
+	TArray<FName> Decor;		// dekorasi yang sudah dibeli
+	int32 DecorBonus() const;	// tambahan kepuasan dari dekorasi
+	int32 DecorVA() const;		// daya yang dipakai dekorasi (kipas, neon, AC)
+	bool bFastPC = false;		// PC kencang: tarif wajar PC naik
 	bool bNetSlow = false;
 	FString HypeName;			// game online yang sedang hype (kosong = tidak ada)
 	int32 HypeDays = 0;
@@ -124,7 +144,7 @@ public:
 	/** Waktu berjalan hanya jika toko buka dan tidak ada kejadian yang menunggu pilihan. */
 	bool IsPlaying() const { return Phase == EJRGamePhase::Playing && Choices.Num() == 0; }
 	int32 PriceFor(EJRUnitType Type) const { return Type == EJRUnitType::PS ? PricePS : PricePC; }
-	int32 FairFor(EJRUnitType Type) const { return Type == EJRUnitType::PS ? (bPS2 ? 3000 : 2000) : 3000; }
+	int32 FairFor(EJRUnitType Type) const { return Type == EJRUnitType::PS ? (bPS2 ? 3000 : 2000) : (bFastPC ? 4000 : 3000); }
 	const FJRDayStats& GetStats() const { return Stats; }
 
 	/* ---------- Kejadian dengan pilihan ---------- */
@@ -150,6 +170,31 @@ public:
 	bool BuyItem(FName Id);
 	void AdjustPrice(EJRUnitType Type, int32 Delta);
 
+	/* ---------- Karyawan (Era 2) ---------- */
+	bool Staff[(int32)EJRStaff::Count] = { false, false, false };
+	static int32 StaffWage(EJRStaff S);
+	static const TCHAR* StaffName(EJRStaff S);
+	static const TCHAR* StaffDesc(EJRStaff S);
+	bool HasStaff(EJRStaff S) const { return Staff[(int32)S]; }
+	void ToggleStaff(EJRStaff S);
+	int32 TotalWages() const;
+
+	/* ---------- Cerita misteri "TV 1" (5 bab, menjelang tutup) ---------- */
+	int32 MysteryStep = 0;		// 0..4 = bab berikutnya, 5 = tamat
+	int32 MysteryDay = 3;		// bab berikutnya paling cepat di hari ini
+	bool bGoldCassette = false;	// hadiah tamat: kaset emas di meja kasir
+
+	/* ---------- Kejadian: berantem dan tamu spesial ---------- */
+	int32 GuestsDone = 0;		// bit 0 streamer, 1 Pak Lurah, 2 juragan sebelah
+	int32 ViralDays = 0;		// rental viral: pengunjung melonjak
+
+	/* ---------- Simpan dan muat (otomatis tiap toko tutup) ---------- */
+	static bool HasSave();
+	/** Ringkasan simpanan untuk menu, mis. "Hari 4 - Garasi - Rp 350.000". Kosong jika tidak ada. */
+	static FString SaveSummary();
+	bool LoadProgress();
+	void BeginNewGame();		// dari menu utama: mulai hari pertama
+
 	/* ---------- Dipanggil pemain ---------- */
 	void Confirm();				// Enter: buka toko / mulai hari berikutnya
 	void StartSession(AJRStation* Station);
@@ -161,6 +206,7 @@ public:
 	/* ---------- Dipanggil pelanggan ---------- */
 	void TickPlaying(AJRCustomer* C, float DtH);
 	void LeaveAngry(AJRCustomer* C, const FString& Message);
+	void CountAngry(bool bQueue) { (bQueue ? Stats.AngryQueue : Stats.AngryStart)++; }
 	void RunAway(AJRCustomer* C);
 	void CustomerGone(AJRCustomer* C);
 
@@ -193,7 +239,7 @@ private:
 	void JokiEvent(AJRCustomer* C);
 	int32 InPipeline(FName Id) const;
 	int32 Count(EJRUnitType Type) const;
-	bool Gate1Open() const { return Money >= 1500000.f && Rep >= 40.f; }
+	bool Gate1Open() const { return Money >= 600000.f && Rep >= 40.f; }
 	FVector SlotLocation(EJRUnitType Type, int32 Index, FRotator& OutRot) const;
 
 	UPROPERTY()
@@ -224,6 +270,13 @@ private:
 	TObjectPtr<AJRRadio> Radio;
 
 	UPROPERTY()
+	TArray<TObjectPtr<class AJRVisitor>> StaffActors;
+
+	UPROPERTY()
+	TArray<TObjectPtr<class AJRDecor>> DecorActors;
+	void SpawnDecor();
+
+	UPROPERTY()
 	TArray<TObjectPtr<AJRDeliveryBox>> Boxes;
 
 	int32 OwnedPS = 2;
@@ -236,6 +289,37 @@ private:
 
 	// Mode uji otomatis (-jrautotest, -jrera2): main sendiri, ambil screenshot, lalu keluar.
 	void TickAutoTest(float DeltaSeconds);
+	void SaveProgress();
+	void TickMystery(float DeltaSeconds);
+	void TickStaff(float DeltaSeconds);
+	void FightEvent(AJRCustomer* A, AJRCustomer* B);
+	void TickGuests();
+	void GuestEvent(int32 Which);
+	bool bFightToday = false;
+	float GuestAt = -1.f;		// jam tamu spesial datang hari ini (-1 = tidak)
+	int32 GuestWhich = -1;
+	void SpawnStaffActors();
+	float StaffTimer[(int32)EJRStaff::Count] = { 0.f, 0.f, 0.f };
+	TMap<TWeakObjectPtr<AJRStation>, float> RepairTimers;
+	int32 StaffDone[(int32)EJRStaff::Count] = { 0, 0, 0 };
+	bool bStaffTest = false;	// -jrstaff: uji otomatis dengan semua karyawan (bot tidak mengerjakan tugas mereka)
+	void RunMysteryStep();
+	float FlickerTime = 0.f;
+	bool bMysteryTest = false;	// -jrmysterytest: jalankan semua bab berurutan lalu keluar
+	float MysteryTestTimer = 0.f;
+	class AJRVisitor* SpawnMysteryVisitor(const TCHAR* Mesh, const FVector& Where);
+	void ClearWorld();
+	static const TCHAR* SlotName();
+	bool bMenuTest = false;		// -jrmenutest: potret menu utama dan pengaturan
+
+	// -jrbalance: bot pemain yang cukup cekatan main beberapa hari (waktu dipercepat) untuk mengukur ekonomi.
+	bool bBalance = false;
+	int32 BalanceLoggedDay = 0;
+	float BalanceReportTime = 0.f;
+	void TickBalance(float DeltaSeconds);
+	void BalanceBetweenDays(float DeltaSeconds);
+	float MenuTestTime = 0.f;
+	int32 MenuTestStep = 0;
 	bool bAutoTest = false;
 	float AutoTestTime = 0.f;
 	int32 AutoTestShot = 0;

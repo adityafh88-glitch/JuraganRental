@@ -12,7 +12,7 @@
 #include "JRGameMode.h"
 #include "JRHUD.h"
 
-namespace
+namespace JRLocal_TouchWidget
 {
 	FButtonStyle RoundStyle(const FLinearColor& Color)
 	{
@@ -31,6 +31,7 @@ namespace
 		return S;
 	}
 }
+using namespace JRLocal_TouchWidget;
 
 TSharedRef<SWidget> UJRTouchWidget::RebuildWidget()
 {
@@ -80,6 +81,16 @@ void UJRTouchWidget::BuildTree()
 	Phone->OnClicked.AddDynamic(this, &UJRTouchWidget::OnPhone);
 	Place(Phone, FVector2D(220.f, 380.f), 96.f);
 
+	// Tombol jeda di pojok kiri atas (di bawah bilah status)
+	UButton* Pause = MakeRound(TEXT("II"), 64.f, FLinearColor(0.18f, 0.21f, 0.26f, 0.85f), FLinearColor(0.95f, 0.93f, 0.89f));
+	Pause->OnClicked.AddDynamic(this, &UJRTouchWidget::OnPause);
+	{
+		UCanvasPanelSlot* S = Canvas->AddChildToCanvas(Pause);
+		S->SetAnchors(FAnchors(0.f, 0.f));
+		S->SetPosition(FVector2D(20.f, 56.f));
+		S->SetSize(FVector2D(64.f, 64.f));
+	}
+
 	NextButton = MakeRound(TEXT("Lanjut"), 120.f, FLinearColor(0.36f, 0.79f, 0.54f, 0.95f), FLinearColor(0.02f, 0.1f, 0.05f));
 	NextButton->OnClicked.AddDynamic(this, &UJRTouchWidget::OnNext);
 	Place(NextButton, FVector2D(60.f, 180.f), 120.f);
@@ -89,6 +100,10 @@ void UJRTouchWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 	const AJRGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AJRGameMode>() : nullptr;
+	const AJRHUD* Hud = GetOwningPlayer() ? Cast<AJRHUD>(GetOwningPlayer()->GetHUD()) : nullptr;
+	const bool bHideAll = !GM || GM->Phase == EJRGamePhase::Menu || (Hud && Hud->IsUIOpen() && !Hud->IsPhoneOpen());
+	const ESlateVisibility Root = bHideAll ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible;
+	if (GetVisibility() != Root) SetVisibility(Root);
 	const bool bShowNext = GM && GM->Phase != EJRGamePhase::Playing;
 	const ESlateVisibility Want = bShowNext ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
 	if (NextButton && NextButton->GetVisibility() != Want) NextButton->SetVisibility(Want);
@@ -140,6 +155,14 @@ void UJRTouchWidget::OnPhone()
 	if (APlayerController* PC = GetOwningPlayer())
 	{
 		if (AJRHUD* Hud = Cast<AJRHUD>(PC->GetHUD())) Hud->TogglePhone();
+	}
+}
+
+void UJRTouchWidget::OnPause()
+{
+	if (APlayerController* PC = GetOwningPlayer())
+	{
+		if (AJRHUD* Hud = Cast<AJRHUD>(PC->GetHUD())) Hud->TogglePause();
 	}
 }
 

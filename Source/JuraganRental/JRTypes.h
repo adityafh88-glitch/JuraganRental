@@ -41,8 +41,18 @@ enum class EJRStoveState : uint8
 };
 
 UENUM(BlueprintType)
+/** Karyawan yang bisa direkrut di ruko. */
+enum class EJRStaff : uint8
+{
+	Kasir,
+	Teknisi,
+	Koki,
+	Count
+};
+
 enum class EJRGamePhase : uint8
 {
+	Menu,		// menu utama (dunia sudah dibangun sebagai latar)
 	Intro,
 	Playing,
 	Report
@@ -80,6 +90,7 @@ struct FJRChoice
 	FString Body;
 	TArray<FString> Labels;
 	TArray<TFunction<void()>> Actions;
+	int32 Serial = 0;	// nomor unik, agar HUD tahu dialog sudah berganti
 };
 
 /** Format rupiah: 1500000 -> "Rp 1.500.000". */

@@ -35,6 +35,9 @@ private:
 	UFUNCTION()
 	void OnNext();
 
+	UFUNCTION()
+	void OnPause();
+
 	UPROPERTY()
 	TObjectPtr<UButton> NextButton;
 

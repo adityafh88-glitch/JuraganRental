@@ -73,6 +73,8 @@ void AJRCharacter::BuildInput()
 	InteractAction = MakeAction(EInputActionValueType::Boolean);
 	ConfirmAction = MakeAction(EInputActionValueType::Boolean);
 	PhoneAction = MakeAction(EInputActionValueType::Boolean);
+	PauseAction = MakeAction(EInputActionValueType::Boolean);
+	PauseAction->bTriggerWhenPaused = true;	// Esc juga harus bisa menutup menu jeda
 
 	Mapping = NewObject<UInputMappingContext>(this);
 	auto Negate = [this](bool bX, bool bY)
@@ -113,6 +115,8 @@ void AJRCharacter::BuildInput()
 	Mapping->MapKey(InteractAction, EKeys::E);
 	Mapping->MapKey(ConfirmAction, EKeys::Enter);
 	Mapping->MapKey(PhoneAction, EKeys::Tab);
+	Mapping->MapKey(PauseAction, EKeys::Escape);
+	Mapping->MapKey(PauseAction, EKeys::P);
 }
 
 void AJRCharacter::PawnClientRestart()
@@ -141,6 +145,7 @@ void AJRCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	EIC->BindAction(InteractAction, ETriggerEvent::Completed, this, &AJRCharacter::InteractCompleted);
 	EIC->BindAction(ConfirmAction, ETriggerEvent::Started, this, &AJRCharacter::Confirm);
 	EIC->BindAction(PhoneAction, ETriggerEvent::Started, this, &AJRCharacter::TogglePhone);
+	EIC->BindAction(PauseAction, ETriggerEvent::Started, this, &AJRCharacter::TogglePause);
 }
 
 void AJRCharacter::Move(const FInputActionValue& Value)
@@ -156,8 +161,9 @@ void AJRCharacter::Look(const FInputActionValue& Value)
 {
 	if (IsPhoneOpen()) return;
 	const FVector2D Axis = Value.Get<FVector2D>();
-	AddControllerYawInput(Axis.X);
-	AddControllerPitchInput(JRSettings::Get()->bInvertLook ? -Axis.Y : Axis.Y);
+	const UJRSettingsSave* S = JRSettings::Get();
+	AddControllerYawInput(Axis.X * S->LookSpeed);
+	AddControllerPitchInput((S->bInvertLook ? -Axis.Y : Axis.Y) * S->LookSpeed);
 }
 
 void AJRCharacter::InteractStarted()
@@ -185,6 +191,12 @@ void AJRCharacter::TogglePhone()
 {
 	const APlayerController* PC = Cast<APlayerController>(Controller);
 	if (AJRHUD* Hud = PC ? Cast<AJRHUD>(PC->GetHUD()) : nullptr) Hud->TogglePhone();
+}
+
+void AJRCharacter::TogglePause()
+{
+	const APlayerController* PC = Cast<APlayerController>(Controller);
+	if (AJRHUD* Hud = PC ? Cast<AJRHUD>(PC->GetHUD()) : nullptr) Hud->TogglePause();
 }
 
 bool AJRCharacter::IsPhoneOpen() const

@@ -1,0 +1,55 @@
+// Simpanan permainan: disimpan otomatis setiap toko tutup (akhir hari), dimuat dari menu utama.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/SaveGame.h"
+#include "JRSaveGame.generated.h"
+
+UCLASS()
+class JURAGANRENTAL_API UJRSaveGame : public USaveGame
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY() int32 Version = 1;
+	UPROPERTY() FDateTime SavedAt;
+
+	UPROPERTY() int32 Era = 1;
+	UPROPERTY() int32 Day = 1;
+	UPROPERTY() float Money = 0.f;
+	UPROPERTY() float Rep = 0.f;
+	UPROPERTY() int32 CapVA = 1300;
+	UPROPERTY() int32 PricePS = 2000;
+	UPROPERTY() int32 PricePC = 3000;
+	UPROPERTY() int32 OwnedPS = 2;
+	UPROPERTY() int32 OwnedPC = 1;
+
+	UPROPERTY() bool bStikOri = false;
+	UPROPERTY() bool bPS2 = false;
+	UPROPERTY() bool bAntivirus = false;
+	UPROPERTY() bool bFastNet = false;
+	UPROPERTY() bool bPaketMalam = false;
+	UPROPERTY() FString HypeName;
+	UPROPERTY() int32 HypeDays = 0;
+	UPROPERTY() bool bHypeInstalled = false;
+	UPROPERTY() int32 Regulars = 0;
+
+	UPROPERTY() TArray<float> Debts;
+	UPROPERTY() TArray<FName> PendingOrders;	// diantar kurir besok pagi
+	UPROPERTY() TArray<FName> Boxes;			// kardus yang sudah ada di depan pintu
+	UPROPERTY() TArray<FString> ReportLines;	// laporan hari terakhir, ditampilkan lagi saat dimuat
+	UPROPERTY() int32 MysteryStep = 0;
+	UPROPERTY() int32 MysteryDay = 3;
+	UPROPERTY() bool bGoldCassette = false;
+	UPROPERTY() TArray<bool> Staff;
+	UPROPERTY() int32 SeatTier = 0;
+	UPROPERTY() bool bFastPC = false;
+	UPROPERTY() TArray<FName> Decor;
+	UPROPERTY() int32 GuestsDone = 0;
+	UPROPERTY() int32 ViralDays = 0;
+	UPROPERTY() int32 NetPlan = 0;
+	UPROPERTY() int32 PendingNetPlan = -1;
+	UPROPERTY() int32 UsedPS = 0;	// berapa TV terakhir yang barang bekas
+	UPROPERTY() int32 UsedPC = 0;
+};

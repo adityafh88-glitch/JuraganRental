@@ -9,7 +9,7 @@
 
 using namespace JRBlockout;
 
-namespace
+namespace JRLocal_Delivery
 {
 	void FaceCamera(UTextRenderComponent* Text)
 	{
@@ -30,6 +30,7 @@ namespace
 		return T;
 	}
 }
+using namespace JRLocal_Delivery;
 
 /* ---------- Kardus pesanan ---------- */
 
