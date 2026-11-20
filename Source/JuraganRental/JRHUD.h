@@ -10,6 +10,7 @@ class UJRPhoneWidget;
 class UJRChoiceWidget;
 class UJRTouchWidget;
 class UJRMenuWidget;
+class UJRBillingWidget;
 
 UCLASS()
 class JURAGANRENTAL_API AJRHUD : public AHUD
@@ -21,6 +22,8 @@ public:
 	virtual void DrawHUD() override;
 
 	void TogglePhone();
+	void SetBillingOpen(bool bOpen);
+	bool IsBillingOpen() const { return bBillingOpen; }
 	/** Esc: tutup HP, kembali di menu, atau buka menu jeda. */
 	void TogglePause();
 	UJRMenuWidget* GetMenu() const { return Menu; }
@@ -54,6 +57,11 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UJRMenuWidget> Menu;
+
+	UPROPERTY()
+	TObjectPtr<UJRBillingWidget> Billing;
+
+	bool bBillingOpen = false;
 
 	void OnMenuChanged();
 

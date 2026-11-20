@@ -9,7 +9,8 @@ UENUM(BlueprintType)
 enum class EJRUnitType : uint8
 {
 	PS,
-	PC
+	PC,
+	VIP		// booth VIP lantai 2 (Era 3): sofa + TV besar + PlayStasiun 3
 };
 
 UENUM(BlueprintType)
@@ -41,12 +42,36 @@ enum class EJRStoveState : uint8
 };
 
 UENUM(BlueprintType)
+/** Misi harian/mingguan. */
+enum class EJRMission : uint8
+{
+	Serve,		// layani N pelanggan sampai bayar
+	Mie,		// jual N mangkuk mi
+	Income,		// pemasukan minimal Rp N
+	Start,		// nyalakan N sesi
+	Repair,		// perbaiki N unit
+	NoRun,		// tidak ada yang kabur (dinilai saat tutup)
+	Happy,		// kepuasan rata-rata minimal N (dinilai saat tutup)
+	Count
+};
+
+struct FJRMission
+{
+	EJRMission Kind = EJRMission::Serve;
+	int32 Target = 0;
+	int32 Progress = 0;
+	int32 Reward = 0;
+	bool bDone = false;
+	bool bWeekly = false;
+};
+
 /** Karyawan yang bisa direkrut di ruko. */
 enum class EJRStaff : uint8
 {
 	Kasir,
 	Teknisi,
 	Koki,
+	Cleaner,	// OB: memungut sampah
 	Count
 };
 

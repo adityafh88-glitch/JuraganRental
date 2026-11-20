@@ -14,6 +14,10 @@
 #include "JRBlockout.h"
 #include "JRCustomer.h"
 #include "JRGameMode.h"
+#include "JRHUD.h"
+#include "JRStation.h"
+#include "JRCustomer.h"
+#include "GameFramework/PlayerController.h"
 #include "JRSound.h"
 #include "Components/AudioComponent.h"
 
@@ -28,6 +32,84 @@ AJRRoom::AJRRoom()
 	RootComponent = Root;
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Unlit(TEXT("/Engine/EngineMaterials/UnlitText.UnlitText"));
 	SignMaterial = Unlit.Object;
+}
+
+/* ---------- Sampah ---------- */
+
+AJRTrash::AJRTrash()
+{
+	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+	Root->SetMobility(EComponentMobility::Movable);
+	RootComponent = Root;
+}
+
+void AJRTrash::Setup(int32 InKind)
+{
+	Kind = InKind;
+	if (Kind == 0) AddProp(this, Root, TEXT("SM_Mangkuk_Mi"), FVector::ZeroVector, FMath::FRandRange(0.f, 360.f));
+	else if (Kind == 1)
+	{
+		if (UStaticMeshComponent* G = AddProp(this, Root, TEXT("SM_Gelas_EsTeh"), FVector::ZeroVector, 0.f))
+		{
+			G->SetRelativeRotation(FRotator(0.f, FMath::FRandRange(0.f, 360.f), 90.f));	// gelas tergeletak
+			G->SetRelativeLocation(FVector(0, 0, 4));
+		}
+	}
+	else
+	{
+		AddPart(this, Root, EShape::Sphere, FVector(14, 12, 8), FVector(0, 0, 4), Hex(FMath::RandBool() ? 0xe8e2c8 : 0xd94a3a));	// bungkus kusut
+	}
+}
+
+FJRInteraction AJRTrash::GetInteraction() const
+{
+	FJRInteraction Out;
+	Out.Kind = EJRInteractKind::Press;
+	Out.Prompt = JRT(TEXT("Pungut sampah"));
+	return Out;
+}
+
+void AJRTrash::Interact()
+{
+	if (AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>()) GM->PickTrash(this);
+}
+
+/* ---------- Komputer billing ---------- */
+
+AJRBillingPC::AJRBillingPC()
+{
+	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+	Root->SetMobility(EComponentMobility::Movable);
+	RootComponent = Root;
+}
+
+void AJRBillingPC::BeginPlay()
+{
+	Super::BeginPlay();
+	// Meja kecil + monitor menghadap pemain (sisi +X, sama seperti laci kasir)
+	// Sama seperti bilik PC warnet: layar menghadap +X (sisi pemain di belakang kasir)
+	AddProp(this, Root, TEXT("SM_Meja_Warnet"), FVector(0, 0, 0));
+	UStaticMeshComponent* Mon = AddProp(this, Root, TEXT("SM_Monitor_CRT"), FVector(-8, 0, 75));
+	if (Mon) Mon->SetMaterialByName(TEXT("M_TV_Screen"), MakeColorMat(this, Hex(0x1f6fd6)));
+	AddProp(this, Root, TEXT("SM_Keyboard"), FVector(18, 0, 75), 0.f, false);
+	AddProp(this, Root, TEXT("SM_CPU"), FVector(-5, 30, 0), 0.f, false);
+}
+
+FJRInteraction AJRBillingPC::GetInteraction() const
+{
+	FJRInteraction Out;
+	const AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
+	int32 Waiting = 0;
+	if (GM) for (const AJRStation* S : GM->GetStations()) if (S && S->Customer && S->Customer->State == EJRCustomerState::WaitStart) ++Waiting;
+	Out.Kind = EJRInteractKind::Press;
+	Out.Prompt = Waiting > 0 ? JRPrintf(JRT(TEXT("Buka billing  (%d unit menunggu)")), Waiting) : FString(JRT(TEXT("Buka komputer billing")));
+	return Out;
+}
+
+void AJRBillingPC::Interact()
+{
+	APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	if (AJRHUD* Hud = PC ? Cast<AJRHUD>(PC->GetHUD()) : nullptr) Hud->SetBillingOpen(true);
 }
 
 /* ---------- Panah tutorial ---------- */
@@ -250,8 +332,13 @@ void AJRRoom::SetLightsOn(bool bOn)
 	for (UPointLightComponent* L : Lights) if (L) L->SetVisibility(bOn);
 }
 
-void AJRRoom::Build(float HX, float HY, float DoorY, bool bRuko)
+void AJRRoom::Build(const FJRLayout& L, int32 Era)
 {
+	const float HX = L.HalfX, HY = L.HalfY, DoorY = L.DoorY;
+	const bool bRuko = Era >= 2;
+	const bool bUp = L.HasUpstairs();
+	const float FH = L.FloorH;
+	const float WallH = bUp ? FH + 350.f : 300.f;	// tinggi dinding luar
 	const FLinearColor Wall = bRuko ? Hex(0xcfd8d4) : Hex(0xd8cdb4);
 	const FLinearColor Wall2 = bRuko ? Hex(0xbac6c2) : Hex(0xc9bc9f);
 	const FLinearColor Floor = bRuko ? Hex(0xb3ada0) : Hex(0x8f8270);
@@ -269,16 +356,102 @@ void AJRRoom::Build(float HX, float HY, float DoorY, bool bRuko)
 	}
 
 	// Dinding 3 m. Belakang = +X, depan (pintu) = -X, kiri = -Y, kanan = +Y.
-	AddPart(this, Root, EShape::Cube, FVector(20, 2 * HY + 40, 300), FVector(HX + 10, 0, 150), Wall);
-	AddPart(this, Root, EShape::Cube, FVector(2 * HX, 20, 300), FVector(0, -(HY + 10), 150), Wall2);
-	AddPart(this, Root, EShape::Cube, FVector(2 * HX, 20, 300), FVector(0, HY + 10, 150), Wall2);
+	AddPart(this, Root, EShape::Cube, FVector(20, 2 * HY + 40, WallH), FVector(HX + 10, 0, WallH / 2), Wall);
+	AddPart(this, Root, EShape::Cube, FVector(2 * HX, 20, WallH), FVector(0, -(HY + 10), WallH / 2), Wall2);
+	AddPart(this, Root, EShape::Cube, FVector(2 * HX, 20, WallH), FVector(0, HY + 10, WallH / 2), Wall2);
 	const float L0 = -(HY + 10), L1 = DoorY - 100.f, R0 = DoorY + 100.f, R1 = HY + 10;
-	AddPart(this, Root, EShape::Cube, FVector(20, L1 - L0, 300), FVector(-(HX + 10), (L0 + L1) / 2, 150), Wall2); // depan, kiri pintu
-	AddPart(this, Root, EShape::Cube, FVector(20, R1 - R0, 300), FVector(-(HX + 10), (R0 + R1) / 2, 150), Wall2); // depan, kanan pintu
-	AddPart(this, Root, EShape::Cube, FVector(20, 200, 80), FVector(-(HX + 10), DoorY, 260), Wall2);             // ambang pintu
+	AddPart(this, Root, EShape::Cube, FVector(20, L1 - L0, WallH), FVector(-(HX + 10), (L0 + L1) / 2, WallH / 2), Wall2); // depan, kiri pintu
+	AddPart(this, Root, EShape::Cube, FVector(20, R1 - R0, WallH), FVector(-(HX + 10), (R0 + R1) / 2, WallH / 2), Wall2); // depan, kanan pintu
+	AddPart(this, Root, EShape::Cube, FVector(20, 200, WallH - 220.f), FVector(-(HX + 10), DoorY, (220.f + WallH) / 2), Wall2); // di atas pintu
 
-	// Plafon
-	AddPart(this, Root, EShape::Cube, FVector(2 * HX + 40, 2 * HY + 40, 10), FVector(0, 0, 305), Hex(0xe8e4da));
+	if (!bUp)
+	{
+		// Plafon
+		AddPart(this, Root, EShape::Cube, FVector(2 * HX + 40, 2 * HY + 40, 10), FVector(0, 0, 305), Hex(0xe8e4da));
+	}
+	else
+	{
+		// ---- Lantai 2: pelat lantai (berlubang di atas tangga), tangga, pagar, atap ----
+		const float SY0 = -HY, SY1 = -HY + L.StairW, SX0 = L.StairX0, SX1 = L.StairX1;
+		const FLinearColor Slab = Hex(0x5b2b33), Under = Hex(0xe8e4da);
+		auto SlabPart = [&](float X0, float X1, float Y0, float Y1)
+		{
+			AddPart(this, Root, EShape::Cube, FVector(X1 - X0, Y1 - Y0, 12), FVector((X0 + X1) / 2, (Y0 + Y1) / 2, FH - 6.f), Slab);		// karpet lantai 2
+			AddPart(this, Root, EShape::Cube, FVector(X1 - X0, Y1 - Y0, 2), FVector((X0 + X1) / 2, (Y0 + Y1) / 2, FH - 13.f), Under, false);	// plafon lantai 1
+		};
+		SlabPart(-HX, HX, SY1, HY);	// sebagian besar lantai
+		SlabPart(-HX, SX0, SY0, SY1);	// di depan kaki tangga
+		SlabPart(SX1, HX, SY0, SY1);	// bordes di puncak tangga
+		// Anak tangga: 14 x 25 cm, padat sampai lantai (pemain dan pelanggan bisa naik)
+		const int32 Steps = 14;
+		const float Run = (SX1 - SX0) / Steps, Rise = FH / Steps;
+		for (int32 i = 0; i < Steps; ++i)
+		{
+			const float Top = (i + 1) * Rise;
+			AddPart(this, Root, EShape::Cube, FVector(Run, L.StairW, Top), FVector(SX0 + (i + 0.5f) * Run, (SY0 + SY1) / 2, Top / 2), i % 2 ? Hex(0x8a6a4a) : Hex(0x7d5f42));
+		}
+		// Pagar di tepi lubang tangga (lantai 2) dan pegangan tangga
+		const FLinearColor Metal = Hex(0x3a3d42);
+		// Lantai 2: penghalang tak terlihat + palang atas dan tiang (pagar besi)
+		if (UStaticMeshComponent* Block = AddPart(this, Root, EShape::Cube, FVector(SX1 - SX0, 6, 100), FVector((SX0 + SX1) / 2, SY1 + 3.f, FH + 50.f), Metal))
+		{
+			Block->SetVisibility(false);
+		}
+		AddPart(this, Root, EShape::Cube, FVector(SX1 - SX0, 6, 6), FVector((SX0 + SX1) / 2, SY1 + 3.f, FH + 100.f), Metal, false);
+		for (float X = SX0; X <= SX1 + 1.f; X += 75.f)
+		{
+			AddPart(this, Root, EShape::Cube, FVector(5, 5, 100), FVector(X, SY1 + 3.f, FH + 50.f), Metal, false);
+		}
+		// Pegangan tangga miring mengikuti anak tangga, ditopang tiang tiap dua anak tangga
+		const float RailLen = FMath::Sqrt(FMath::Square(SX1 - SX0) + FMath::Square(FH));
+		const float Pitch = FMath::RadiansToDegrees(FMath::Atan2(FH, SX1 - SX0));
+		if (UStaticMeshComponent* Rail = AddPart(this, Root, EShape::Cube, FVector(RailLen, 6, 6), FVector((SX0 + SX1) / 2, SY1 - 6.f, FH / 2 + 90.f), Metal, false))
+		{
+			Rail->SetRelativeRotation(FRotator(Pitch, 0.f, 0.f));
+		}
+		for (int32 i = 1; i < Steps; i += 2)
+		{
+			const float X = SX0 + (i + 0.5f) * Run;
+			const float StepTop = (i + 1) * Rise;
+			const float RailZ = (X - SX0) / (SX1 - SX0) * FH + 90.f;
+			AddPart(this, Root, EShape::Cube, FVector(5, 5, RailZ - StepTop), FVector(X, SY1 - 6.f, (RailZ + StepTop) / 2), Metal, false);
+		}
+		// Atap
+		AddPart(this, Root, EShape::Cube, FVector(2 * HX + 40, 2 * HY + 40, 10), FVector(0, 0, WallH + 5.f), Under);
+		// Papan "LANTAI 2 - VIP" di dinding belakang lantai 2
+		UTextRenderComponent* Vip = NewObject<UTextRenderComponent>(this);
+		Vip->SetupAttachment(Root);
+		Vip->SetRelativeLocation(FVector(HX - 6, 100.f, FH + 260.f));
+		Vip->SetRelativeRotation(FRotator(0, 180, 0));
+		Vip->SetHorizontalAlignment(EHTA_Center);
+		Vip->SetVerticalAlignment(EVRTA_TextCenter);
+		Vip->SetWorldSize(42.f);
+		Vip->SetTextRenderColor(FColor(255, 196, 70));
+		if (SignMaterial) Vip->SetTextMaterial(SignMaterial);
+		Vip->SetText(FText::FromString(JRT(TEXT("LANTAI 2  -  VIP LOUNGE"))));
+		Vip->RegisterComponent();
+		AddInstanceComponent(Vip);
+		// Lampu lantai 2
+		for (float X : { -0.5f * HX, 0.1f * HX, 0.65f * HX })
+		{
+			for (float Y : { -0.35f * HY, 0.45f * HY })
+			{
+				const FVector Pos(X, Y, WallH - 6.f);
+				AddProp(this, Root, TEXT("SM_Lampu_Neon"), Pos, 0.f, false);
+				UPointLightComponent* Up = NewObject<UPointLightComponent>(this);
+				Up->SetupAttachment(Root);
+				Up->SetRelativeLocation(Pos - FVector(0, 0, 10));
+				Up->SetMobility(EComponentMobility::Movable);
+				Up->SetIntensityUnits(ELightUnits::Candelas);
+				Up->SetIntensity(45.f);
+				Up->SetAttenuationRadius(1200.f);
+				Up->SetLightColor(FLinearColor(1.f, 0.9f, 0.8f));
+				Up->RegisterComponent();
+				Lights.Add(Up);
+				AddInstanceComponent(Up);
+			}
+		}
+	}
 
 	// Pintu rolling terbuka dan keset
 	AddProp(this, Root, TEXT("SM_Pintu_Rolling"), FVector(-(HX - 17), DoorY, 0), 0.f, false);
@@ -293,13 +466,13 @@ void AJRRoom::Build(float HX, float HY, float DoorY, bool bRuko)
 	Sign->SetRelativeRotation(FRotator(0, 180, 0));
 	Sign->SetHorizontalAlignment(EHTA_Center);
 	Sign->SetVerticalAlignment(EVRTA_TextCenter);
-	Sign->SetWorldSize(19.f);
+	Sign->SetWorldSize(Era >= 3 ? 15.f : 19.f);
 	Sign->SetTextRenderColor(FColor(45, 8, 4)); // hampir hitam di atas papan terang: kontras tinggi
 	if (SignMaterial)
 	{
 		Sign->SetTextMaterial(SignMaterial); // tanpa cahaya: warna tetap sama di ruangan terang maupun gelap
 	}
-	Sign->SetText(FText::FromString(bRuko ? JRT(TEXT("GAME CENTER JURAGAN")) : JRT(TEXT("RENTAL PS & WARNET JURAGAN"))));
+	Sign->SetText(FText::FromString(Era >= 3 ? JRT(TEXT("GAME CENTER JURAGAN  -  2 LANTAI")) : bRuko ? JRT(TEXT("GAME CENTER JURAGAN")) : JRT(TEXT("RENTAL PS & WARNET JURAGAN"))));
 	Sign->RegisterComponent();
 	AddInstanceComponent(Sign);
 
@@ -307,10 +480,10 @@ void AJRRoom::Build(float HX, float HY, float DoorY, bool bRuko)
 	AddProp(this, Root, TEXT("SM_Bangku_Panjang"), FVector(-(HX - 50), 30, 0));
 	AddProp(this, Root, TEXT("SM_Rak_Kaset"), FVector(HX - 10, 0.25f * HY, 100), 180.f, false);
 	AddProp(this, Root, TEXT("SM_Poster"), FVector(-0.64f * HX, -(HY - 2), 140), 90.f, false);
-	AddProp(this, Root, TEXT("SM_Poster"), FVector(0.74f * HX, -(HY - 2), 150), 90.f, false);
+	if (!bUp) AddProp(this, Root, TEXT("SM_Poster"), FVector(0.74f * HX, -(HY - 2), 150), 90.f, false);	// di Era 3 dinding ini tertutup tangga
 	if (bRuko)
 	{
-		AddProp(this, Root, TEXT("SM_Kulkas_Minuman"), FVector(40, -(HY - 35), 0), 90.f); // kulkas minuman dekat kantin
+		AddProp(this, Root, TEXT("SM_Kulkas_Minuman"), FVector(bUp ? -320.f : 40.f, -(HY - 35), 0), 90.f); // kulkas minuman dekat kantin
 		AddProp(this, Root, TEXT("SM_Poster"), FVector(0.2f * HX, HY - 2, 150), -90.f, false);
 	}
 
@@ -320,7 +493,7 @@ void AJRRoom::Build(float HX, float HY, float DoorY, bool bRuko)
 	{
 		for (float Y : { -0.45f * HY, 0.45f * HY })
 		{
-			const FVector Pos(X, Y, 296);
+			const FVector Pos(X, Y, bUp ? FH - 20.f : 296.f);
 			AddProp(this, Root, TEXT("SM_Lampu_Neon"), Pos, 0.f, false);
 			UPointLightComponent* Light = NewObject<UPointLightComponent>(this);
 			Light->SetupAttachment(Root);

@@ -39,6 +39,8 @@ struct FJRDayStats
 	TArray<int32> Satisfaction;
 	// Catatan untuk keseimbangan ekonomi (-jrbalance)
 	int32 AngryQueue = 0, AngryStart = 0, Ran = 0, Breaks = 0, Trips = 0, Paid = 0;
+	int32 MieSold = 0, Started = 0, Repairs = 0;
+	float Bonus = 0.f;	// hadiah misi hari ini
 };
 
 /** Tata letak satu era: ukuran ruangan dan posisi semua perabot (cm). */
@@ -54,14 +56,23 @@ struct FJRLayout
 	float Rent = 0.f;
 	float Internet = 0.f;
 	bool bRouter = false;
+	// Era 3: lantai 2 dan tangga di sisi kiri (-Y), naik ke arah belakang (+X)
+	float FloorH = 0.f;		// tinggi lantai 2 (0 = satu lantai)
+	TArray<float> VipY;		// posisi Y booth VIP di lantai 2 (di X = HalfX - 110)
+	float StairX0 = 0.f, StairX1 = 0.f, StairW = 160.f;
+	FVector McbPos = FVector::ZeroVector;	// pengganti posisi MCB bawaan (jika tertutup tangga)
+	bool HasUpstairs() const { return FloorH > 0.f; }
+	FVector StairBottom() const { return FVector(StairX0 - 60.f, -HalfY + StairW / 2, 0.f); }
+	FVector StairTop() const { return FVector(StairX1 + 50.f, -HalfY + StairW / 2, FloorH); }
 
 	FVector Kasir() const { return FVector(-(HalfX - 210.f), -0.65f * HalfY, 0.f); }
-	FVector Mcb() const { return FVector(0.4f * HalfX, -(HalfY - 7.f), 130.f); }
+	FVector Mcb() const { return !McbPos.IsZero() ? McbPos : FVector(0.4f * HalfX, -(HalfY - 7.f), 130.f); }
 	FVector Stove() const { return FVector(-0.13f * HalfX, -(HalfY - 34.f), 0.f); }
 	FVector Router() const { return FVector(HalfX - 12.f, 0.55f * HalfY, 175.f); }
 	FVector DoorOutside() const { return FVector(-(HalfX + 200.f), DoorY, 0.f); }
 	FVector PlayerStart() const { return FVector(-0.36f * HalfX, 0.f, 110.f); }
 	int32 MaxUnits() const { return PsY.Num(); }
+	int32 MaxVip() const { return VipY.Num(); }
 };
 
 UCLASS()
@@ -143,8 +154,17 @@ public:
 
 	/** Waktu berjalan hanya jika toko buka dan tidak ada kejadian yang menunggu pilihan. */
 	bool IsPlaying() const { return Phase == EJRGamePhase::Playing && Choices.Num() == 0; }
-	int32 PriceFor(EJRUnitType Type) const { return Type == EJRUnitType::PS ? PricePS : PricePC; }
-	int32 FairFor(EJRUnitType Type) const { return Type == EJRUnitType::PS ? (bPS2 ? 3000 : 2000) : (bFastPC ? 4000 : 3000); }
+	int32 PriceVIP = 8000;
+	int32 PriceFor(EJRUnitType Type) const { return Type == EJRUnitType::PS ? PricePS : Type == EJRUnitType::VIP ? PriceVIP : PricePC; }
+	int32 FairFor(EJRUnitType Type) const { return Type == EJRUnitType::PS ? (bPS2 ? 3000 : 2000) : Type == EJRUnitType::VIP ? 8000 : (bFastPC ? 4000 : 3000); }
+	bool Gate2Open() const;
+	/** Jalur jalan pelanggan (lewat tangga jika berpindah lantai). */
+	void MakePath(const FVector& From, const FVector& To, TArray<FVector>& Out) const;
+	static EJRUnitType TypeForItem(FName Id) { return Id == TEXT("vip") ? EJRUnitType::VIP : IsPCItem(Id) ? EJRUnitType::PC : EJRUnitType::PS; }
+	int32 MaxFor(EJRUnitType Type) const { return Type == EJRUnitType::VIP ? Layout().MaxVip() : Layout().MaxUnits(); }
+	int32 TotalUnits() const { return Stations.Num(); }
+	const TArray<TObjectPtr<AJRStation>>& GetStations() const { return Stations; }
+	bool bBilling = false;		// sistem billing: nyalakan unit dari komputer kasir
 	const FJRDayStats& GetStats() const { return Stats; }
 
 	/* ---------- Kejadian dengan pilihan ---------- */
@@ -188,8 +208,35 @@ public:
 	void TutorialAdvance(int32 FromStep);
 	void SkipTutorial();
 
+	/* ---------- Turnamen akhir pekan (Era 2+, tiap hari ke-6, 13, 20, ...) ---------- */
+	bool bTourAccepted = false;
+	bool bTourRunning = false;
+	bool bTourDone = false;
+	int32 TourPlayers = 0;
+	static constexpr int32 TourMax = 16;
+	static constexpr int32 TourFee = 10000;
+	static constexpr int32 TourPrize = 100000;
+	bool IsTourDay() const { return Era >= 2 && Day % 7 == 6; }
+	void OfferTournament();
+	void TickTournament();
+	void TournamentFinal();
+
+	/* ---------- Kebersihan ---------- */
+	void SpawnTrash(const FVector& At, int32 Kind);
+	void PickTrash(class AJRTrash* T);
+	int32 TrashCount() const { return Trash.Num(); }
+	float TrashPenalty() const { return FMath::Min(15.f, 1.5f * Trash.Num()); }
+
+	/* ---------- Misi harian (3) dan mingguan (1) ---------- */
+	TArray<FJRMission> Missions;
+	FString MissionText(const FJRMission& M) const;
+	void NewDailyMissions();
+	void NewWeeklyMission();
+	void TickMissions(bool bEndOfDay);
+	void CountRepair() { Stats.Repairs++; }
+
 	/* ---------- Karyawan (Era 2) ---------- */
-	bool Staff[(int32)EJRStaff::Count] = { false, false, false };
+	bool Staff[(int32)EJRStaff::Count] = { false, false, false, false };
 	static int32 StaffWage(EJRStaff S);
 	static const TCHAR* StaffName(EJRStaff S);
 	static const TCHAR* StaffDesc(EJRStaff S);
@@ -198,7 +245,9 @@ public:
 	int32 TotalWages() const;
 
 	/* ---------- Cerita misteri "TV 1" (5 bab, menjelang tutup) ---------- */
-	int32 MysteryStep = 0;		// 0..4 = bab berikutnya, 5 = tamat
+	int32 MysteryStep = 0;		// 0..4 = bab 1 (TV 1), 5..7 = bab 2 (Naga Online, Era 2+), 8 = semua tamat
+	bool bNagaServer = false;	// hadiah bab 2: server Naga Online, gamer lebih sering datang
+	bool NagaPaid = false;		// bab 2: sesi Bayu dibayar normal atau gratis
 	int32 MysteryDay = 3;		// bab berikutnya paling cepat di hari ini
 	bool bGoldCassette = false;	// hadiah tamat: kaset emas di meja kasir
 
@@ -288,7 +337,38 @@ private:
 	TObjectPtr<AJRRadio> Radio;
 
 	UPROPERTY()
-	TArray<TObjectPtr<class AJRVisitor>> StaffActors;
+	TObjectPtr<class AJRBillingPC> BillingPC;
+	void SpawnBillingPC();
+
+	UPROPERTY()
+	TObjectPtr<class AJRVisitor> KasirStaff;
+
+	UPROPERTY()
+	TObjectPtr<class AJRVisitor> TechStaff;
+
+	UPROPERTY()
+	TObjectPtr<class AJRVisitor> CookStaff;
+
+	UPROPERTY()
+	TObjectPtr<class AJRVisitor> CleanStaff;
+
+	UPROPERTY()
+	TArray<TObjectPtr<class AJRTrash>> Trash;
+
+	int32 CleanState = 0;
+	float CleanTimer = 0.f;
+	TWeakObjectPtr<class AJRTrash> CleanJob;
+	FVector CleanPost() const { return FVector(-(Layout().HalfX - 160.f), -0.25f * Layout().HalfY, 0.f); }
+
+	// Status kerja: 0 di pos, 1 berjalan ke tugas, 2 mengerjakan, 3 kembali ke pos
+	int32 TechState = 0, CookState = 0;
+	float TechTimer = 0.f, CookTimer = 0.f;
+	TWeakObjectPtr<AJRStation> TechJob, CookJob;
+	FVector TechPost() const { return FVector(Layout().HalfX - 80.f, Layout().HalfY - 260.f, 0.f); }
+	FVector CookPost() const { return Layout().Stove() + FVector(0.f, 75.f, 0.f); }
+	FVector StaffSpot(const AJRStation* S) const;
+	void SendStaff(class AJRVisitor* V, const FVector& To, float Yaw);
+	void DestroyStaff();
 
 	UPROPERTY()
 	TArray<TObjectPtr<class AJRDecor>> DecorActors;
@@ -299,6 +379,8 @@ private:
 
 	int32 OwnedPS = 2;
 	int32 OwnedPC = 1;
+	int32 OwnedVIP = 0;
+	void MoveToEra(int32 NewEra);
 	TArray<bool> QueueUsed;
 	FJRDayStats Stats;
 	float RtAt = -1.f;		// jam Pak RT datang malam ini (-1 = tidak)
@@ -322,9 +404,9 @@ private:
 	float GuestAt = -1.f;		// jam tamu spesial datang hari ini (-1 = tidak)
 	int32 GuestWhich = -1;
 	void SpawnStaffActors();
-	float StaffTimer[(int32)EJRStaff::Count] = { 0.f, 0.f, 0.f };
+	float StaffTimer[(int32)EJRStaff::Count] = { 0.f, 0.f, 0.f, 0.f };
 	TMap<TWeakObjectPtr<AJRStation>, float> RepairTimers;
-	int32 StaffDone[(int32)EJRStaff::Count] = { 0, 0, 0 };
+	int32 StaffDone[(int32)EJRStaff::Count] = { 0, 0, 0, 0 };
 	bool bStaffTest = false;	// -jrstaff: uji otomatis dengan semua karyawan (bot tidak mengerjakan tugas mereka)
 	void RunMysteryStep();
 	float FlickerTime = 0.f;

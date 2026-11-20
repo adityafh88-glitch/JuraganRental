@@ -11,6 +11,7 @@
 #include "JRTouchWidget.h"
 #include "JRSettings.h"
 #include "JRMenuWidget.h"
+#include "JRBillingWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "JRSound.h"
 #include "GameFramework/InputSettings.h"
@@ -60,6 +61,14 @@ void AJRHUD::BeginPlay()
 			Menu->OnChanged = [this]() { OnMenuChanged(); };
 		}
 
+		Billing = CreateWidget<UJRBillingWidget>(PlayerOwner, UJRBillingWidget::StaticClass());
+		if (Billing)
+		{
+			Billing->AddToViewport(12);
+			Billing->SetVisibility(ESlateVisibility::Collapsed);
+			Billing->OnClose = [this]() { SetBillingOpen(false); };
+		}
+
 		Choice = CreateWidget<UJRChoiceWidget>(PlayerOwner, UJRChoiceWidget::StaticClass());
 		if (Choice)
 		{
@@ -82,6 +91,7 @@ void AJRHUD::SyncChoice()
 	if (!Choice || !GM) return;
 	// Dialog berganti tanpa jeda (mis. kejadian berantai): tampilkan yang baru.
 	if (bChoiceShown && GM->Choices.Num() > 0 && GM->Choices[0].Serial != ShownChoiceSerial) bChoiceShown = false;
+	if (GM->Choices.Num() > 0 && bBillingOpen) SetBillingOpen(false);	// kejadian penting menutup layar billing
 	if (!bChoiceShown && GM->Choices.Num() > 0)
 	{
 		ShownChoiceSerial = GM->Choices[0].Serial;
@@ -103,7 +113,7 @@ void AJRHUD::SyncChoice()
 
 bool AJRHUD::IsUIOpen() const
 {
-	return bPhoneOpen || bChoiceShown || (Menu && Menu->IsOpen());
+	return bPhoneOpen || bChoiceShown || bBillingOpen || (Menu && Menu->IsOpen());
 }
 
 void AJRHUD::OnMenuChanged()
@@ -121,6 +131,7 @@ void AJRHUD::TogglePause()
 	const AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
 	if (!Menu || !GM) return;
 	if (Menu->IsOpen()) { Menu->Back(); return; }
+	if (bBillingOpen) { SetBillingOpen(false); return; }
 	if (bPhoneOpen) { SetPhoneOpen(false); return; }
 	if (bChoiceShown || GM->Phase == EJRGamePhase::Menu) return;
 	Menu->ShowPause();
@@ -159,6 +170,18 @@ void AJRHUD::ApplyTouchSettings()
 		if (C.MainInputKey == EKeys::Gamepad_RightX) C.InputScale.Y = -C.InputScale.Y;
 	}
 	PlayerOwner->ActivateTouchInterface(Sticks);
+}
+
+void AJRHUD::SetBillingOpen(bool bOpen)
+{
+	if (!Billing || bBillingOpen == bOpen) return;
+	if (bOpen && (bChoiceShown || (Menu && Menu->IsOpen()))) return;
+	if (bOpen && bPhoneOpen) SetPhoneOpen(false);
+	bBillingOpen = bOpen;
+	Billing->SetVisibility(bOpen ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	if (bOpen) Billing->Refresh(true);
+	JRSound::Play2D(this, bOpen ? TEXT("SFX_HP_Buka") : TEXT("SFX_HP_Tombol"), 0.5f);
+	ApplyInputMode();
 }
 
 void AJRHUD::TogglePhone()
@@ -248,6 +271,50 @@ void AJRHUD::DrawHUD()
 	{
 		DrawRect(Panel, 12.f, H - 44.f, 150.f, 32.f);
 		DrawText(bPhoneOpen ? JRT(TEXT("[Tab] Tutup HP")) : JRT(TEXT("[Tab] Buka HP")), Led, 24.f, H - 38.f, Font, 1.1f);
+	}
+
+	// Spanduk turnamen
+	if (GM->bTourRunning && GM->Phase == EJRGamePhase::Playing)
+	{
+		const FString Banner = JRPrintf(JRT(TEXT("TURNAMEN BERLANGSUNG  16.00-20.00   Peserta %d/%d")), GM->TourPlayers, AJRGameMode::TourMax);
+		float TW = 0.f, TH = 0.f;
+		GetTextSize(Banner, TW, TH, Font, 1.2f);
+		DrawRect(FLinearColor(0.75f, 0.12f, 0.1f, 0.9f), (W - TW) * 0.5f - 16.f, 46.f, TW + 32.f, TH + 12.f);
+		DrawText(Banner, FLinearColor::White, (W - TW) * 0.5f, 52.f, Font, 1.2f);
+	}
+
+	// Daftar misi di kiri atas (saat tutorial tidak tampil)
+	if (!GM->IsTutorial() && GM->Phase == EJRGamePhase::Playing && !bPhoneOpen && GM->Missions.Num() > 0)
+	{
+		const float PX = bTouchMode ? 100.f : 16.f, PY = 50.f;
+		const float LineH = 22.f;
+		DrawRect(Panel, PX, PY, 380.f, 30.f + LineH * GM->Missions.Num());
+		DrawText(JRT(TEXT("MISI")), Led, PX + 12.f, PY + 6.f, Font, 1.f);
+		for (int32 i = 0; i < GM->Missions.Num(); ++i)
+		{
+			const FJRMission& M = GM->Missions[i];
+			FString Prog;
+			if (M.bDone) Prog = TEXT("[v]");
+			else if (M.Kind == EJRMission::NoRun || M.Kind == EJRMission::Happy) Prog = JRT(TEXT("[tutup]"));
+			else
+			{
+				int32 Today = 0;
+				const FJRDayStats& S = GM->GetStats();
+				switch (M.Kind)
+				{
+				case EJRMission::Serve: Today = S.Paid; break;
+				case EJRMission::Mie: Today = S.MieSold; break;
+				case EJRMission::Income: Today = FMath::RoundToInt(S.Income); break;
+				case EJRMission::Start: Today = S.Started; break;
+				case EJRMission::Repair: Today = S.Repairs; break;
+				default: break;
+				}
+				const int32 Cur = M.bWeekly ? M.Progress + Today : Today;
+				Prog = M.Kind == EJRMission::Income ? FString::Printf(TEXT("%d%%"), FMath::Min(100, Cur * 100 / FMath::Max(1, M.Target))) : FString::Printf(TEXT("%d/%d"), FMath::Min(Cur, M.Target), M.Target);
+			}
+			const FString Line = FString::Printf(TEXT("%s%s  %s"), M.bWeekly ? JRT(TEXT("(Minggu) ")) : TEXT(""), *GM->MissionText(M), *Prog);
+			DrawText(Line, M.bDone ? Muted : Ink, PX + 12.f, PY + 28.f + i * LineH, Font, 0.95f);
+		}
 	}
 
 	// Panel tutorial di kiri atas

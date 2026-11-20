@@ -23,6 +23,10 @@ public:
 	/** Jalan ke Target lalu menghilang. */
 	void LeaveTo(const FVector& Target);
 
+	/** Jalan mengikuti titik-titik (boleh beda lantai), lalu diam di titik terakhir menghadap FinalYaw. */
+	void WalkPath(const TArray<FVector>& Points, float FinalYaw);
+	bool IsWalking() const { return Path.Num() > 0; }
+
 	virtual void Tick(float DeltaSeconds) override;
 
 private:
@@ -34,4 +38,8 @@ private:
 
 	FVector Exit = FVector::ZeroVector;
 	bool bLeaving = false;
+	TArray<FVector> Path;
+	FVector SegStart = FVector::ZeroVector;
+	float EndYaw = 0.f;
+	void PlayAnimNamed(const TCHAR* Name);
 };

@@ -59,14 +59,14 @@ void AJRCustomer::Setup(int32 InTypeIndex, const FString& InName, const TCHAR* M
 	Want = InWant;
 	bFlex = bInFlex;
 
-	const FString Path = FString::Printf(TEXT("/Game/Characters/%s.%s"), MeshName, MeshName);
-	if (USkeletalMesh* Mesh = LoadObject<USkeletalMesh>(nullptr, *Path))
+	const FString MeshPath = FString::Printf(TEXT("/Game/Characters/%s.%s"), MeshName, MeshName);
+	if (USkeletalMesh* Mesh = LoadObject<USkeletalMesh>(nullptr, *MeshPath))
 	{
 		Body->SetSkeletalMesh(Mesh);
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("JuraganRental: karakter %s tidak ditemukan"), *Path);
+		UE_LOG(LogTemp, Warning, TEXT("JuraganRental: karakter %s tidak ditemukan"), *MeshPath);
 	}
 	SetActorScale3D(FVector(InScale * FMath::FRandRange(0.94f, 1.06f)));	// tinggi badan sedikit beragam
 	RandomizeLook();
@@ -168,7 +168,7 @@ void AJRCustomer::UpdateAnimation()
 	case EJRCustomerState::WaitStart:
 	case EJRCustomerState::Playing:
 		if (bRaging) { PlayLoop(LoadAnim(TEXT("A_Rage_Quit"))); break; }
-		PlayLoop(LoadAnim(Station && Station->Type == EJRUnitType::PC ? TEXT("A_Duduk_Kursi_Main") : TEXT("A_Duduk_Lesehan_Main")));
+		PlayLoop(LoadAnim(Station && Station->Type != EJRUnitType::PS ? TEXT("A_Duduk_Kursi_Main") : TEXT("A_Duduk_Lesehan_Main")));
 		break;
 	case EJRCustomerState::Queue:
 		PlayLoop(LoadAnim(bBenchSeat ? TEXT("A_Duduk_Bangku") : TEXT("A_Idle")));
@@ -181,7 +181,11 @@ void AJRCustomer::UpdateAnimation()
 
 void AJRCustomer::WalkTo(const FVector& Loc, EJRCustomerState Next)
 {
-	Target = FVector(Loc.X, Loc.Y, 0.f);
+	Path.Reset();
+	if (const AJRGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AJRGameMode>() : nullptr) GM->MakePath(GetActorLocation(), Loc, Path);
+	if (Path.Num() == 0) Path.Add(Loc);
+	SegStart = GetActorLocation();
+	Target = Path[0];
 	NextState = Next;
 	State = EJRCustomerState::Walk;
 }
@@ -195,12 +199,25 @@ bool AJRCustomer::MoveStep(float DeltaSeconds)
 	if (Dist < 5.f)
 	{
 		SetActorLocation(Target);
+		if (Path.Num() > 1)
+		{
+			// Lanjut ke titik berikutnya (mis. dari kaki tangga ke puncak tangga)
+			Path.RemoveAt(0);
+			SegStart = Target;
+			Target = Path[0];
+			return false;
+		}
 		return true;
 	}
 	const float Step = FMath::Min(Dist, Speed * DeltaSeconds);
-	SetActorLocation(FVector(Loc.X, Loc.Y, 0.f) + Delta / Dist * Step);
+	FVector Next = Loc + Delta / Dist * Step;
+	// Tinggi mengikuti segmen (naik/turun tangga), bukan selalu di lantai 0
+	const float SegLen = FVector::Dist2D(SegStart, Target);
+	const float Alpha = SegLen > 1.f ? 1.f - FMath::Clamp((Dist - Step) / SegLen, 0.f, 1.f) : 1.f;
+	Next.Z = FMath::Lerp(SegStart.Z, Target.Z, Alpha);
+	SetActorLocation(Next);
 	SetActorRotation(FRotator(0.f, Delta.Rotation().Yaw, 0.f));
-	return Dist - Step < 5.f;
+	return Dist - Step < 5.f && Path.Num() <= 1;
 }
 
 void AJRCustomer::Arrive(AJRGameMode* GM)
@@ -228,7 +245,7 @@ void AJRCustomer::Arrive(AJRGameMode* GM)
 		}
 		break;
 	case EJRCustomerState::WaitPay:
-		Patience = 1.f;
+		Patience = 1.5f;	// sabar menunggu dilayani di kasir
 		PayOrder = GetWorld()->GetTimeSeconds();
 		SetActorLocation(Target);
 		SetActorRotation(FRotator(0.f, 0.f, 0.f)); // menghadap kasir

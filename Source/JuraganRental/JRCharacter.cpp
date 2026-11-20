@@ -168,6 +168,13 @@ void AJRCharacter::Look(const FInputActionValue& Value)
 
 void AJRCharacter::InteractStarted()
 {
+	{
+		const APlayerController* PC = Cast<APlayerController>(Controller);
+		if (AJRHUD* Hud = PC ? Cast<AJRHUD>(PC->GetHUD()) : nullptr)
+		{
+			if (Hud->IsBillingOpen()) { Hud->SetBillingOpen(false); return; }
+		}
+	}
 	if (IsPhoneOpen()) return;
 	bInteractHeld = true;
 	if (CurrentInteraction.Kind == EJRInteractKind::Press)

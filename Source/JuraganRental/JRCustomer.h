@@ -44,6 +44,8 @@ public:
 	EJRCustomerState State = EJRCustomerState::Walk;
 	EJRCustomerState NextState = EJRCustomerState::Walk;
 	FVector Target = FVector::ZeroVector;
+	TArray<FVector> Path;			// titik jalan tersisa (tangga), Target = Path[0]
+	FVector SegStart = FVector::ZeroVector;
 	float Speed = 260.f;
 
 	UPROPERTY()

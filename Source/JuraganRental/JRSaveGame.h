@@ -24,6 +24,18 @@ public:
 	UPROPERTY() int32 PricePC = 3000;
 	UPROPERTY() int32 OwnedPS = 2;
 	UPROPERTY() int32 OwnedPC = 1;
+	UPROPERTY() int32 OwnedVIP = 0;
+	UPROPERTY() int32 PriceVIP = 8000;
+	UPROPERTY() bool bBilling = false;
+	// Misi: jenis, target, progres, hadiah, selesai, mingguan (disimpan berpasangan per indeks)
+	UPROPERTY() TArray<int32> MissionKind;
+	UPROPERTY() TArray<int32> MissionTarget;
+	UPROPERTY() TArray<int32> MissionProgress;
+	UPROPERTY() TArray<int32> MissionReward;
+	UPROPERTY() TArray<bool> MissionDone;
+	UPROPERTY() TArray<bool> MissionWeekly;
+	UPROPERTY() TArray<FVector> TrashPos;
+	UPROPERTY() TArray<int32> TrashKind;
 
 	UPROPERTY() bool bStikOri = false;
 	UPROPERTY() bool bPS2 = false;
@@ -42,6 +54,7 @@ public:
 	UPROPERTY() int32 MysteryStep = 0;
 	UPROPERTY() int32 MysteryDay = 3;
 	UPROPERTY() bool bGoldCassette = false;
+	UPROPERTY() bool bNagaServer = false;
 	UPROPERTY() TArray<bool> Staff;
 	UPROPERTY() int32 SeatTier = 0;
 	UPROPERTY() bool bFastPC = false;

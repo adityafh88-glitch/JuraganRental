@@ -34,11 +34,27 @@ void AJRStation::Setup(EJRUnitType InType, int32 InIndex)
 {
 	Type = InType;
 	Index = InIndex;
-	DisplayName = FString::Printf(TEXT("%s %d"), Type == EJRUnitType::PS ? TEXT("TV") : TEXT("PC"), Index + 1);
+	DisplayName = FString::Printf(TEXT("%s %d"), Type == EJRUnitType::PS ? TEXT("TV") : Type == EJRUnitType::VIP ? TEXT("VIP") : TEXT("PC"), Index + 1);
 
 	// Sumbu lokal: +X menghadap ke dalam ruangan (ke arah pelanggan).
 	ScreenMat = MakeColorMat(this, Hex(0x0d0f12));
-	if (Type == EJRUnitType::PS)
+	if (Type == EJRUnitType::VIP)
+	{
+		// Booth VIP: lemari TV, TV layar datar besar, konsol, sofa merah anggur
+		AddProp(this, Root, TEXT("SM_Meja_TV"), FVector(0, 0, 0));
+		AddPart(this, Root, EShape::Cube, FVector(8, 150, 88), FVector(-6, 0, 108), Hex(0x15161a));
+		UStaticMeshComponent* Panel = AddPart(this, Root, EShape::Cube, FVector(2, 140, 78), FVector(-1, 0, 108), Hex(0x0d0f12), false);
+		Panel->SetMaterial(0, ScreenMat);
+		AddProp(this, Root, TEXT("SM_Konsol_PlayStasiun"), FVector(0, 16.5f, 28.5f));
+		const FLinearColor Sofa = Hex(0x6e1f2b);
+		Seat = AddPart(this, Root, EShape::Cube, FVector(80, 170, 42), FVector(SeatDistance() + 8, 0, 21), Sofa);
+		AddPart(this, Root, EShape::Cube, FVector(24, 170, 70), FVector(SeatDistance() + 52, 0, 55), Sofa);
+		for (float Y : { -92.f, 92.f }) AddPart(this, Root, EShape::Cube, FVector(80, 16, 58), FVector(SeatDistance() + 8, Y, 29), Hex(0x5a1823));
+		AddProp(this, Root, TEXT("SM_Stik"), FVector(SeatDistance() - 30, 40, 44), 160.f, false);
+		AddProp(this, Root, TEXT("SM_Karpet"), FVector(SeatDistance() - 60, 0, 0), 0.f, false);
+		Label->SetRelativeLocation(FVector(0, 0, 175));
+	}
+	else if (Type == EJRUnitType::PS)
 	{
 		AddProp(this, Root, TEXT("SM_Meja_TV"), FVector(0, 0, 0));
 		UStaticMeshComponent* Tv = AddProp(this, Root, TEXT("SM_TV_Tabung"), FVector(-4, 0, 50));
@@ -64,7 +80,7 @@ void AJRStation::Setup(EJRUnitType InType, int32 InIndex)
 
 void AJRStation::ApplySeatTier(int32 Tier)
 {
-	if (Tier == SeatTier || !Seat) return;
+	if (Tier == SeatTier || !Seat || Type == EJRUnitType::VIP) return;	// sofa VIP sudah nyaman
 	SeatTier = Tier;
 	static UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
 	if (Tier <= 0)
@@ -109,7 +125,7 @@ void AJRStation::PlayActivitySound()
 	const FVector Screen = GetActorLocation() + FVector(0, 0, 110);
 	const FVector Hands = GetSeatLocation() + FVector(0, 0, 70);
 	const float R = FMath::FRand();
-	if (Type == EJRUnitType::PS)
+	if (Type != EJRUnitType::PC)
 	{
 		if (R < 0.55f)
 		{
@@ -134,7 +150,7 @@ void AJRStation::PlayActivitySound()
 FVector AJRStation::GetSeatLocation() const
 {
 	FVector SeatLoc = GetActorLocation() + GetActorForwardVector() * SeatDistance();
-	SeatLoc.Z = 0.f;
+	SeatLoc.Z = GetActorLocation().Z;	// lantai tempat unit berada (0 atau lantai 2)
 	return SeatLoc;
 }
 
@@ -161,7 +177,7 @@ FJRInteraction AJRStation::GetInteraction() const
 	{
 		Out.Kind = EJRInteractKind::Hold;
 		Out.HoldTime = FixSeconds;
-		Out.Prompt = Type == EJRUnitType::PS
+		Out.Prompt = Type != EJRUnitType::PC
 			? JRPrintf(JRT(TEXT("Tahan E: perbaiki stik %s")), *DisplayName)
 			: JRPrintf(JRT(TEXT("Tahan E: restart %s")), *DisplayName);
 	}
@@ -202,6 +218,7 @@ void AJRStation::Interact()
 		bVirus = false;
 		GM->AddToast(JRPrintf(JRT(TEXT("%s beres!")), *DisplayName), FLinearColor(0.36f, 0.79f, 0.54f));
 		GM->TutorialAdvance(AJRGameMode::TutRepair);
+		GM->CountRepair();
 	}
 	else if (Customer && Customer->State == EJRCustomerState::WaitStart)
 	{
@@ -231,7 +248,7 @@ void AJRStation::Tick(float DeltaSeconds)
 	{
 		const bool bFlick = FMath::FRand() < 0.85f;
 		ScreenColor = bFlick ? Hex(0x2433a8) : Hex(0x0d0f12);
-		Text = JRT(TEXT("LANJUTKAN?  (Y/N)"));
+		Text = HauntText.IsEmpty() ? FString(JRT(TEXT("LANJUTKAN?  (Y/N)"))) : HauntText;
 		TextColor = FColor(150, 170, 255);
 	}
 	else if (bBroken)
@@ -254,7 +271,7 @@ void AJRStation::Tick(float DeltaSeconds)
 	else if (bPlaying)
 	{
 		const bool bBlink = FMath::FloorToInt(GetWorld()->GetTimeSeconds() * 2.5f) % 2 == 0;
-		ScreenColor = Type == EJRUnitType::PS ? (bBlink ? Hex(0x3a7bd5) : Hex(0x2f9e6a)) : Hex(0x6fb3ff);
+		ScreenColor = Type != EJRUnitType::PC ? (bBlink ? Hex(0x3a7bd5) : Hex(0x2f9e6a)) : Hex(0x6fb3ff);
 		const int32 Minutes = FMath::Max(0, FMath::CeilToInt(Customer->HoursLeft * 60.f));
 		Text = FString::Printf(TEXT("%d:%02d%s"), Minutes / 60, Minutes % 60, Customer->bOrder ? JRT(TEXT("  + MI")) : TEXT(""));
 		TextColor = FColor(255, 194, 75);
@@ -267,7 +284,7 @@ void AJRStation::Tick(float DeltaSeconds)
 		if (ActivityTimer <= 0.f)
 		{
 			PlayActivitySound();
-			ActivityTimer = Type == EJRUnitType::PS ? FMath::FRandRange(2.5f, 6.f) : FMath::FRandRange(2.f, 5.f);
+			ActivityTimer = Type != EJRUnitType::PC ? FMath::FRandRange(2.5f, 6.f) : FMath::FRandRange(2.f, 5.f);
 		}
 	}
 

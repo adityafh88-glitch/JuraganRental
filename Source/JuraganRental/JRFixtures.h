@@ -19,7 +19,7 @@ public:
 	AJRRoom();
 
 	/** Bangun ruangan: setengah panjang (X) dan lebar (Y) dalam cm, posisi pintu di dinding depan. */
-	void Build(float HalfX, float HalfY, float DoorY, bool bRuko);
+	void Build(const struct FJRLayout& L, int32 Era);
 
 	/** Material teks tanpa cahaya untuk papan nama (direferensikan di sini agar ikut dikemas). */
 	UPROPERTY()
@@ -53,6 +53,41 @@ public:
 
 	UPROPERTY()
 	TObjectPtr<class UStaticMeshComponent> GoldCassette;
+	virtual FJRInteraction GetInteraction() const override;
+	virtual void Interact() override;
+
+private:
+	UPROPERTY()
+	TObjectPtr<USceneComponent> Root;
+};
+
+/** Sampah yang ditinggalkan pelanggan: mangkuk mi, gelas, atau bungkus. Dipungut pemain atau OB. */
+UCLASS()
+class JURAGANRENTAL_API AJRTrash : public AActor, public IJRInteractable
+{
+	GENERATED_BODY()
+
+public:
+	AJRTrash();
+	void Setup(int32 InKind);
+	virtual FJRInteraction GetInteraction() const override;
+	virtual void Interact() override;
+	int32 Kind = 0;	// 0 mangkuk, 1 gelas, 2 bungkus
+
+private:
+	UPROPERTY()
+	TObjectPtr<USceneComponent> Root;
+};
+
+/** Komputer billing di samping meja kasir: menyalakan semua unit dari satu tempat. */
+UCLASS()
+class JURAGANRENTAL_API AJRBillingPC : public AActor, public IJRInteractable
+{
+	GENERATED_BODY()
+
+public:
+	AJRBillingPC();
+	virtual void BeginPlay() override;
 	virtual FJRInteraction GetInteraction() const override;
 	virtual void Interact() override;
 

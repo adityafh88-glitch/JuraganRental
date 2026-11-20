@@ -417,3 +417,93 @@ SUARA	SOUND
 KONTROL	CONTROLS
 GARASI	GARAGE
 Mahasiswa	College student
+Booth VIP	VIP booth
+Booth VIP lantai 2	VIP booth (floor 2)
+GAME CENTER	GAME CENTER
+GAME CENTER JURAGAN  -  2 LANTAI	JURAGAN GAME CENTER  -  2 FLOORS
+Game Center	Game Center
+Gerbang 2 terbuka! Buka HP > Toko untuk pindah ke Game Center 2 lantai.	Gate 2 is open! Open Phone > Shop to move to the two-floor Game Center.
+LANTAI 2  -  VIP LOUNGE	FLOOR 2  -  VIP LOUNGE
+Lantai 1: 8 TV dan 8 PC. Lantai 2: ruang VIP sampai 6 booth. Daya 4.400 VA. Sewa Rp 150.000/hari.	Floor 1: 8 TVs and 8 PCs. Floor 2: a VIP lounge with up to 6 booths. 4.400 VA power. Rent Rp 150.000/day.
+Pindah ke Game Center 2 lantai	Move to the two-floor Game Center
+SELAMAT! Kamu resmi jadi JURAGAN SEJATI. Game Center-mu jadi legenda kampung!	CONGRATULATIONS! You are officially a TRUE JURAGAN. Your Game Center is a neighborhood legend!
+Selamat datang di Game Center 2 lantai! Beli booth VIP untuk lantai 2 lewat HP > Toko.	Welcome to your two-floor Game Center! Buy VIP booths for floor 2 in Phone > Shop.
+Sofa, TV 32 inci, dan PlayStasiun 3. Tarif wajar Rp 8.000/jam. Daya 400 VA.	Sofa, 32-inch TV, and PlayStasiun 3. Fair rate Rp 8.000/hour. 400 VA.
+Syarat: kas Rp 3 juta, reputasi 60, dan 10 unit	Requires: Rp 3 million cash, 60 reputation, and 10 units
+Target akhir Juragan Sejati: Rp 10 juta dan reputasi 85. Sekarang %s, reputasi %d.	Final goal, True Juragan: Rp 10 million and 85 reputation. Now %s, reputation %d.
+%d unit  -  %d menunggu  -  %d sedang main	%d units  -  %d waiting  -  %d playing
+Buka billing  (%d unit menunggu)	Open billing  (%d units waiting)
+Buka komputer billing	Open the billing computer
+Esc / E: tutup. Bayaran tetap diterima di meja kasir.	Esc / E: close. Payments are still taken at the counter.
+JURAGAN BILLING v1.0	JURAGAN BILLING v1.0
+Komputer billing terpasang di samping kasir. Nyalakan unit dari sana!	The billing computer is installed next to the counter. Turn units on from there!
+Komputer di samping kasir: lihat semua unit dan nyalakan TV, PC, dan VIP dari satu tempat.	A computer next to the counter: see every unit and turn on TVs, PCs, and VIP booths from one place.
+Kosong	Empty
+Listrik mati	Power out
+Main: %s  (sisa %d:%02d)	Playing: %s  (%d:%02d left)
+Menunggu: %s	Waiting: %s
+Nyalakan  %s/jam	Turn on  %s/hour
+Nyalakan semua yang menunggu (%d)	Turn on everyone waiting (%d)
+Pelanggan sedang jalan	Customer on the way
+RUSAK	BROKEN
+Sistem billing warnet	Net cafe billing system
+VIRUS	VIRUS
+%d peserta sudah bertanding. Final berakhir dramatis lewat adu penalti, penonton berdesakan di depan TV.	%d players have competed. The final ends in a dramatic penalty shootout while the crowd packs in front of the TV.
+(Minggu) 	(Week) 
+ADA YANG MAIN NAGA?  -B	ANYONE PLAYING DRAGON?  -B
+Adakan turnamen	Hold the tournament
+Anak-anak tongkrongan bertanya: \"Bang, Sabtu ini ada turnamen bola PS nggak?\" Turnamen berjalan pukul 16.00-20.00. Peserta bayar %s, juara dapat %s.	The regulars ask: \"Boss, any PS football tournament this Saturday?\" It runs 4 PM to 8 PM. Players pay %s, the champion wins %s.
+BESOK MALAM. -B	TOMORROW NIGHT. -B
+Balas: siapa ini?	Reply: who is this?
+Balasan muncul: \"BESOK MALAM. -B\" lalu layar mati sendiri.	A reply appears: \"TOMORROW NIGHT. -B\" and the screen shuts off by itself.
+Batalkan hadiah	Cancel the prize
+Bayu dan server tua	Bayu and the old server
+Bayu datang bersama teman-teman lamanya, sekarang sudah bapak-bapak semua. Mereka main \"Legenda Naga Online\" sampai larut, teriak dan tertawa seperti anak SMP lagi. Sebelum pulang Bayu menyerahkan flashdisk: \"Servernya buat Abang. Pasang terus ya, biar anak-anak sekarang kenal game ini.\"	Bayu arrives with his old friends, all dads now. They play \"Dragon Legend Online\" late into the night, yelling and laughing like middle schoolers again. Before leaving, Bayu hands you a flash drive: \"The server is yours. Keep it running so today's kids get to know this game.\"
+Bayu masuk sambil tertawa. \"Bang, itu saya yang ngetik dari laptop! Ternyata game naga itu dulu punya mode online, servernya mati tahun 2004. Saya hidupkan lagi servernya di rumah. Boleh dites di sini malam Minggu? Teman-teman lama mau ikut.\"	Bayu walks in laughing. \"That was me typing from my laptop! Turns out the dragon game had an online mode, but the servers died in 2004. I brought one back to life at home. Can we test it here Saturday night? My old friends want to join.\"
+Bayu sumringah: \"Abang memang juragan sejati!\"	Bayu beams: \"You're a true juragan!\"
+Besok akhir pekan: kamu bisa mengadakan turnamen PS.	Tomorrow is the weekend: you can hold a PS tournament.
+Boleh, pakai semua PC gratis	Sure, use every PC for free
+Boleh, tapi bayar normal	Sure, but at the normal rate
+Di layar %s muncul jendela chat hijau: \"ADA YANG MASIH MAIN NAGA? -B\". Tidak ada yang sedang memakai PC itu, dan kabel LAN-nya bahkan tidak tersambung.	A green chat window pops up on %s: \"IS ANYONE STILL PLAYING DRAGON? -B\". Nobody is using that PC, and its LAN cable isn't even plugged in.
+Final turnamen!	Tournament final!
+Hadiah dari sponsor (gratis)	Prize from a sponsor (free)
+Hadiah misi: +%s	Mission rewards: +%s
+Jual %d mangkuk mi	Sell %d bowls of noodles
+Juara mengangkat piala. Penonton bersorak! Reputasi +4	The champion lifts the trophy. The crowd cheers! Reputation +4
+Kepuasan rata-rata minimal %d	Average satisfaction of at least %d
+Layani %d pelanggan sampai bayar	Serve %d customers through payment
+MISI	MISSIONS
+Malam Naga Online	Dragon Online Night
+Matikan monitornya	Turn the monitor off
+Memungut mangkuk, gelas, dan bungkus yang ditinggal pelanggan.	Picks up bowls, glasses, and wrappers customers leave behind.
+Misi %s selesai: %s  +%s	%s mission complete: %s  +%s
+Monitor dimatikan. Inisial \"B\"... rasanya kamu kenal.	Monitor off. The initial \"B\"... it sounds familiar.
+Nyalakan %d sesi main	Start %d play sessions
+OB (kebersihan)	Cleaner
+Pemasukan %s	Earn %s
+Perbaiki %d unit rusak	Fix %d broken units
+Pesan di layar PC	A message on the PC screen
+Peserta kecewa hadiahnya batal. Reputasi -6	Players are upset the prize was cancelled. Reputation -6
+Peserta turnamen %d/%d: %s (biaya daftar %s)	Tournament player %d/%d: %s (entry fee %s)
+Pungut sampah	Pick up trash
+Sampah berserakan: %d. Warga menilai rental kotor.	Trash left lying around: %d. Neighbors think the rental is dirty.
+Serahkan hadiah %s	Award the %s prize
+Server Naga Online terpasang di warnetmu! Gamer makin sering datang. +%s	The Dragon Online server is running at your cafe! Gamers come more often. +%s
+TAMAT	THE END
+TURNAMEN BERLANGSUNG  16.00-20.00   Peserta %d/%d	TOURNAMENT IN PROGRESS  4-8 PM   Players %d/%d
+TURNAMEN DIMULAI! Peserta yang menyalakan TV otomatis terdaftar.	THE TOURNAMENT HAS STARTED! Anyone who starts a TV session is signed up automatically.
+Terima kasih, Mas Bayu	Thank you, Bayu
+Tidak ada turnamen minggu ini.	No tournament this week.
+Tidak ada yang kabur tanpa bayar	Nobody runs off without paying
+Tidak minggu ini	Not this week
+Toko HP sebelah jadi sponsor hadiah. Reputasi +2	The phone shop next door sponsors the prize. Reputation +2
+Turnamen akhir pekan	Weekend tournament
+Turnamen diumumkan! Mulai pukul 16.00, pendaftaran di setiap TV.	Tournament announced! Starts at 4 PM, sign-ups at every TV.
+Turnamen: %d peserta, biaya daftar %s	Tournament: %d players, entry fees %s
+[tutup]	[closing]
+\"Siap, Bang, adil itu!\" kata Bayu.	\"Deal, boss, that's fair!\" says Bayu.
+harian	Daily
+mingguan	Weekly
+Suara dikecilkan. Malam ini pelanggan lebih sepi	Volume turned down. Fewer customers tonight
+Pak RT ngopi dulu, urusan beres. Reputasi +1	The neighborhood chief has a coffee and all is well. Reputation +1
+Pak RT tersinggung. Reputasi warga -3	The neighborhood chief is offended. Neighborhood reputation -3

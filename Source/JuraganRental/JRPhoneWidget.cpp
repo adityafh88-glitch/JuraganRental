@@ -206,7 +206,7 @@ void UJRPhoneWidget::Refresh(bool bForce)
 	}
 
 	// Tab lain dibangun ulang hanya jika status tombolnya berubah (bukan setiap kali kas bertambah).
-	FString Sig = FString::Printf(TEXT("%d|%d|%d|%d|%d|%d|%d|%d%d%d"), CurrentTab, GM->PricePS, GM->PricePC, GM->CapVA, GM->Era, GM->bPaketMalam ? 1 : 0, GM->Phase == EJRGamePhase::Playing ? 1 : 0,
+	FString Sig = FString::Printf(TEXT("%d|%d|%d|%d|%d|%d|%d|%d%d%d"), CurrentTab, GM->PricePS + GM->PriceVIP * 7, GM->PricePC, GM->CapVA, GM->Era, GM->bPaketMalam ? 1 : 0, GM->Phase == EJRGamePhase::Playing ? 1 : 0,
 		GM->HasStaff(EJRStaff::Kasir) ? 1 : 0, GM->HasStaff(EJRStaff::Teknisi) ? 1 : 0, GM->HasStaff(EJRStaff::Koki) ? 1 : 0);
 	Sig += FString::Printf(TEXT("|n%d%d"), GM->NetPlan, GM->PendingNetPlan);
 	for (const FJRShopItem& It : GM->GetShopItems())
@@ -255,9 +255,11 @@ void UJRPhoneWidget::FillTarif(AJRGameMode* GM)
 {
 	AddLine(MakeText(JRT(TEXT("TARIF PER JAM")), 15, LcdInk, true), 0.f);
 	AddLine(MakeText(JRT(TEXT("Lebih murah: lebih ramai dan pelanggan lebih puas. Lebih mahal: untung per jam naik.")), 11, LcdMuted), 2.f);
-	for (EJRUnitType Type : { EJRUnitType::PS, EJRUnitType::PC })
+	TArray<EJRUnitType> Types = { EJRUnitType::PS, EJRUnitType::PC };
+	if (GM->Era >= 3) Types.Add(EJRUnitType::VIP);
+	for (EJRUnitType Type : Types)
 	{
-		const FString Name = Type == EJRUnitType::PS ? JRT(TEXT("Rental PS")) : JRT(TEXT("Warnet"));
+		const FString Name = Type == EJRUnitType::PS ? JRT(TEXT("Rental PS")) : Type == EJRUnitType::VIP ? JRT(TEXT("Booth VIP")) : JRT(TEXT("Warnet"));
 		AddLine(MakeText(JRPrintf(JRT(TEXT("%s: %s/jam")), *Name, *JRFormatRp(GM->PriceFor(Type))), 14, LcdInk, true), 16.f);
 		AddLine(MakeText(JRPrintf(JRT(TEXT("Harga wajar %s")), *JRFormatRp(GM->FairFor(Type))), 11, LcdMuted), 2.f);
 		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -274,7 +276,7 @@ void UJRPhoneWidget::FillTarif(AJRGameMode* GM)
 		}
 		AddLine(Row, 6.f);
 	}
-	if (GM->Era == 2)
+	if (GM->Era >= 2)
 	{
 		AddLine(MakeText(JRT(TEXT("Paket malam warnet")), 14, LcdInk, true), 18.f);
 		AddLine(MakeText(JRT(TEXT("Setelah 21.00 gamer bayar Rp 10.000 flat dan main sampai tutup.")), 11, LcdMuted), 2.f);

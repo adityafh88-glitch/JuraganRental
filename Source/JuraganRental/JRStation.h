@@ -33,7 +33,7 @@ public:
 	bool IsFree() const { return Customer == nullptr && !bBroken; }
 
 	/** Jarak tempat duduk pelanggan dari unit (karpet lesehan / kursi warnet), cm. */
-	float SeatDistance() const { return Type == EJRUnitType::PS ? 170.f : 80.f; }
+	float SeatDistance() const { return Type == EJRUnitType::PS ? 170.f : Type == EJRUnitType::VIP ? 190.f : 80.f; }
 
 	EJRUnitType Type = EJRUnitType::PS;
 	int32 Index = 0;
@@ -41,6 +41,7 @@ public:
 	bool bBroken = false;
 	bool bVirus = false;	// PC kena virus: perbaikan lebih lama
 	bool bHaunted = false;	// cerita misteri: layar menyala sendiri
+	FString HauntText;		// teks di layar saat bHaunted (kosong = "LANJUTKAN?")
 	bool bUsed = false;		// barang bekas dari loak: lebih sering rusak
 	void MarkUsed() { bUsed = true; DisplayName += TEXT(" (bekas)"); }
 
