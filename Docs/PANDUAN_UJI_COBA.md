@@ -101,15 +101,24 @@ Langkah-langkahnya:
 **Penting:** nama paket aplikasi saat ini `com.juraganrental.game`. Nama ini **tidak bisa diganti** setelah aplikasi pertama kali diunggah ke Play Console. Kalau mau memakai nama developer (misalnya `com.kahgamedev.juraganrental`), putuskan sebelum unggahan pertama.
 
 ## 8. Kunci upload (dibuat sendiri, jangan dibagikan)
-Kunci ini membuktikan bahwa update game berasal dari kamu. Kalau hilang, kamu tidak bisa memperbarui game di Play Store (kecuali lewat proses pemulihan Google). Simpan di dua tempat: laptop dan flashdisk atau cloud pribadi.
+Kunci ini membuktikan bahwa update game berasal dari kamu. Kalau hilang, kamu tidak bisa memperbarui game di Play Store (kecuali lewat proses pemulihan Google).
 
-Jalankan di PowerShell, lalu isi kata sandi dan data yang diminta (pakai kata sandimu sendiri):
+Jalankan sendiri di PowerShell:
 
 ```powershell
-& 'D:\Dev\Tools\jdk-21\bin\keytool.exe' -genkeypair -v -keystore 'D:\Dev\JuraganRental\Build\Android\kahgamedev-upload.keystore' -alias kahgamedev -keyalg RSA -keysize 2048 -validity 10000
+powershell -ExecutionPolicy Bypass -File D:\Dev\JuraganRental\Tools\buat_kunci_upload.ps1
 ```
 
-Setelah selesai, kabari aku nama file dan alias-nya (bukan kata sandinya). Aku akan menyiapkan pengaturan build AAB supaya kata sandinya kamu isi sendiri di file lokal yang tidak ikut ter-commit ke GitHub.
+Skrip ini:
+1. Menanyakan kata sandi baru dua kali (minimal 8 karakter, ketikan tidak terlihat).
+2. Membuat kunci `Build\Android\kahgamedev-upload.keystore` atas nama KAH Gamedev.
+3. Menyimpan kata sandinya ke `Config\Android\AndroidEngine.ini`.
+
+File kunci dan file kata sandi itu **tidak ikut ke GitHub** (sudah diatur di `.gitignore`).
+
+Setelah selesai:
+- **Salin file kunci ke flashdisk atau cloud pribadi**, dan catat kata sandinya di tempat aman.
+- Kabari Claude bahwa kunci sudah dibuat (tanpa menyebut kata sandinya). Build AAB untuk Play Store memakai kunci ini secara otomatis.
 
 ## 9. Sebelum rilis resmi
 - [ ] Semua bug dari uji tertutup sudah diperbaiki.

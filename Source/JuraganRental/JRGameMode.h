@@ -495,6 +495,7 @@ private:
 	static const TCHAR* SlotName();
 	bool bMenuTest = false;		// -jrmenutest: potret menu utama dan pengaturan
 	TWeakObjectPtr<class AJROpening> Opening;
+	float HideLandscapeTimer = 0.f;	// cek berkala landscape gurun bawaan level
 
 	// -jrbalance: bot pemain yang cukup cekatan main beberapa hari (waktu dipercepat) untuk mengukur ekonomi.
 	bool bBalance = false;

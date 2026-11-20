@@ -1,4 +1,4 @@
-#include "JRFixtures.h"
+﻿#include "JRFixtures.h"
 #include "JRLang.h"
 
 #include "Components/PointLightComponent.h"
@@ -282,9 +282,103 @@ void AJRDecor::BuildStreet(float HX, float HY, float DoorY, bool bRuko)
 	}
 }
 
+void AJRDecor::Tree(const FVector& At, float Size, int32 Kind)
+{
+	const FLinearColor Trunk(0.38f, 0.25f, 0.15f);
+	if (Kind == 1)
+	{
+		// Pohon kelapa: batang tinggi ramping, daun berupa beberapa lempeng miring
+		Shape(Cylinder, At + FVector(0, 0, 330 * Size), FVector(0.16f, 0.16f, 6.6f * Size), FLinearColor(0.48f, 0.38f, 0.26f));
+		for (int32 i = 0; i < 5; ++i)
+		{
+			Shape(Cube, At + FVector(0, 0, 655 * Size), FVector(2.4f * Size, 0.35f, 0.05f), FLinearColor(0.22f, 0.5f, 0.2f), 0.f, FRotator(-18.f, i * 72.f, 0.f));
+		}
+		return;
+	}
+	// Pohon rindang (mangga/ketapang): batang + dua gumpal daun
+	const FLinearColor Leaf = Kind == 2 ? FLinearColor(0.17f, 0.4f, 0.16f) : FLinearColor(0.24f, 0.5f, 0.2f);
+	Shape(Cylinder, At + FVector(0, 0, 120 * Size), FVector(0.28f * Size, 0.28f * Size, 2.4f * Size), Trunk);
+	Shape(Sphere, At + FVector(0, 0, 310 * Size), FVector(2.6f * Size, 2.6f * Size, 2.1f * Size), Leaf);
+	Shape(Sphere, At + FVector(60 * Size, -50 * Size, 390 * Size), FVector(1.6f * Size, 1.6f * Size, 1.4f * Size), Leaf * 1.12f);
+}
+
+void AJRDecor::BuildKampung(float HX, float HY)
+{
+	static const FLinearColor Walls[] = {
+		FLinearColor(0.93f, 0.88f, 0.72f), FLinearColor(0.72f, 0.86f, 0.74f), FLinearColor(0.7f, 0.8f, 0.92f),
+		FLinearColor(0.95f, 0.76f, 0.62f), FLinearColor(0.88f, 0.88f, 0.88f), FLinearColor(0.93f, 0.8f, 0.85f) };
+	const FLinearColor Grass(0.3f, 0.48f, 0.22f), Grass2(0.34f, 0.52f, 0.25f), Dirt(0.55f, 0.46f, 0.34f);
+
+	// Tanah berumput luas sampai cakrawala (di bawah semua lantai/jalan)
+	Shape(Cube, FVector(0, 0, -14.f), FVector(900.f, 900.f, 0.1f), Grass);
+	// Halaman belakang dan samping (sedikit beda warna + jalan setapak tanah)
+	Shape(Cube, FVector(HX + 700.f, 0, -8.f), FVector(14.f, (2 * HY + 2400.f) / 100.f, 0.1f), Grass2);
+	Shape(Cube, FVector(HX + 320.f, 0, -6.f), FVector(1.2f, (2 * HY + 2000.f) / 100.f, 0.1f), Dirt);
+
+	// Rumah-rumah di belakang gedung (punggungnya menghadap kita)
+	int32 K = 7;
+	for (float Y = -HY - 400.f; Y < HY + 500.f; Y += 760.f, ++K)
+	{
+		House(FVector(HX + 1150.f, Y, 0), 620.f, 300.f + (K * 37 % 3) * 70.f, Walls[K % 6], K);
+	}
+	// Rumah di kiri dan kanan gedung (dipisah gang kecil)
+	for (float Side : { -1.f, 1.f })
+	{
+		for (float X = -HX + 350.f; X < HX + 400.f; X += 760.f, ++K)
+		{
+			House(FVector(X + 250.f, Side * (HY + 600.f), 0), 560.f, 290.f + (K * 41 % 3) * 60.f, Walls[K % 6], K);
+		}
+	}
+
+	// Lapisan jauh: atap-atap rumah dan masjid berkubah sebagai penanda kampung
+	const float R = FMath::Max(HX, HY) + 3200.f;
+	for (int32 i = 0; i < 14; ++i, ++K)
+	{
+		const float A = (i / 14.f) * 2.f * PI + 0.2f;
+		const FVector P(FMath::Cos(A) * R, FMath::Sin(A) * R * 1.15f, 0.f);
+		if (P.X < -HX - 2600.f && FMath::Abs(P.Y) < HY + 1800.f) continue;	// jangan menutupi jalan depan
+		House(P, 700.f, 340.f + (K * 29 % 4) * 60.f, Walls[K % 6], K);
+	}
+	{
+		const FVector M(HX + 3600.f, -HY - 1500.f, 0.f);	// masjid di belakang kiri
+		Shape(Cube, M + FVector(0, 0, 230), FVector(10.f, 10.f, 4.6f), FLinearColor(0.95f, 0.95f, 0.9f));
+		Shape(Sphere, M + FVector(0, 0, 520), FVector(6.f, 6.f, 5.f), FLinearColor(0.15f, 0.55f, 0.35f));
+		Shape(Cylinder, M + FVector(0, 0, 790), FVector(0.1f, 0.1f, 0.9f), FLinearColor(0.85f, 0.75f, 0.3f));
+		Shape(Cylinder, M + FVector(-650, 600, 600), FVector(1.1f, 1.1f, 12.f), FLinearColor(0.95f, 0.95f, 0.9f));	// menara
+		Shape(Cone, M + FVector(-650, 600, 1250), FVector(1.4f, 1.4f, 1.4f), FLinearColor(0.15f, 0.55f, 0.35f));
+	}
+
+	// Pepohonan di sela rumah
+	const FVector Trees[] = {
+		FVector(HX + 500.f, -HY - 300.f, 0), FVector(HX + 450.f, HY + 250.f, 0), FVector(HX + 1700.f, 200.f, 0),
+		FVector(-HX + 100.f, -HY - 1500.f, 0), FVector(HX + 200.f, HY + 1500.f, 0), FVector(HX + 2300.f, -HY + 400.f, 0),
+		FVector(HX + 2100.f, HY + 900.f, 0), FVector(-HX - 300.f, HY + 1700.f, 0), FVector(HX + 900.f, -HY - 1700.f, 0),
+	};
+	for (int32 i = 0; i < UE_ARRAY_COUNT(Trees); ++i) Tree(Trees[i], 1.f + (i % 3) * 0.25f, i % 3);
+
+	// Tiang listrik berkabel menyusuri gang samping kanan
+	const FLinearColor PoleC(0.45f, 0.45f, 0.47f), Wire(0.08f, 0.08f, 0.09f);
+	const float PY = HY + 230.f;
+	TArray<FVector> Tops;
+	for (float X = -HX - 300.f; X <= HX + 900.f; X += 800.f)
+	{
+		Shape(Cylinder, FVector(X, PY, 380), FVector(0.14f, 0.14f, 7.6f), PoleC);
+		Shape(Cube, FVector(X, PY, 720), FVector(0.08f, 1.2f, 0.08f), PoleC);	// palang
+		Tops.Add(FVector(X, PY, 715));
+	}
+	for (int32 i = 0; i + 1 < Tops.Num(); ++i)
+	{
+		for (float Dy : { -45.f, 45.f })
+		{
+			const FVector A = Tops[i] + FVector(0, Dy, 0), B = Tops[i + 1] + FVector(0, Dy, 0);
+			Shape(Cube, (A + B) * 0.5f - FVector(0, 0, 18.f), FVector((B - A).Size() / 100.f, 0.02f, 0.02f), Wire);	// kabel agak melengkung ke bawah
+		}
+	}
+}
+
 void AJRDecor::Setup(FName Id, float HX, float HY, float DoorY)
 {
-	if (Id == TEXT("luar")) { BuildStreet(HX, HY, DoorY, HY > 1100.f); return; }
+	if (Id == TEXT("luar")) { BuildStreet(HX, HY, DoorY, HY > 1100.f); BuildKampung(HX, HY); return; }
 	// Ukuran bentuk dasar mesin: kubus/silinder 100 cm (poros di tengah), kerucut 100 cm.
 	if (Id == TEXT("poster"))
 	{

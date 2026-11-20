@@ -1,4 +1,4 @@
-// Perabot tetap di toko: ruangan, meja kasir, dan kotak MCB.
+﻿// Perabot tetap di toko: ruangan, meja kasir, dan kotak MCB.
 
 #pragma once
 
@@ -140,6 +140,9 @@ public:
 private:
 	UStaticMeshComponent* Shape(UStaticMesh* Mesh, const FVector& Loc, const FVector& Scale, const FLinearColor& Color, float Glow = 0.f, const FRotator& Rot = FRotator::ZeroRotator);
 	void BuildStreet(float HX, float HY, float DoorY, bool bRuko);
+	/** Latar kampung di samping, belakang, dan cakrawala (pengganti bukit gurun bawaan level). */
+	void BuildKampung(float HX, float HY);
+	void Tree(const FVector& At, float Size, int32 Kind);
 	void House(const FVector& FrontCenter, float Width, float Height, const FLinearColor& Wall, int32 Seed, const TCHAR* Sign = nullptr);
 	void Motor(const FVector& Loc, const FLinearColor& Body);
 

@@ -40,3 +40,8 @@ Desktop.ini
 # Cadangan otomatis Blender
 *.blend1
 *.blend2
+
+# Rahasia penandatanganan Android (kunci upload dan kata sandinya)
+*.keystore
+*.jks
+Config/Android/AndroidEngine.ini

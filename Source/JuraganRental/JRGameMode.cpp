@@ -24,6 +24,7 @@
 #include "JRMenuWidget.h"
 #include "JRPhoneWidget.h"
 #include "Kismet/GameplayStatics.h"
+#include "EngineUtils.h"
 
 namespace JRLocal_GameMode
 {
@@ -1928,6 +1929,23 @@ void AJRGameMode::Tick(float DeltaSeconds)
 	{
 		FlickerTime -= DeltaSeconds;
 		Room->SetLightsOn(FlickerTime <= 0.f || FMath::FRand() < 0.55f);
+	}
+
+	// Sembunyikan landscape bukit gurun bawaan level (diganti latar kampung). Dicek berkala karena
+	// potongan landscape World Partition bisa dimuat belakangan.
+	HideLandscapeTimer -= DeltaSeconds;
+	if (HideLandscapeTimer <= 0.f)
+	{
+		HideLandscapeTimer = 2.f;
+		for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+		{
+			AActor* A = *It;
+			if (!A->IsHidden() && A->GetClass()->GetName().Contains(TEXT("Landscape")))
+			{
+				A->SetActorHiddenInGame(true);
+				A->SetActorEnableCollision(false);
+			}
+		}
 	}
 
 	if (!IsPlaying()) return;
