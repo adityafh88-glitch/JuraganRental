@@ -37,6 +37,8 @@ public:
 	void ApplyTouchSettings();
 	/** Ukuran tampilan layar sentuh (HP dalam game, menu, dialog, dan teks HUD). PC selalu 1. */
 	void ApplyUIScale();
+	/** Buka dialog "Beri nama rentalmu" (dari HP > Atur). */
+	void OpenNameDialog();
 
 private:
 	float UIS = 1.f;	// skala teks/panel HUD Canvas, mengikuti skala UMG di mode sentuh
@@ -46,6 +48,14 @@ private:
 	UPROPERTY()
 	TObjectPtr<class UJRSplashWidget> Splash;
 	bool bSplashChecked = false;
+
+	UPROPERTY()
+	TObjectPtr<class UJRNameWidget> NameWidget;
+
+	UPROPERTY()
+	TObjectPtr<class UJRMomentCard> MomentCard;
+	bool bNameShown = false;
+	bool bMomentShown = false;
 	void DrawPanel(const FString& Title, const TArray<FString>& Lines, const FString& Footer);
 
 	void SyncChoice();

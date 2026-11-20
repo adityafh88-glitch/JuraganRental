@@ -11,7 +11,7 @@ SKIP_PREFIX = re.compile(r'^(/|SFX_|VO_|MUS_|LOOP_|A_|SK_|SM_|M_|JR|jr|Engine)')
 SKIP_EXACT = {
     "Datang", "Bayar", "Rusak", "Pesan_Mi", "Marah_Pulang", "Ngutang", "Paket", "Rage", "Lemot", "Joki",
     "Ketahuan", "Jewer", "Pergi", "Kecil", "Kopi", "Abai", "Bocil", "SMA", "Mahasiswa", "Kantoran", "Gamer",
-    "Bapak", "Emak", "PakRT", "Color", "Root", "Label", "Surface", "Music", "Body", "Cone", "Bold", "Regular",
+    "Bapak", "Emak", "PakRT", "Color", "Root", "Label", "Surface", "Landscape", "Juragan", "Berkah Jaya", "Sumber Rejeki", "Bang Jago", "Maju Mapan", "Music", "Body", "Cone", "Bold", "Regular",
     "Perang Kerajaan Online", "Tembak-Tembakan Arena", "Legenda Naga Nusantara", "Balap Liar Online",
 }
 SKIP_LINE = ("UE_LOG", "FParse", "RequestScreenshot", "LoadObject", "FObjectFinder", "GConfig",

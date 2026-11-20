@@ -1,4 +1,4 @@
-// Tipe data bersama Juragan Rental.
+﻿// Tipe data bersama Juragan Rental.
 
 #pragma once
 
@@ -52,6 +52,7 @@ enum class EJRMission : uint8
 	Repair,		// perbaiki N unit
 	NoRun,		// tidak ada yang kabur (dinilai saat tutup)
 	Happy,		// kepuasan rata-rata minimal N (dinilai saat tutup)
+	Upsell,		// "Bang, nambah sejam!" dilayani N kali
 	Count
 };
 
@@ -73,6 +74,21 @@ enum class EJRStaff : uint8
 	Koki,
 	Cleaner,	// OB: memungut sampah
 	Count
+};
+
+/** Kejadian penting hari ini: bahan Kartu Momen dan komentar warganet (Viralin). */
+enum class EJRMoment : uint8
+{
+	Emak, RageQuit, Fight, RunAway, Trip, PakRt, Upsell, Streamer, Lurah, Rival, Tour, LevelUp, Count
+};
+
+/** Satu postingan warganet di aplikasi Viralin (HP dalam game). */
+struct FJRPost
+{
+	FString Author;
+	FString Text;
+	int32 Likes = 0;
+	int32 Day = 0;
 };
 
 /** Bisnis sampingan Game Center (Era 3). */

@@ -11,6 +11,37 @@ class UButton;
 class UTextBlock;
 
 /**
+ * Area sentuh tombol AKSI. Menggantikan input UButton: tombol bawaan menyimpan status "ditekan" dan bisa
+ * "nyangkut" bila jari diangkat saat tombol tersembunyi (dialog/HP muncul), sehingga ketukan berikutnya
+ * tidak menjalankan aksi. Di sini setiap sentuhan baru selalu menjalankan aksi.
+ */
+UCLASS()
+class JURAGANRENTAL_API UJRActionPad : public UUserWidget
+{
+	GENERATED_BODY()
+
+public:
+	TFunction<void()> OnDown;
+	TFunction<void()> OnUp;
+	/** Lepas paksa (dipanggil saat tombol disembunyikan). */
+	void ForceRelease();
+	bool IsDown() const { return bDown; }
+
+protected:
+	virtual TSharedRef<SWidget> RebuildWidget() override;
+	virtual FReply NativeOnTouchStarted(const FGeometry& InGeometry, const FPointerEvent& InGestureEvent) override;
+	virtual FReply NativeOnTouchEnded(const FGeometry& InGeometry, const FPointerEvent& InGestureEvent) override;
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent) override;
+
+private:
+	bool bDown = false;
+	FReply Down();
+	FReply Up();
+};
+
+/**
  * Area tak terlihat di sisi kanan layar: geser jari untuk menoleh (pengganti joystick kanan).
  * Tiap jari dilacak sendiri, jadi bisa berjalan dengan jempol kiri sambil menoleh dengan jempol kanan.
  */
@@ -24,6 +55,11 @@ protected:
 	virtual FReply NativeOnTouchStarted(const FGeometry& InGeometry, const FPointerEvent& InGestureEvent) override;
 	virtual FReply NativeOnTouchMoved(const FGeometry& InGeometry, const FPointerEvent& InGestureEvent) override;
 	virtual FReply NativeOnTouchEnded(const FGeometry& InGeometry, const FPointerEvent& InGestureEvent) override;
+	virtual void NativeOnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent) override;
+
+public:
+	/** Lupakan jari yang sedang menggeser (dipanggil saat area geser disembunyikan). */
+	void ResetFinger() { Finger = -1; }
 
 private:
 	int32 Finger = -1;	// jari yang sedang menggeser (-1 = tidak ada)
@@ -40,6 +76,10 @@ public:
 	 * widget yang Collapsed tidak menjalankan NativeTick, jadi tidak bisa memunculkan dirinya sendiri lagi.
 	 */
 	void SyncVisibility();
+
+	/** Uji -jrtouchflow: berapa kali AKSI menjalankan aksi, dan titik tengah tombol AKSI di layar. */
+	int32 ActionPresses = 0;
+	FVector2D ActionCenterAbs() const;
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -69,6 +109,12 @@ private:
 	UFUNCTION()
 	void OnMissions();
 
+	UFUNCTION()
+	void OnToasts();
+
+	UPROPERTY()
+	TObjectPtr<UButton> ToastToggle;	// area transparan di atas label NOTIFIKASI (kanan atas)
+
 	UPROPERTY()
 	TObjectPtr<UButton> MissionToggle;	// area transparan di atas judul panel misi
 
@@ -83,6 +129,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UJRLookPad> LookPad;
+
+	UPROPERTY()
+	TObjectPtr<UJRActionPad> ActionPad;	// menerima sentuhan AKSI (tombol ActionButton hanya tampilan)
 
 	UPROPERTY()
 	TObjectPtr<UButton> ActionButton;

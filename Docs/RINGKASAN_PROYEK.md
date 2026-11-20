@@ -66,6 +66,14 @@ Dokumen ini merangkum seluruh pekerjaan sejauh ini, untuk melanjutkan di sesi ba
 - **Ukuran tampilan** (Kecil/Sedang/Besar/Sangat besar, bawaan Besar 1,8) mengatur `ApplicationScale` UMG. HUD Canvas ikut diskalakan lewat `UIS`. Pilihan **ukuran joystick** dan **kepekaan geser layar** ada di Pengaturan dan HP > Atur.
 - **Opening garasi** (Main baru, Era 1, `AJROpening`): kamera dari gang menuju garasi, rolling door terangkat, lalu masuk melihat TV, dengan teks narasi berbingkai film. LANJUT/Enter untuk melewati. Uji dengan `-jropening` dan `-jropeningat=detik`; lewati dengan `-jrnoopening`.
 - **Bantuan bidik:** benda kecil cukup dekat arah pandang (sentuh 13°, PC 6°), dan target bertahan sebentar saat bidikan goyang. Tombol AKSI bereaksi saat jari menyentuh. **Panel misi** bisa diciutkan (ketuk judul MISI atau lewat Pengaturan).
+- **Fitur "pamer"** (lihat `Docs/BELAJAR_DARI_SPBU_SIMULATOR.md`):
+  - **Nama rental:** diminta setelah opening "Main baru" (`UJRNameWidget`), bisa diganti di HP > Atur. Tampil di papan nama luar dan dalam (ruangan dibangun ulang), laporan, Kartu Momen, dan Viralin.
+  - **"Bang, nambah sejam!":** saat waktu habis, 35% pelanggan minta tambah jam (label unit "NAMBAH SEJAM?", ketuk AKSI). Selalu jadi salah satu misi harian (`EJRMission::Upsell`).
+  - **Momen hari ini** (`EJRMoment`) dicatat dari kejadian penting dan menjadi bahan Kartu Momen dan Viralin.
+  - **Kartu Momen** (`UJRMomentCard`) tampil di layar laporan: bintang, pelanggan, untung, nambah sejam, momen, dan komentar terbaru. Bisa di-screenshot untuk dibagikan.
+  - **Viralin:** tab HP (indeks 3) berisi komentar warganet buatan `MakeNetizenPosts` setiap tutup hari, tersimpan di simpanan. Tab HP sekarang: 0 Toko, 1 Unit, 2 Kelola, 3 Viralin, 4 Info, 5 Atur.
+  - **Gaya widget** bersama di `JRStyle` (sudut bulat, garis tepi, tab pil, efek tekan) dengan warna khas game; tema `Lcd` untuk HP jadul.
+  - Uji: `-jrmoment` (tutup hari lebih awal untuk memotret Kartu Momen), `-jrnametest` (dialog nama), log `JR_SOSIAL` dan `JR_UPSELL`.
 - **Splash KAH Gamedev:** ubin K/A/H muncul pop-up, lalu logo Juragan Rental membal masuk (`UJRSplashWidget`). Ketuk untuk melewati. Logo judul juga tampil di menu utama.
 - **Logo dan ikon:** dibuat oleh `Tools/make_logo.ps1` (GDI+ dan font Luckiest Guy di `ArtSource/Fonts`, lisensi Apache 2.0). Hasilnya ada di `ArtSource/Logo`: logo judul, ikon 512, header Play Store 1024x500, dan ubin KAH. Ikon Android ditulis ke `Build/Android/res/drawable*/icon.png`. Logo diimpor ke `/Game/UI/Logo` dengan `Tools/import_logo.py`, dan `/Game/UI` selalu ikut dikemas.
 

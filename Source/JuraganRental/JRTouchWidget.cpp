@@ -19,6 +19,7 @@
 #include "JRGameMode.h"
 #include "JRHUD.h"
 #include "JRSettings.h"
+#include "JRStyle.h"
 
 namespace JRLocal_TouchWidget
 {
@@ -39,7 +40,7 @@ namespace JRLocal_TouchWidget
 		return S;
 	}
 
-	/** Tombol bulat tajam ala game HP: isi gelap, cincin tepi berwarna tegas. */
+	/** Tombol bulat tajam: isi gelap, cincin tepi berwarna tegas. */
 	FButtonStyle RingStyle(const FLinearColor& Ring, float Width)
 	{
 		FButtonStyle S;
@@ -113,7 +114,7 @@ UButton* UJRTouchWidget::MakeRing(const FString& Label, int32 FontSize, const FL
 	UTextBlock* T = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	T->SetText(FText::FromString(Label));
 	T->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", FontSize));
-	T->SetColorAndOpacity(FSlateColor(FLinearColor(0.98f, 0.97f, 0.94f)));
+	T->SetColorAndOpacity(FSlateColor(JRStyle::Ink()));
 	T->SetShadowOffset(FVector2D(1.f, 1.5f));
 	T->SetShadowColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.8f));
 	T->SetJustification(ETextJustify::Center);
@@ -193,15 +194,19 @@ void UJRTouchWidget::BuildTree()
 		S->SetSize(FVector2D(Size, Size));
 	};
 
-	ActionButton = MakeRing(JRT(TEXT("AKSI")), 14, FLinearColor(1.f, 0.76f, 0.29f));
+	ActionButton = MakeRing(JRT(TEXT("AKSI")), 14, JRStyle::Accent());
 	ActionLabel = Cast<UTextBlock>(ActionButton->GetContent());
 	// Langsung bereaksi saat jari menyentuh (bawaan UButton menunggu jari diangkat dan batal bila jari bergeser sedikit).
-	ActionButton->SetTouchMethod(EButtonTouchMethod::Down);
-	ActionButton->SetClickMethod(EButtonClickMethod::MouseDown);
-	ActionButton->SetPressMethod(EButtonPressMethod::ButtonPress);
-	ActionButton->OnPressed.AddDynamic(this, &UJRTouchWidget::OnInteractPressed);
-	ActionButton->OnReleased.AddDynamic(this, &UJRTouchWidget::OnInteractReleased);
+	ActionButton->SetVisibility(ESlateVisibility::HitTestInvisible);	// hanya tampilan; sentuhan ditangani ActionPad
+	ActionButton->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
 	PlaceThumb(ActionButton, 108.f);
+	ActionPad = CreateWidget<UJRActionPad>(GetOwningPlayer(), UJRActionPad::StaticClass());
+	if (ActionPad)
+	{
+		ActionPad->OnDown = [this]() { ++ActionPresses; OnInteractPressed(); if (ActionButton) ActionButton->SetRenderScale(FVector2D(0.92f, 0.92f)); };
+		ActionPad->OnUp = [this]() { OnInteractReleased(); if (ActionButton) ActionButton->SetRenderScale(FVector2D(1.f, 1.f)); };
+		PlaceThumb(ActionPad, 120.f);	// sedikit lebih besar dari lingkaran agar mudah kena jempol
+	}
 
 	// LANJUT di tempat yang sama dengan AKSI (tidak pernah tampil bersamaan).
 	NextButton = MakeRing(JRT(TEXT("Lanjut")), 17, FLinearColor(0.36f, 0.85f, 0.56f));
@@ -218,7 +223,7 @@ void UJRTouchWidget::BuildTree()
 		{
 			UBorder* Bar = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 			Bar->SetBrush(Box(1.5f));
-			Bar->SetBrushColor(FLinearColor(0.98f, 0.97f, 0.94f));
+			Bar->SetBrushColor(JRStyle::Ink());
 			USizeBox* BS = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
 			BS->SetWidthOverride(5.f);
 			BS->SetHeightOverride(18.f);
@@ -249,6 +254,18 @@ void UJRTouchWidget::BuildTree()
 		S->SetAnchors(FAnchors(0.f, 0.f));
 		S->SetPosition(FVector2D(176.f, 46.f));
 		S->SetSize(FVector2D(260.f, 38.f));
+	}
+
+	// Ketuk label NOTIFIKASI (digambar HUD di kanan atas) untuk menyembunyikan/memunculkan notifikasi.
+	ToastToggle = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+	{
+		ToastToggle->SetStyle(MissionToggle->GetStyle());	// transparan
+		ToastToggle->OnClicked.AddDynamic(this, &UJRTouchWidget::OnToasts);
+		UCanvasPanelSlot* S = Canvas->AddChildToCanvas(ToastToggle);
+		S->SetAnchors(FAnchors(1.f, 0.f));
+		S->SetAlignment(FVector2D(1.f, 0.f));
+		S->SetPosition(FVector2D(-16.f, 46.f));
+		S->SetSize(FVector2D(280.f, 40.f));
 	}
 
 	UButton* Phone = MakePhoneButton();
@@ -306,6 +323,7 @@ void UJRTouchWidget::SyncVisibility()
 	// HP terbuka juga menyembunyikan tombol: HP menutupi sisi kanan layar dan punya tombol X sendiri.
 	const bool bHideAll = !GM || GM->Phase == EJRGamePhase::Menu || (Hud && Hud->IsUIOpen());
 	const ESlateVisibility Root = bHideAll ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible;
+	if (bHideAll && LookPad) LookPad->ResetFinger();	// jari yang sedang menggeser dianggap terangkat
 	if (GetVisibility() != Root) SetVisibility(Root);
 	const bool bShowNext = GM && GM->Phase != EJRGamePhase::Playing;
 	const ESlateVisibility Want = bShowNext ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
@@ -318,6 +336,8 @@ void UJRTouchWidget::SyncVisibility()
 	}
 	const ESlateVisibility WantMis = (GM && GM->Phase == EJRGamePhase::Playing && !GM->IsTutorial()) ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
 	if (MissionToggle && MissionToggle->GetVisibility() != WantMis) MissionToggle->SetVisibility(WantMis);
+	const ESlateVisibility WantToast = (GM && GM->Phase == EJRGamePhase::Playing) ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
+	if (ToastToggle && ToastToggle->GetVisibility() != WantToast) ToastToggle->SetVisibility(WantToast);
 	// Adegan pembuka: hanya tombol LEWATI yang tampil.
 	const bool bOpening = GM && GM->IsOpening();
 	for (UButton* B : { PauseButton.Get(), PhoneButton.Get() })
@@ -325,8 +345,66 @@ void UJRTouchWidget::SyncVisibility()
 		const ESlateVisibility V = bOpening ? ESlateVisibility::Collapsed : ESlateVisibility::Visible;
 		if (B && B->GetVisibility() != V) B->SetVisibility(V);
 	}
-	const ESlateVisibility WantAction = bShowNext ? ESlateVisibility::Collapsed : ESlateVisibility::Visible;
+	const ESlateVisibility WantAction = bShowNext ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible;
 	if (ActionButton && ActionButton->GetVisibility() != WantAction) ActionButton->SetVisibility(WantAction);
+	const ESlateVisibility WantPad = bShowNext ? ESlateVisibility::Collapsed : ESlateVisibility::Visible;
+	if (ActionPad && ActionPad->GetVisibility() != WantPad) ActionPad->SetVisibility(WantPad);
+	// Tombol AKSI disembunyikan (dialog, HP, ganti hari) saat ditekan: anggap jari terangkat.
+	if (ActionPad && ActionPad->IsDown() && (bHideAll || bShowNext)) ActionPad->ForceRelease();
+}
+
+FVector2D UJRTouchWidget::ActionCenterAbs() const
+{
+	return ActionPad ? ActionPad->GetCachedGeometry().GetAbsolutePositionAtCoordinates(FVector2D(0.5f, 0.5f)) : FVector2D::ZeroVector;
+}
+
+/* ---------- Area sentuh AKSI ---------- */
+
+TSharedRef<SWidget> UJRActionPad::RebuildWidget()
+{
+	if (WidgetTree && !WidgetTree->RootWidget)
+	{
+		UBorder* Surface = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Surface"));
+		Surface->SetBrushColor(FLinearColor(0.f, 0.f, 0.f, 0.f));
+		Surface->SetVisibility(ESlateVisibility::Visible);
+		WidgetTree->RootWidget = Surface;
+	}
+	SetVisibility(ESlateVisibility::Visible);
+	return Super::RebuildWidget();
+}
+
+FReply UJRActionPad::Down()
+{
+	if (bDown && OnUp) OnUp();	// sentuhan sebelumnya nyangkut: lepas dulu, lalu tekan lagi
+	bDown = true;
+	if (OnDown) OnDown();
+	return FReply::Handled().CaptureMouse(TakeWidget());
+}
+
+FReply UJRActionPad::Up()
+{
+	if (!bDown) return FReply::Handled().ReleaseMouseCapture();
+	bDown = false;
+	if (OnUp) OnUp();
+	return FReply::Handled().ReleaseMouseCapture();
+}
+
+void UJRActionPad::ForceRelease()
+{
+	if (!bDown) return;
+	bDown = false;
+	if (OnUp) OnUp();
+}
+
+FReply UJRActionPad::NativeOnTouchStarted(const FGeometry& InGeometry, const FPointerEvent& InGestureEvent) { return Down(); }
+FReply UJRActionPad::NativeOnTouchEnded(const FGeometry& InGeometry, const FPointerEvent& InGestureEvent) { return Up(); }
+FReply UJRActionPad::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) { return Down(); }
+FReply UJRActionPad::NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) { return Up(); }
+
+void UJRActionPad::NativeOnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent)
+{
+	Super::NativeOnMouseCaptureLost(CaptureLostEvent);
+	ForceRelease();
 }
 
 TSharedRef<SWidget> UJRLookPad::RebuildWidget()
@@ -345,7 +423,8 @@ TSharedRef<SWidget> UJRLookPad::RebuildWidget()
 
 FReply UJRLookPad::NativeOnTouchStarted(const FGeometry& InGeometry, const FPointerEvent& InGestureEvent)
 {
-	if (Finger >= 0) return FReply::Unhandled();
+	// Sentuhan baru selalu diterima. Kalau jari sebelumnya "nyangkut" (sinyal angkat jari tidak sampai,
+	// mis. dialog kejadian muncul saat menggeser), sentuhan baru menggantikannya sehingga layar tidak macet.
 	Finger = InGestureEvent.GetPointerIndex();
 	return FReply::Handled().CaptureMouse(TakeWidget());
 }
@@ -364,6 +443,12 @@ FReply UJRLookPad::NativeOnTouchMoved(const FGeometry& InGeometry, const FPointe
 	return FReply::Handled();
 }
 
+void UJRLookPad::NativeOnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent)
+{
+	Super::NativeOnMouseCaptureLost(CaptureLostEvent);
+	Finger = -1;
+}
+
 FReply UJRLookPad::NativeOnTouchEnded(const FGeometry& InGeometry, const FPointerEvent& InGestureEvent)
 {
 	if (InGestureEvent.GetPointerIndex() != Finger) return FReply::Unhandled();
@@ -375,6 +460,13 @@ void UJRTouchWidget::OnMissions()
 {
 	UJRSettingsSave* S = JRSettings::Get();
 	S->bMissionsCompact = !S->bMissionsCompact;
+	JRSettings::Save();
+}
+
+void UJRTouchWidget::OnToasts()
+{
+	UJRSettingsSave* S = JRSettings::Get();
+	S->bToastsHidden = !S->bToastsHidden;
 	JRSettings::Save();
 }
 

@@ -45,6 +45,8 @@ struct FJRDayStats
 	int32 DrinksSold = 0, TopUps = 0, Prints = 0, WalkInLost = 0;
 	bool bFridgeWarned = false;
 	int32 Xp = 0;		// XP yang didapat hari ini
+	int32 Upsells = 0;	// "Bang, nambah sejam!" dilayani
+	TArray<EJRMoment> Moments;	// kejadian penting hari ini (urutan terjadi)
 };
 
 /** Tata letak satu era: ukuran ruangan dan posisi semua perabot (cm). */
@@ -305,6 +307,22 @@ public:
 	bool LoadProgress();
 	void BeginNewGame();		// dari menu utama: mulai hari pertama
 
+	/* ---------- "Bang, nambah sejam!" dan momen hari ini ---------- */
+	void ExtendSession(AJRStation* Station);
+
+	/* ---------- Nama rental, Kartu Momen, Viralin ---------- */
+	FString RentalName = TEXT("Juragan");
+	bool bNeedName = false;		// Main baru: minta pemain menamai rental (setelah opening)
+	void SetRentalName(const FString& NewName);
+	TArray<FJRPost> Posts;		// komentar warganet, terbaru di depan
+	bool bShowMoment = false;	// Kartu Momen tampil di layar laporan (hari yang baru selesai)
+	float LastNet = 0.f;		// untung bersih hari terakhir
+	float LastAvgSat = 50.f;	// kepuasan rata-rata hari terakhir
+	int32 MomentStars() const { return FMath::Clamp(1 + FMath::FloorToInt((LastAvgSat - 30.f) / 12.5f), 1, 5); }
+	void MakeNetizenPosts(float AvgSat);
+	void AddMoment(EJRMoment M);
+	static FString MomentText(EJRMoment M);
+
 	/* ---------- Adegan pembuka (Main baru, Era 1) ---------- */
 	bool IsOpening() const { return Opening.IsValid(); }
 	const class AJROpening* GetOpening() const { return Opening.Get(); }
@@ -511,5 +529,6 @@ private:
 	int32 AutoTestMieDelivered = 0;
 	int32 AutoTestEvents = 0;
 	int32 AutoTestInstalled = 0;
+	int32 UpsellForced = 0;	// uji: berapa pelanggan sudah dipaksa habis waktunya
 	float AutoChoiceTimer = 0.f;
 };

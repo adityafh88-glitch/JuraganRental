@@ -1,4 +1,4 @@
-#include "JRBillingWidget.h"
+﻿#include "JRBillingWidget.h"
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -17,6 +17,7 @@
 #include "JRGameMode.h"
 #include "JRLang.h"
 #include "JRPhoneWidget.h"
+#include "JRStyle.h"
 #include "JRStation.h"
 
 namespace JRBillingStyle
@@ -88,8 +89,8 @@ void UJRBillingWidget::BuildTree()
 	UHorizontalBox* Head = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	Head->AddChildToHorizontalBox(MakeText(JRT(TEXT("JURAGAN BILLING v1.0")), 18, Play, true))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	UJRPhoneButton* Close = WidgetTree->ConstructWidget<UJRPhoneButton>(UJRPhoneButton::StaticClass());
-	Close->SetBackgroundColor(FLinearColor(0.75f, 0.2f, 0.17f));
 	Close->SetContent(MakeText(TEXT("  X  "), 14, Ink, true));
+	JRStyle::Apply(Close, JRStyle::EBtn::Danger, 12.f);
 	Close->Bind([this]() { if (OnClose) OnClose(); });
 	Head->AddChildToHorizontalBox(Close);
 	Col->AddChildToVerticalBox(Head);
@@ -170,11 +171,12 @@ void UJRBillingWidget::Refresh(bool bForce)
 	if (Waiting > 1)
 	{
 		UJRPhoneButton* All = WidgetTree->ConstructWidget<UJRPhoneButton>(UJRPhoneButton::StaticClass());
-		All->SetBackgroundColor(Btn);
+		All->SetBackgroundColor(FLinearColor::White);	// gaya diterapkan setelah isi dipasang
 		if (UButtonSlot* BS = Cast<UButtonSlot>(All->SetContent(MakeText(JRPrintf(JRT(TEXT("Nyalakan semua yang menunggu (%d)")), Waiting), 15, FLinearColor::White, true))))
 		{
 			BS->SetPadding(FMargin(10.f, 8.f));
 		}
+		JRStyle::Apply(All, JRStyle::EBtn::Primary, 12.f);
 		All->Bind([this]()
 		{
 			if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>())
@@ -202,11 +204,12 @@ void UJRBillingWidget::Refresh(bool bForce)
 		{
 			TWeakObjectPtr<AJRStation> WS(R.S);
 			UJRPhoneButton* B = WidgetTree->ConstructWidget<UJRPhoneButton>(UJRPhoneButton::StaticClass());
-			B->SetBackgroundColor(Btn);
+			B->SetBackgroundColor(FLinearColor::White);
 			if (UButtonSlot* BS = Cast<UButtonSlot>(B->SetContent(MakeText(JRPrintf(JRT(TEXT("Nyalakan  %s/jam")), *JRFormatRp(GM->UnitPrice(R.S))), 13, FLinearColor::White, true))))
 			{
 				BS->SetPadding(FMargin(10.f, 5.f));
 			}
+			JRStyle::Apply(B, JRStyle::EBtn::Primary, 12.f);
 			B->Bind([this, WS]()
 			{
 				AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>();

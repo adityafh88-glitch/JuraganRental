@@ -23,6 +23,7 @@
 #include "JRHUD.h"
 #include "JRPhoneWidget.h"
 #include "JRSettings.h"
+#include "JRStyle.h"
 #include "JRSound.h"
 
 namespace JRMenuStyle
@@ -89,8 +90,8 @@ void UJRMenuWidget::BuildTree()
 	S->SetVerticalAlignment(VAlign_Center);
 
 	UBorder* Box = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	Box->SetBrush(RoundedBrush(18.f));
-	Box->SetBrushColor(Card);
+	Box->SetBrush(JRStyle::Panel(20.f));
+	Box->SetBrushColor(FLinearColor::White);
 	Box->SetPadding(FMargin(32.f, 28.f));
 	CardSize->AddChild(Box);
 
@@ -154,12 +155,12 @@ void UJRMenuWidget::Begin(EJRMenuPage NewPage, const FString& Title, const FStri
 UJRPhoneButton* UJRMenuWidget::AddButton(const FString& Label, TFunction<void()> Action, bool bPrimary, bool bEnabled)
 {
 	UJRPhoneButton* B = WidgetTree->ConstructWidget<UJRPhoneButton>(UJRPhoneButton::StaticClass());
-	B->SetBackgroundColor(!bEnabled ? Off : bPrimary ? Crt : Alt);
 	B->SetIsEnabled(bEnabled);
-	UTextBlock* T = MakeText(Label, 17, !bEnabled ? Muted : bPrimary ? CrtInk : Ink, true);
+	UTextBlock* T = MakeText(Label, 17, Ink, true);
 	T->SetAutoWrapText(false);
 	T->SetJustification(ETextJustify::Center);
 	if (UButtonSlot* BS = Cast<UButtonSlot>(B->SetContent(T))) BS->SetPadding(FMargin(16.f, 11.f));
+	JRStyle::Apply(B, !bEnabled ? JRStyle::EBtn::Disabled : bPrimary ? JRStyle::EBtn::Primary : JRStyle::EBtn::Secondary);
 	B->Bind(MoveTemp(Action));
 	UVerticalBoxSlot* S = Content->AddChildToVerticalBox(B);
 	S->SetPadding(FMargin(0.f, Content->GetChildrenCount() > 1 ? 10.f : 0.f, 0.f, 0.f));
@@ -183,11 +184,11 @@ void UJRMenuWidget::AddRow(const FString& Label, const FString& Value, TFunction
 	USizeBox* W = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
 	W->SetWidthOverride(250.f);
 	UJRPhoneButton* B = WidgetTree->ConstructWidget<UJRPhoneButton>(UJRPhoneButton::StaticClass());
-	B->SetBackgroundColor(Alt);
 	UTextBlock* T = MakeText(FString::Printf(TEXT("<  %s  >"), *Value), 15, Ink, true);
 	T->SetAutoWrapText(false);
 	T->SetJustification(ETextJustify::Center);
 	if (UButtonSlot* BS = Cast<UButtonSlot>(B->SetContent(T))) BS->SetPadding(FMargin(10.f, 7.f));
+	JRStyle::Apply(B, JRStyle::EBtn::Secondary, 12.f);
 	B->Bind([this, Action]() { Action(); ShowSettings(); });
 	W->AddChild(B);
 	Row->AddChildToHorizontalBox(W)->SetVerticalAlignment(VAlign_Center);
@@ -371,6 +372,7 @@ void UJRMenuWidget::ShowSettings()
 	});
 	AddRow(JRT(TEXT("Arah lihat atas/bawah")), S->bInvertLook ? JRT(TEXT("Dibalik")) : JRT(TEXT("Normal")), [S]() { S->bInvertLook = !S->bInvertLook; JRSettings::Save(); });
 	AddRow(JRT(TEXT("Daftar misi")), S->bMissionsCompact ? JRT(TEXT("Ringkas")) : JRT(TEXT("Lengkap")), [S]() { S->bMissionsCompact = !S->bMissionsCompact; JRSettings::Save(); });
+	AddRow(JRT(TEXT("Notifikasi")), S->bToastsHidden ? JRT(TEXT("Disembunyikan")) : JRT(TEXT("Ditampilkan")), [S]() { S->bToastsHidden = !S->bToastsHidden; JRSettings::Save(); });
 	AJRHUD* Hud = GetOwningPlayer() ? Cast<AJRHUD>(GetOwningPlayer()->GetHUD()) : nullptr;
 	if (bMobile || (Hud && Hud->IsTouchMode()))
 	{
@@ -398,10 +400,10 @@ void UJRMenuWidget::ShowSettings()
 	}
 
 	UJRPhoneButton* B = WidgetTree->ConstructWidget<UJRPhoneButton>(UJRPhoneButton::StaticClass());
-	B->SetBackgroundColor(Crt);
-	UTextBlock* T = MakeText(JRT(TEXT("Kembali")), 17, CrtInk, true);
+	UTextBlock* T = MakeText(JRT(TEXT("Kembali")), 17, Ink, true);
 	T->SetJustification(ETextJustify::Center);
 	if (UButtonSlot* BS = Cast<UButtonSlot>(B->SetContent(T))) BS->SetPadding(FMargin(16.f, 11.f));
+	JRStyle::Apply(B, JRStyle::EBtn::Primary);
 	B->Bind([this]() { Back(); });
 	Content->AddChildToVerticalBox(B)->SetPadding(FMargin(0.f, 22.f, 0.f, 0.f));
 }

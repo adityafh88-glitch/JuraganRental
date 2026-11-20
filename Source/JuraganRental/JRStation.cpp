@@ -1,4 +1,4 @@
-#include "JRStation.h"
+﻿#include "JRStation.h"
 #include "JRLang.h"
 #include "UObject/StrongObjectPtr.h"
 
@@ -236,6 +236,11 @@ FJRInteraction AJRStation::GetInteraction() const
 		Out.Kind = EJRInteractKind::Info;
 		Out.Prompt = JRT(TEXT("Listrik mati. Naikkan MCB di dinding kiri"));
 	}
+	else if (Customer && Customer->State == EJRCustomerState::Playing && Customer->bAskExtend)
+	{
+		Out.Kind = EJRInteractKind::Press;
+		Out.Prompt = JRPrintf(JRT(TEXT("Tambah 1 jam untuk %s  (+%s)")), *Customer->DisplayName, *JRFormatRp(GM->UnitPrice(this)));
+	}
 	else if (Customer && Customer->State == EJRCustomerState::WaitStart)
 	{
 		Out.Kind = EJRInteractKind::Press;
@@ -269,6 +274,10 @@ void AJRStation::Interact()
 		GM->AddToast(JRPrintf(JRT(TEXT("%s beres!")), *DisplayName), FLinearColor(0.36f, 0.79f, 0.54f));
 		GM->TutorialAdvance(AJRGameMode::TutRepair);
 		GM->CountRepair();
+	}
+	else if (Customer && Customer->State == EJRCustomerState::Playing && Customer->bAskExtend)
+	{
+		GM->ExtendSession(this);
 	}
 	else if (Customer && Customer->State == EJRCustomerState::WaitStart)
 	{
@@ -317,6 +326,12 @@ void AJRStation::Tick(float DeltaSeconds)
 		ScreenColor = Hex(0x1d2440);
 		Text = TEXT("NYALAKAN");
 		TextColor = FColor(95, 179, 255);
+	}
+	else if (bPlaying && Customer->bAskExtend)
+	{
+		ScreenColor = Hex(0x6a4a10);
+		Text = JRT(TEXT("NAMBAH SEJAM?"));
+		TextColor = FColor(255, 194, 75);
 	}
 	else if (bPlaying)
 	{

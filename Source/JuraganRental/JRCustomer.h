@@ -1,4 +1,4 @@
-// Pelanggan: datang, antre, main, bayar di kasir, lalu pulang (atau kabur).
+﻿// Pelanggan: datang, antre, main, bayar di kasir, lalu pulang (atau kabur).
 
 #pragma once
 
@@ -71,6 +71,9 @@ public:
 	bool bLagged = false;		// sudah kena internet lemot
 	bool bPaket = false;		// paket malam warnet
 	int32 UnitLevel = 1;		// level upgrade unit yang dipakai (1-5)
+	bool bAskExtend = false;	// "Bang, nambah sejam!": menunggu pemain menambah jam
+	bool bAskedExtend = false;	// sudah pernah minta (sekali per sesi)
+	float ExtendLeft = 0.f;		// sisa waktu menunggu (jam game)
 	FString Mood;
 
 private:

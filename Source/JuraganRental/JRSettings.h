@@ -40,6 +40,9 @@ public:
 	bool bMissionsCompact = false;	// daftar misi diciutkan jadi satu baris
 
 	UPROPERTY()
+	bool bToastsHidden = false;	// notifikasi kanan atas disembunyikan (tinggal label jumlah)
+
+	UPROPERTY()
 	int32 Language = 0;			// 0 otomatis (ikut Windows), 1 Indonesia, 2 English
 };
 

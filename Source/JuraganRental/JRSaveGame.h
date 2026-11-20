@@ -1,4 +1,4 @@
-// Simpanan permainan: disimpan otomatis setiap toko tutup (akhir hari), dimuat dari menu utama.
+﻿// Simpanan permainan: disimpan otomatis setiap toko tutup (akhir hari), dimuat dari menu utama.
 
 #pragma once
 
@@ -77,4 +77,11 @@ public:
 	UPROPERTY() int32 Drinks = 0;
 	UPROPERTY() int32 Paper = 0;
 	UPROPERTY() float Saldo = 0.f;
+
+	// Nama rental dan Viralin
+	UPROPERTY() FString RentalName;
+	UPROPERTY() TArray<FString> PostAuthor;
+	UPROPERTY() TArray<FString> PostText;
+	UPROPERTY() TArray<int32> PostLikes;
+	UPROPERTY() TArray<int32> PostDay;
 };

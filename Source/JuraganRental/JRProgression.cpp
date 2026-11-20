@@ -1,4 +1,4 @@
-// Paket 1 permainan lanjutan: Level Juragan (XP), upgrade unit Lv 1-5, dan bisnis sampingan Game Center
+﻿// Paket 1 permainan lanjutan: Level Juragan (XP), upgrade unit Lv 1-5, dan bisnis sampingan Game Center
 // (kulkas minuman, konter pulsa & top-up, printer & fotokopi).
 
 #include "JRGameMode.h"
@@ -9,6 +9,7 @@
 #include "JRSound.h"
 #include "JRStation.h"
 #include "JRVisitor.h"
+#include "JRFixtures.h"
 
 namespace JRLocal_Progression
 {
@@ -29,6 +30,76 @@ namespace JRLocal_Progression
 	};
 }
 using namespace JRLocal_Progression;
+
+/* ---------- Nama rental ---------- */
+
+void AJRGameMode::SetRentalName(const FString& NewName)
+{
+	FString N = NewName.TrimStartAndEnd();
+	N.ReplaceInline(TEXT("\n"), TEXT(""));
+	if (N.Len() > 20) N = N.Left(20);
+	if (N.IsEmpty()) N = TEXT("Juragan");
+	RentalName = N;
+	bNeedName = false;
+	// Bangun ulang ruangan agar papan nama luar dan dalam memakai nama baru.
+	if (Room)
+	{
+		Room->Destroy();
+		FActorSpawnParameters SP;
+		SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		Room = GetWorld()->SpawnActor<AJRRoom>(FVector::ZeroVector, FRotator::ZeroRotator, SP);
+		Room->Build(Layout(), Era);
+	}
+	AddToast(JRPrintf(JRT(TEXT("Papan nama baru terpasang: %s")), *RentalName), Good);
+}
+
+/* ---------- Viralin: komentar warganet setiap tutup hari ---------- */
+
+void AJRGameMode::MakeNetizenPosts(float AvgSat)
+{
+	// Nama akun diambil acak; isi postingan menyesuaikan kejadian dan kinerja hari ini.
+	static const TCHAR* Akun[] = { TEXT("@bocilgaming_"), TEXT("@mas.kantoran"), TEXT("@warga_rt05"), TEXT("@gamer.malam"),
+		TEXT("@kuliahsambilmain"), TEXT("@emak.bijak"), TEXT("@jokirank_id"), TEXT("@anaksma.gabut"), TEXT("@bapak2pes") };
+	const FString N = RentalName;
+	TArray<FString> Lines;
+	for (EJRMoment M : Stats.Moments)
+	{
+		switch (M)
+		{
+		case EJRMoment::Emak: Lines.Add(JRPrintf(JRT(TEXT("Lagi seru main bola di %s, tiba-tiba ada suara 'PULANG!' dari pintu... emak siapa itu wkwk")), *N)); break;
+		case EJRMoment::RageQuit: Lines.Add(JRPrintf(JRT(TEXT("Ada yang kalah penalti terus banting stik di %s. Bang, sabar bang wkwk")), *N)); break;
+		case EJRMoment::Fight: Lines.Add(JRPrintf(JRT(TEXT("Hampir ribut gara-gara offside di %s. Untung yang jaga sigap")), *N)); break;
+		case EJRMoment::RunAway: Lines.Add(JRPrintf(JRT(TEXT("Tadi liat orang kabur dari %s belum bayar. Kasirnya ke mana bang??")), *N)); break;
+		case EJRMoment::Trip: Lines.Add(JRPrintf(JRT(TEXT("JEGLEK! Lampu %s mati pas lagi final, save-an ilang")), *N)); break;
+		case EJRMoment::PakRt: Lines.Add(JRT(TEXT("Pak RT keliling malam-malam negur rental yang berisik. Kena juga ya wkwk"))); break;
+		case EJRMoment::Upsell: Lines.Add(JRPrintf(JRT(TEXT("\"Bang, nambah sejam!\" ...dan itu sudah yang ketiga kalinya. %s bikin nagih wkwk")), *N)); break;
+		case EJRMoment::Streamer: Lines.Add(JRPrintf(JRT(TEXT("Bang Jago live dari %s! Rental kecil tapi vibes-nya juara")), *N)); break;
+		case EJRMoment::Lurah: Lines.Add(JRPrintf(JRT(TEXT("Pak Lurah mampir ke %s. Rental sekarang resmi jadi tempat nongkrong warga")), *N)); break;
+		case EJRMoment::Tour: Lines.Add(JRPrintf(JRT(TEXT("Turnamen PS di %s pecah banget! Tahun depan ikut lagi")), *N)); break;
+		default: break;
+		}
+	}
+	// Kinerja hari ini
+	if (AvgSat >= 70.f) Lines.Add(JRPrintf(JRT(TEXT("Main di %s tuh enak: stik aman, cepat dilayani. 10/10 balik lagi besok")), *N));
+	else if (AvgSat < 40.f) Lines.Add(JRPrintf(JRT(TEXT("Antre lama di %s, unitnya rusak mulu. Kecewa bang")), *N));
+	if (Trash.Num() >= 5) Lines.Add(JRPrintf(JRT(TEXT("%s rame sih, tapi sampahnya di mana-mana. Tolong dong bersihin")), *N));
+	if (Decor.Contains(TEXT("ac"))) Lines.Add(JRPrintf(JRT(TEXT("AC di %s dingin banget, betah main sampai sore")), *N));
+	if (Lines.Num() == 0) Lines.Add(JRPrintf(JRT(TEXT("Baru tahu ada %s di sini. Kapan-kapan mampir ah")), *N));
+
+	// Ambil paling banyak 3 postingan, terbaru di depan
+	for (int32 i = 0; i < 3 && Lines.Num() > 0; ++i)
+	{
+		const int32 Pick = FMath::RandRange(0, Lines.Num() - 1);
+		FJRPost P;
+		P.Author = Akun[FMath::RandRange(0, UE_ARRAY_COUNT(Akun) - 1)];
+		P.Text = Lines[Pick];
+		P.Likes = FMath::RandRange(5, 40) + FMath::RoundToInt(Rep * FMath::FRandRange(1.f, 4.f));
+		P.Day = Day;
+		Posts.Insert(P, 0);
+		Lines.RemoveAt(Pick);
+	}
+	if (Posts.Num() > 30) Posts.SetNum(30);
+}
 
 /* ---------- Level Juragan ---------- */
 
@@ -56,7 +127,7 @@ void AJRGameMode::AddXp(int32 Amount)
 
 	// Sebutkan apa saja yang baru terbuka.
 	FString Opened;
-	auto Append = [&Opened](const FString& S) { Opened += (Opened.IsEmpty() ? TEXT("") : TEXT(", ")) + S; };
+	auto Append = [&Opened](const FString& S) { Opened += (Opened.IsEmpty() ? TEXT("") : TEXT(",")) + S; };
 	for (const FJRShopItem& It : GetShopItems())
 	{
 		const int32 M = ItemMinLevel(It.Id);
@@ -67,6 +138,7 @@ void AJRGameMode::AddXp(int32 Amount)
 		if (UnitLevelReq(Lv) > Old && UnitLevelReq(Lv) <= New) Append(JRPrintf(JRT(TEXT("upgrade unit Lv %d")), Lv));
 	}
 	JRSound::Play2D(this, TEXT("SFX_Ding"), 0.8f);
+	AddMoment(EJRMoment::LevelUp);
 	AddToast(Opened.IsEmpty() ? JRPrintf(JRT(TEXT("Naik ke Level Juragan %d!")), New)
 		: JRPrintf(JRT(TEXT("Naik ke Level Juragan %d! Terbuka: %s")), New, *Opened), Gold);
 }

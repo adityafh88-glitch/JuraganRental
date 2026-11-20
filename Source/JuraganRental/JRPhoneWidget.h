@@ -1,4 +1,4 @@
-// HP jadul di dalam game: aplikasi Toko Grosir, Tarif, dan Hari Ini.
+﻿// HP jadul di dalam game: aplikasi Toko Grosir, Tarif, dan Hari Ini.
 // Dibangun penuh dari C++ (tanpa aset Widget Blueprint) dan bisa diklik mouse maupun diketuk.
 
 #pragma once
@@ -46,6 +46,7 @@ private:
 	void BuildTree();
 	void FillToko(AJRGameMode* GM);
 	void FillUnit(AJRGameMode* GM);	// Level Juragan dan upgrade unit
+	void FillViralin(AJRGameMode* GM);	// komentar warganet tentang rental
 	void FillTarif(AJRGameMode* GM);
 	void FillStaff(AJRGameMode* GM);
 	void FillInternet(AJRGameMode* GM);

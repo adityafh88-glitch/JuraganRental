@@ -19,6 +19,8 @@
 #include "JRSound.h"
 #include "JRHUD.h"
 #include "JRSettings.h"
+#include "JRStyle.h"
+#include "Components/ButtonSlot.h"
 #include "GameFramework/PlayerController.h"
 
 namespace JRLocal_PhoneWidget
@@ -82,12 +84,12 @@ UJRPhoneButton* UJRPhoneWidget::MakeButton(const FString& Label, TFunction<void(
 {
 	UJRPhoneButton* B = WidgetTree->ConstructWidget<UJRPhoneButton>(UJRPhoneButton::StaticClass());
 	// Tombol nonaktif digambar sebagai kotak garis terang dengan teks gelap supaya tetap terbaca di layar LCD.
-	B->SetBackgroundColor(bSelected ? BtnSelected : (bEnabled ? BtnColor : FLinearColor(0.55f, 0.68f, 0.36f)));
 	B->SetIsEnabled(bEnabled);
-	UTextBlock* T = MakeText(Label, 13, bEnabled ? Lcd : LcdInk, true);
+	UTextBlock* T = MakeText(Label, 13, LcdInk, true);
 	T->SetAutoWrapText(false);
 	T->SetJustification(ETextJustify::Center);
-	B->SetContent(T);
+	if (UButtonSlot* BS = Cast<UButtonSlot>(B->SetContent(T))) BS->SetPadding(FMargin(10.f, 7.f));
+	JRStyle::Apply(B, bSelected ? JRStyle::EBtn::TabActive : bEnabled ? JRStyle::EBtn::Primary : JRStyle::EBtn::Disabled, 12.f, JRStyle::ETheme::Lcd);
 	B->Bind(MoveTemp(Action));
 	return B;
 }
@@ -134,7 +136,7 @@ void UJRPhoneWidget::BuildTree()
 	CloseBox->SetWidthOverride(64.f);
 	CloseBox->SetHeightOverride(40.f);
 	UJRPhoneButton* Close = MakeButton(TEXT("X"), [this]() { ClosePhone(); });
-	Close->SetBackgroundColor(FLinearColor(0.75f, 0.2f, 0.17f));
+	JRStyle::Apply(Close, JRStyle::EBtn::Danger, 12.f);
 	CloseBox->AddChild(Close);
 	UHorizontalBoxSlot* CloseSlot = Head->AddChildToHorizontalBox(CloseBox);
 	CloseSlot->SetPadding(FMargin(12.f, 0.f, 0.f, 0.f));
@@ -181,11 +183,13 @@ void UJRPhoneWidget::BuildTabs()
 {
 	TabRow->ClearChildren();
 	UHorizontalBox* Tabs = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	const TCHAR* Names[] = { JRT(TEXT("Toko")), JRT(TEXT("Unit")), JRT(TEXT("Kelola")), JRT(TEXT("Info")), JRT(TEXT("Atur")) };
+	const TCHAR* Names[] = { JRT(TEXT("Toko")), JRT(TEXT("Unit")), JRT(TEXT("Kelola")), JRT(TEXT("Viralin")), JRT(TEXT("Info")), JRT(TEXT("Atur")) };
 	for (int32 i = 0; i < UE_ARRAY_COUNT(Names); ++i)
 	{
 		UJRPhoneButton* B = MakeButton(Names[i], [this, i]() { CurrentTab = i; Refresh(true); }, true, CurrentTab == i);
 		// Lima tab: huruf sedikit lebih kecil agar muat di layar HP (juga di layar ponsel sungguhan).
+		JRStyle::Apply(B, CurrentTab == i ? JRStyle::EBtn::TabActive : JRStyle::EBtn::Tab, 14.f, JRStyle::ETheme::Lcd);
+		if (UButtonSlot* BS = Cast<UButtonSlot>(B->GetContent() ? B->GetContent()->Slot : nullptr)) BS->SetPadding(FMargin(2.f, 5.f));
 		if (UTextBlock* T = Cast<UTextBlock>(B->GetContent())) T->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 11));
 		UHorizontalBoxSlot* S = Tabs->AddChildToHorizontalBox(B);
 		S->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
@@ -202,7 +206,7 @@ void UJRPhoneWidget::Refresh(bool bForce)
 	HeaderMoney->SetText(FText::FromString(JRFormatRp(GM->Money)));
 
 	// Tab Hari ini: cukup perbarui teksnya (angka berubah terus, jangan bangun ulang tombol).
-	if (!bForce && CurrentTab == 3 && BuiltTab == 3)
+	if (!bForce && CurrentTab == 4 && BuiltTab == 4)
 	{
 		FillHariIni(GM);
 		return;
@@ -211,7 +215,8 @@ void UJRPhoneWidget::Refresh(bool bForce)
 	// Tab lain dibangun ulang hanya jika status tombolnya berubah (bukan setiap kali kas bertambah).
 	FString Sig = FString::Printf(TEXT("%d|%d|%d|%d|%d|%d|%d|%d%d%d"), CurrentTab, GM->PricePS + GM->PriceVIP * 7, GM->PricePC, GM->CapVA, GM->Era, GM->bPaketMalam ? 1 : 0, GM->Phase == EJRGamePhase::Playing ? 1 : 0,
 		GM->HasStaff(EJRStaff::Kasir) ? 1 : 0, GM->HasStaff(EJRStaff::Teknisi) ? 1 : 0, GM->HasStaff(EJRStaff::Koki) ? 1 : 0);
-	Sig += FString::Printf(TEXT("|n%d%d"), GM->NetPlan, GM->PendingNetPlan);
+	Sig += FString::Printf(TEXT("|n%d%d|p%d"), GM->NetPlan, GM->PendingNetPlan, GM->Posts.Num());
+	Sig += GM->RentalName;
 	if (CurrentTab == 1)
 	{
 		// Tab Unit: XP dan status tiap tombol upgrade
@@ -234,7 +239,8 @@ void UJRPhoneWidget::Refresh(bool bForce)
 	case 0: FillToko(GM); break;
 	case 1: FillUnit(GM); break;
 	case 2: FillTarif(GM); break;
-	case 4: FillAtur(); break;
+	case 3: FillViralin(GM); break;
+	case 5: FillAtur(); break;
 	default: FillHariIni(GM); break;
 	}
 }
@@ -292,6 +298,30 @@ void UJRPhoneWidget::FillUnit(AJRGameMode* GM)
 			if (G && WS.IsValid()) G->UpgradeUnit(WS.Get());
 			Refresh(true);
 		}, Lock.IsEmpty()), 6.f);
+	}
+}
+
+void UJRPhoneWidget::FillViralin(AJRGameMode* GM)
+{
+	AddLine(MakeText(JRT(TEXT("VIRALIN")), 15, LcdInk, true), 0.f);
+	AddLine(MakeText(JRPrintf(JRT(TEXT("Apa kata warganet tentang %s")), *GM->RentalName), 11, LcdMuted), 2.f);
+	if (GM->Posts.Num() == 0)
+	{
+		AddLine(MakeText(JRT(TEXT("Belum ada yang ngomongin rentalmu. Tunggu sampai toko tutup hari ini.")), 12, LcdInk), 14.f);
+		return;
+	}
+	for (const FJRPost& P : GM->Posts)
+	{
+		UBorder* Box = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Box->SetBrush(Rounded(10.f));
+		Box->SetBrushColor(FLinearColor(0.55f, 0.68f, 0.36f));
+		Box->SetPadding(FMargin(10.f, 8.f));
+		UVerticalBox* V = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		V->AddChildToVerticalBox(MakeText(P.Author, 12, LcdInk, true));
+		V->AddChildToVerticalBox(MakeText(P.Text, 12, LcdInk))->SetPadding(FMargin(0.f, 2.f, 0.f, 4.f));
+		V->AddChildToVerticalBox(MakeText(JRPrintf(JRT(TEXT("%d suka  -  hari ke-%d")), P.Likes, P.Day), 10, LcdMuted));
+		Box->SetContent(V);
+		AddLine(Box, 10.f);
 	}
 }
 
@@ -407,7 +437,16 @@ void UJRPhoneWidget::FillAtur()
 	Toggle(JRT(TEXT("Daftar misi")), JRT(TEXT("Ringkas: hanya satu baris di pojok kiri atas agar layar lebih lega.")),
 		S->bMissionsCompact ? JRT(TEXT("RINGKAS (ketuk untuk lengkap)")) : JRT(TEXT("LENGKAP (ketuk untuk ringkas)")),
 		[S]() { S->bMissionsCompact = !S->bMissionsCompact; });
+	Toggle(JRT(TEXT("Notifikasi")), JRT(TEXT("Sembunyikan notifikasi kanan atas; yang tersisa hanya label jumlahnya. Bisa juga dengan mengetuk label NOTIFIKASI.")),
+		S->bToastsHidden ? JRT(TEXT("DISEMBUNYIKAN (ketuk untuk tampilkan)")) : JRT(TEXT("DITAMPILKAN (ketuk untuk sembunyikan)")),
+		[S]() { S->bToastsHidden = !S->bToastsHidden; });
 	AJRHUD* Hud = GetOwningPlayer() ? Cast<AJRHUD>(GetOwningPlayer()->GetHUD()) : nullptr;
+	if (AJRGameMode* GMN = GetWorld()->GetAuthGameMode<AJRGameMode>())
+	{
+		AddLine(MakeText(JRT(TEXT("Nama rental")), 14, LcdInk, true), 16.f);
+		AddLine(MakeText(JRT(TEXT("Tampil di papan nama, laporan, Kartu Momen, dan Viralin.")), 11, LcdMuted), 2.f);
+		AddLine(MakeButton(JRPrintf(JRT(TEXT("%s (ketuk untuk ganti)")), *GMN->RentalName), [Hud]() { if (Hud) Hud->OpenNameDialog(); }), 6.f);
+	}
 	if (Hud && Hud->IsTouchMode())
 	{
 		Toggle(JRT(TEXT("Ukuran tampilan")), JRT(TEXT("Besarkan teks dan tombol bila terlalu kecil di layar HP-mu.")),

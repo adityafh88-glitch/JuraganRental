@@ -453,7 +453,9 @@ void AJRRoom::BuildFacade(const FJRLayout& L, int32 Era, float WallH)
 	const FLinearColor Panel = Era >= 3 ? Hex(0x1d3d8f) : Era == 2 ? Hex(0xb5282b) : Hex(0xe0a526);
 	AddPart(this, Root, EShape::Cube, FVector(10, SignW + 20, 82), FVector(Face - 5.f, DoorY, SignZ), Hex(0x22252b), false);
 	AddPart(this, Root, EShape::Cube, FVector(4, SignW, 70), FVector(Face - 11.f, DoorY, SignZ), Panel, false);
-	const FString Name = Era >= 3 ? JRT(TEXT("GAME CENTER JURAGAN")) : Era == 2 ? JRT(TEXT("GAME CENTER JURAGAN")) : JRT(TEXT("RENTAL PS & WARNET JURAGAN"));
+	const AJRGameMode* GMN = GetWorld()->GetAuthGameMode<AJRGameMode>();
+	const FString RN = (GMN ? GMN->RentalName : FString(TEXT("Juragan"))).ToUpper();
+	const FString Name = Era >= 2 ? JRPrintf(JRT(TEXT("GAME CENTER %s")), *RN) : JRPrintf(JRT(TEXT("RENTAL PS & WARNET %s")), *RN);
 	OutsideText(Name, FVector(Face - 14.f, DoorY, SignZ + 6.f), Era == 1 ? 30.f : 36.f, Era == 1 ? Dark : White);
 	OutsideText(JRT(TEXT("PS  -  WARNET  -  MI INSTAN")), FVector(Face - 14.f, DoorY, SignZ - 24.f), 15.f, Era == 1 ? Dark : Yellow);
 	AddPart(this, Root, EShape::Cube, FVector(4, SignW + 20, 4), FVector(Face - 12.f, DoorY, SignZ - 44.f), Hex(0x6ff0ff), false);
@@ -494,7 +496,7 @@ void AJRRoom::BuildFacade(const FJRLayout& L, int32 Era, float WallH)
 	if (Era >= 3)
 	{
 		AddPart(this, Root, EShape::Cube, FVector(10, 820, 120), FVector(Face - 5.f, 0.f, L.FloorH + 210.f), Hex(0x111318), false);
-		OutsideText(JRT(TEXT("GAME CENTER JURAGAN  -  2 LANTAI")), FVector(Face - 12.f, 0.f, L.FloorH + 222.f), 46.f, FColor(110, 240, 255));
+		OutsideText(JRPrintf(JRT(TEXT("GAME CENTER %s  -  2 LANTAI")), *RN), FVector(Face - 12.f, 0.f, L.FloorH + 222.f), 46.f, FColor(110, 240, 255));
 		OutsideText(JRT(TEXT("VIP LOUNGE  -  PLAYSTASIUN 3  -  WARNET FIBER")), FVector(Face - 12.f, 0.f, L.FloorH + 180.f), 17.f, Yellow);
 		for (float Y : { -0.7f * HY, -0.35f * HY, 0.35f * HY, 0.7f * HY })
 		{
@@ -662,7 +664,11 @@ void AJRRoom::Build(const FJRLayout& L, int32 Era)
 	{
 		Sign->SetTextMaterial(SignMaterial); // tanpa cahaya: warna tetap sama di ruangan terang maupun gelap
 	}
-	Sign->SetText(FText::FromString(Era >= 3 ? JRT(TEXT("GAME CENTER JURAGAN  -  2 LANTAI")) : bRuko ? JRT(TEXT("GAME CENTER JURAGAN")) : JRT(TEXT("RENTAL PS & WARNET JURAGAN"))));
+	{
+		const AJRGameMode* GMS = GetWorld()->GetAuthGameMode<AJRGameMode>();
+		const FString SN = (GMS ? GMS->RentalName : FString(TEXT("Juragan"))).ToUpper();
+		Sign->SetText(FText::FromString(Era >= 3 ? JRPrintf(JRT(TEXT("GAME CENTER %s  -  2 LANTAI")), *SN) : bRuko ? JRPrintf(JRT(TEXT("GAME CENTER %s")), *SN) : JRPrintf(JRT(TEXT("RENTAL PS & WARNET %s")), *SN)));
+	}
 	Sign->RegisterComponent();
 	AddInstanceComponent(Sign);
 

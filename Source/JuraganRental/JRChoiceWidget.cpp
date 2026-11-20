@@ -1,4 +1,4 @@
-#include "JRChoiceWidget.h"
+﻿#include "JRChoiceWidget.h"
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -10,6 +10,8 @@
 #include "Components/VerticalBoxSlot.h"
 #include "Styling/CoreStyle.h"
 #include "JRPhoneWidget.h"
+#include "JRStyle.h"
+#include "Components/ButtonSlot.h"
 
 namespace JRLocal_ChoiceWidget
 {
@@ -59,8 +61,8 @@ void UJRChoiceWidget::BuildTree()
 	S->SetVerticalAlignment(VAlign_Center);
 
 	UBorder* Box = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	Box->SetBrush(RoundedBrush(18.f));
-	Box->SetBrushColor(Card);
+	Box->SetBrush(JRStyle::Panel(22.f));
+	Box->SetBrushColor(FLinearColor::White);
 	Box->SetPadding(FMargin(30.f, 26.f));
 	Size->AddChild(Box);
 
@@ -91,13 +93,13 @@ void UJRChoiceWidget::Show(const FString& Title, const FString& Body, const TArr
 	for (int32 i = 0; i < Labels.Num(); ++i)
 	{
 		UJRPhoneButton* B = WidgetTree->ConstructWidget<UJRPhoneButton>(UJRPhoneButton::StaticClass());
-		B->SetBackgroundColor(i == 0 ? Crt : Alt);
 		UTextBlock* T = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		T->SetText(FText::FromString(Labels[i]));
 		T->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 16));
 		T->SetColorAndOpacity(FSlateColor(i == 0 ? CrtInk : Ink));
 		T->SetJustification(ETextJustify::Center);
-		B->SetContent(T);
+		if (UButtonSlot* BSl = Cast<UButtonSlot>(B->SetContent(T))) BSl->SetPadding(FMargin(16.f, 11.f));
+		JRStyle::Apply(B, i == 0 ? JRStyle::EBtn::Primary : JRStyle::EBtn::Secondary);
 		B->Bind([this, i]() { if (OnPick) OnPick(i); });
 		UVerticalBoxSlot* BS = Buttons->AddChildToVerticalBox(B);
 		BS->SetPadding(FMargin(0.f, i == 0 ? 0.f : 8.f, 0.f, 0.f));

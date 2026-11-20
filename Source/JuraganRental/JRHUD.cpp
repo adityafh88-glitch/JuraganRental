@@ -13,6 +13,7 @@
 #include "JRMenuWidget.h"
 #include "JRBillingWidget.h"
 #include "JRSplashWidget.h"
+#include "JRSocialWidgets.h"
 #include "JROpening.h"
 #include "Kismet/GameplayStatics.h"
 #include "JRSound.h"
@@ -78,6 +79,34 @@ void AJRHUD::BeginPlay()
 			Billing->OnClose = [this]() { SetBillingOpen(false); };
 		}
 
+		NameWidget = CreateWidget<UJRNameWidget>(PlayerOwner, UJRNameWidget::StaticClass());
+		if (NameWidget)
+		{
+			NameWidget->AddToViewport(25);
+			NameWidget->SetVisibility(ESlateVisibility::Collapsed);
+			NameWidget->OnDone = [this](const FString& N)
+			{
+				if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>()) G->SetRentalName(N);
+				NameWidget->SetVisibility(ESlateVisibility::Collapsed);
+				bNameShown = false;
+				ApplyInputMode();
+			};
+		}
+		MomentCard = CreateWidget<UJRMomentCard>(PlayerOwner, UJRMomentCard::StaticClass());
+		if (MomentCard)
+		{
+			MomentCard->AddToViewport(22);
+			MomentCard->SetVisibility(ESlateVisibility::Collapsed);
+			MomentCard->OnReport = [this]()
+			{
+				if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>()) G->bShowMoment = false;
+			};
+			MomentCard->OnContinue = [this]()
+			{
+				if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>()) { G->bShowMoment = false; G->Confirm(); }
+			};
+		}
+
 		Choice = CreateWidget<UJRChoiceWidget>(PlayerOwner, UJRChoiceWidget::StaticClass());
 		if (Choice)
 		{
@@ -122,7 +151,7 @@ void AJRHUD::SyncChoice()
 
 bool AJRHUD::IsUIOpen() const
 {
-	return bPhoneOpen || bChoiceShown || bBillingOpen || (Menu && Menu->IsOpen());
+	return bPhoneOpen || bChoiceShown || bBillingOpen || bNameShown || bMomentShown || (Menu && Menu->IsOpen());
 }
 
 void AJRHUD::OnMenuChanged()
@@ -189,6 +218,16 @@ void AJRHUD::ApplyUIScale()
 {
 	// Skala UMG dihitung ulang tiap frame dari ApplicationScale, jadi perubahan langsung terlihat.
 	GetMutableDefault<UUserInterfaceSettings>()->ApplicationScale = bTouchMode ? FMath::Clamp(JRSettings::Get()->UIScale, 1.f, 2.2f) : 1.f;
+}
+
+void AJRHUD::OpenNameDialog()
+{
+	const AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
+	if (!NameWidget || !GM || bNameShown) return;
+	if (bPhoneOpen) SetPhoneOpen(false);
+	NameWidget->Open(GM->RentalName);
+	bNameShown = true;
+	ApplyInputMode();
 }
 
 void AJRHUD::SetBillingOpen(bool bOpen)
@@ -281,10 +320,51 @@ void AJRHUD::DrawHUD()
 			else UE_LOG(LogTemp, Display, TEXT("JR_TOUCHFLOW swipe noviewport vp=%d win=%d"), VP.IsValid() ? 1 : 0, Win.IsValid() ? 1 : 0);
 			Step++;
 		}
-		else if (Step == 9 && FlowTime > 9.f)
+		else if (Step >= 9 && Step < 20 && FlowTime > 9.f + (Step - 9) * 0.1f)
 		{
-			FGenericPlatformMisc::RequestExit(false);
-			Step = 10;
+			// Uji jari "nyangkut": jari 4 menyentuh, HP dibuka-tutup sebelum jari diangkat,
+			// lalu jari 5 menggeser. Kamera harus tetap ikut berputar.
+			TSharedPtr<SViewport> VP = GEngine->GameViewport ? GEngine->GameViewport->GetGameViewportWidget() : nullptr;
+			TSharedPtr<SWindow> Win = GEngine->GameViewport ? GEngine->GameViewport->GetWindow() : nullptr;
+			if (VP.IsValid() && Win.IsValid())
+			{
+				const FGeometry Geo = VP->GetCachedGeometry();
+				const FVector2D Size = Geo.GetLocalSize();
+				FSlateApplication& App = FSlateApplication::Get();
+				IPlatformInputDeviceMapper& Mapper = IPlatformInputDeviceMapper::Get();
+				const FPlatformUserId U = Mapper.GetPrimaryPlatformUser();
+				const FInputDeviceId D = Mapper.GetDefaultInputDevice();
+				const FVector2D P0 = Geo.LocalToAbsolute(FVector2D(Size.X * 0.6f, Size.Y * 0.55f));
+				if (Step == 9) App.OnTouchStarted(Win->GetNativeWindow(), P0, 1.f, 4, U, D);
+				else if (Step == 10) SetPhoneOpen(true);
+				else if (Step == 11) SetPhoneOpen(false);
+				else
+				{
+					const FVector2D P = Geo.LocalToAbsolute(FVector2D(Size.X * 0.7f + (Step - 12) * 60.f, Size.Y * 0.5f));
+					if (Step == 12) { LookYaw0 = PlayerOwner->GetControlRotation().Yaw; App.OnTouchStarted(Win->GetNativeWindow(), P, 1.f, 5, U, D); }
+					else if (Step < 17) App.OnTouchMoved(P, 1.f, 5, U, D);
+					else if (Step == 17)
+					{
+						App.OnTouchEnded(P, 5, U, D);
+						UE_LOG(LogTemp, Display, TEXT("JR_TOUCHFLOW stuckfinger yawDelta=%.1f"), FMath::FindDeltaAngleDegrees(LookYaw0, PlayerOwner->GetControlRotation().Yaw));
+					}
+					else if (Step == 18 && Touch)
+					{
+						// Uji AKSI "nyangkut": AKSI disentuh, HP dibuka-tutup sebelum jari diangkat, lalu AKSI diketuk lagi.
+						const FVector2D A = Touch->ActionCenterAbs();
+						const int32 Before = Touch->ActionPresses;
+						App.OnTouchStarted(Win->GetNativeWindow(), A, 1.f, 6, U, D);
+						SetPhoneOpen(true);
+						SetPhoneOpen(false);
+						Touch->SyncVisibility();
+						App.OnTouchStarted(Win->GetNativeWindow(), A, 1.f, 7, U, D);
+						App.OnTouchEnded(A, 7, U, D);
+						UE_LOG(LogTemp, Display, TEXT("JR_TOUCHFLOW aksi presses=%d (harus 2)"), Touch->ActionPresses - Before);
+					}
+					else if (Step == 19) FGenericPlatformMisc::RequestExit(false);
+				}
+			}
+			Step++;
 		}
 	}
 
@@ -319,6 +399,26 @@ void AJRHUD::DrawHUD()
 	}
 
 	SyncChoice();
+	// Uji -jrnametest: buka dialog nama saat bermain (untuk dipotret)
+	static const bool bNameTest = FParse::Param(FCommandLine::Get(), TEXT("jrnametest"));
+	if (bNameTest && GM->Phase == EJRGamePhase::Playing && !bNameShown && GetWorld()->GetTimeSeconds() > 4.f) { static bool bOnce = false; if (!bOnce) { bOnce = true; OpenNameDialog(); } }
+	// Main baru: minta nama rental setelah opening selesai
+	if (!bNameShown && GM->bNeedName && !GM->IsOpening() && GM->Phase == EJRGamePhase::Intro && NameWidget && !(Menu && Menu->IsOpen()))
+	{
+		NameWidget->Open(GM->RentalName);
+		bNameShown = true;
+		ApplyInputMode();
+	}
+	// Kartu Momen di layar laporan hari yang baru selesai
+	{
+		const bool bWant = GM->Phase == EJRGamePhase::Report && GM->bShowMoment && !bPhoneOpen && !bChoiceShown && !(Menu && Menu->IsOpen()) && !GM->bDemoOver;
+		if (MomentCard && bWant != bMomentShown)
+		{
+			if (bWant) MomentCard->Refresh(); else MomentCard->SetVisibility(ESlateVisibility::Collapsed);
+			bMomentShown = bWant;
+			ApplyInputMode();
+		}
+	}
 	UFont* Font = GEngine->GetMediumFont();
 	const float W = Canvas->ClipX, H = Canvas->ClipY;
 	// Mode sentuh: ikuti skala UMG (resolusi layar x ukuran tampilan) agar teks HUD sama besar dengan HP/menu.
@@ -338,7 +438,7 @@ void AJRHUD::DrawHUD()
 			GetTextSize(Cap, TW, TH, Font, 1.f);
 			const float TS = FMath::Min(1.45f * S, (W * 0.86f) / FMath::Max(1.f, TW));	// teks panjang diperkecil agar muat
 			GetTextSize(Cap, TW, TH, Font, TS);
-			FLinearColor C = Ink;
+			FLinearColor C = FLinearColor::White;	// di atas pita gelap
 			C.A = Op->CaptionAlpha();
 			const float CY = H - Bar - TH - 22.f * S;
 			DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.55f * C.A), (W - TW) * 0.5f - 18.f * S, CY - 8.f * S, TW + 36.f * S, TH + 16.f * S);	// pita gelap agar terbaca
@@ -386,12 +486,12 @@ void AJRHUD::DrawHUD()
 	}
 	if (GM->Phase == EJRGamePhase::Report)
 	{
-		if (!bPhoneOpen)
+		if (!bPhoneOpen && !bMomentShown)
 		{
 			TArray<FString> Lines = GM->ReportLines;
 			Lines.Add(TEXT(""));
 			Lines.Add(bTouchMode ? JRT(TEXT("Ketuk tombol HP untuk belanja barang dan atur tarif.")) : JRT(TEXT("Tekan TAB untuk buka HP: belanja barang dan atur tarif.")));
-			DrawPanel(JRPrintf(JRT(TEXT("Hari %d selesai")), GM->Day), Lines,
+			DrawPanel(JRPrintf(JRT(TEXT("%s  -  Hari %d selesai")), *GM->RentalName, GM->Day), Lines,
 				bTouchMode ? JRPrintf(JRT(TEXT("Ketuk LANJUT untuk buka toko hari %d")), GM->Day + 1) : JRPrintf(JRT(TEXT("Tekan ENTER untuk buka toko hari %d")), GM->Day + 1));
 		}
 		return;
@@ -421,17 +521,18 @@ void AJRHUD::DrawHUD()
 	// Daftar misi di kiri atas (saat tutorial tidak tampil)
 	if (!GM->IsTutorial() && GM->Phase == EJRGamePhase::Playing && !bPhoneOpen && GM->Missions.Num() > 0)
 	{
+		const float MS = S;
 		const float PX = (bTouchMode ? 180.f : 16.f) * S, PY = 50.f * S;	// sentuh: di kanan tombol II dan HP
-		const float LineH = 22.f * S;
+		const float LineH = 22.f * MS;
 		// Lebar panel mengikuti teks terpanjang (bahasa Inggris/Indonesia beda panjang)
-		float PW = 380.f * S;
+		float PW = 380.f * MS;
 		for (const FJRMission& M : GM->Missions)
 		{
 			float TW = 0.f, TH = 0.f;
-			GetTextSize(GM->MissionText(M) + JRT(TEXT("  (Minggu) 300/300")), TW, TH, Font, 0.95f * S);
-			PW = FMath::Max(PW, TW + 24.f * S);
+			GetTextSize(GM->MissionText(M) + JRT(TEXT("  (Minggu) 300/300")), TW, TH, Font, 0.95f * MS);
+			PW = FMath::Max(PW, TW + 24.f * MS);
 		}
-		PW = FMath::Min(PW, W * 0.45f);
+		PW = FMath::Min(PW, W * 0.40f);	// sisakan tempat untuk notifikasi di kanan
 		// Ringkas: satu baris "MISI 1/4 selesai [+]" agar tidak menutupi layar; ketuk (atau atur di HP) untuk membuka.
 		const bool bCompact = JRSettings::Get()->bMissionsCompact;
 		int32 DoneCount = 0;
@@ -440,14 +541,14 @@ void AJRHUD::DrawHUD()
 		if (bCompact)
 		{
 			float TW = 0.f, TH = 0.f;
-			GetTextSize(Head, TW, TH, Font, 1.f * S);
-			DrawRect(Panel, PX, PY, TW + 24.f * S, 30.f * S);
-			DrawText(Head, Led, PX + 12.f * S, PY + 6.f * S, Font, 1.f * S);
+			GetTextSize(Head, TW, TH, Font, 1.f * MS);
+			DrawRect(Panel, PX, PY, TW + 24.f * MS, 30.f * MS);
+			DrawText(Head, Led, PX + 12.f * MS, PY + 6.f * MS, Font, 1.f * MS);
 		}
 		else
 		{
-			DrawRect(Panel, PX, PY, PW, 30.f * S + LineH * GM->Missions.Num());
-			DrawText(Head, Led, PX + 12.f * S, PY + 6.f * S, Font, 1.f * S);
+			DrawRect(Panel, PX, PY, PW, 30.f * MS + LineH * GM->Missions.Num());
+			DrawText(Head, Led, PX + 12.f * MS, PY + 6.f * MS, Font, 1.f * MS);
 		}
 		for (int32 i = 0; i < (bCompact ? 0 : GM->Missions.Num()); ++i)
 		{
@@ -466,13 +567,14 @@ void AJRHUD::DrawHUD()
 				case EJRMission::Income: Today = FMath::RoundToInt(St.Income); break;
 				case EJRMission::Start: Today = St.Started; break;
 				case EJRMission::Repair: Today = St.Repairs; break;
+				case EJRMission::Upsell: Today = St.Upsells; break;
 				default: break;
 				}
 				const int32 Cur = M.bWeekly ? M.Progress + Today : Today;
 				Prog = M.Kind == EJRMission::Income ? FString::Printf(TEXT("%d%%"), FMath::Min(100, Cur * 100 / FMath::Max(1, M.Target))) : FString::Printf(TEXT("%d/%d"), FMath::Min(Cur, M.Target), M.Target);
 			}
 			const FString Line = FString::Printf(TEXT("%s%s  %s"), M.bWeekly ? JRT(TEXT("(Minggu) ")) : TEXT(""), *GM->MissionText(M), *Prog);
-			DrawText(Line, M.bDone ? Muted : Ink, PX + 12.f * S, PY + 28.f * S + i * LineH, Font, 0.95f * S);
+			DrawText(Line, M.bDone ? Muted : Ink, PX + 12.f * MS, PY + 28.f * MS + i * LineH, Font, 0.95f * MS);
 		}
 	}
 
@@ -531,20 +633,34 @@ void AJRHUD::DrawHUD()
 
 	// Notifikasi kanan atas
 	// Mode sentuh: paling banyak 3 notifikasi dan lebar dibatasi agar tidak menutupi layar kecil.
+	const float MS = S;
 	float Y = 56.f * S;
+	// Layar sentuh: label NOTIFIKASI di kanan atas; diketuk untuk menyembunyikan/memunculkan notifikasi.
+	const bool bToastsHidden = JRSettings::Get()->bToastsHidden;
+	if (bTouchMode && GM->Phase == EJRGamePhase::Playing)
+	{
+		const FString Head = bToastsHidden ? JRPrintf(JRT(TEXT("NOTIFIKASI (%d)  [+]")), GM->Toasts.Num()) : FString(JRT(TEXT("NOTIFIKASI  [-]")));
+		float HW = 0.f, HH = 0.f;
+		GetTextSize(Head, HW, HH, Font, 0.9f * MS);
+		const float HX = W - HW - 32.f * MS;
+		DrawRect(Panel, HX - 10.f * MS, Y - 5.f * MS, HW + 20.f * MS, HH + 10.f * MS);
+		DrawText(Head, Led, HX, Y, Font, 0.9f * MS);
+		Y += HH + 16.f * MS;
+	}
+	if (bToastsHidden) return;
 	int32 Shown = 0;
 	for (const FJRToast& T : GM->Toasts)
 	{
 		if (bTouchMode && Shown++ >= 3) break;
 		float TW = 0.f, TH = 0.f;
-		GetTextSize(T.Text, TW, TH, Font, 1.f * S);
-		const float TS = S * FMath::Min(1.f, W * 0.5f / FMath::Max(TW, 1.f));
+		GetTextSize(T.Text, TW, TH, Font, 1.f * MS);
+		const float TS = MS * FMath::Min(1.f, W * 0.40f / FMath::Max(TW, 1.f));
 		GetTextSize(T.Text, TW, TH, Font, TS);
-		const float X = W - TW - 32.f * S;
-		DrawRect(Panel, X - 10.f * S, Y - 5.f * S, TW + 20.f * S, TH + 10.f * S);
-		DrawRect(T.Color, X - 10.f * S, Y - 5.f * S, 3.f * S, TH + 10.f * S);
+		const float X = W - TW - 32.f * MS;
+		DrawRect(Panel, X - 10.f * MS, Y - 5.f * MS, TW + 20.f * MS, TH + 10.f * MS);
+		DrawRect(T.Color, X - 10.f * MS, Y - 5.f * MS, 3.f * MS, TH + 10.f * MS);
 		DrawText(T.Text, Ink, X, Y, Font, TS);
-		Y += TH + 16.f * S;
+		Y += TH + 16.f * MS;
 	}
 }
 
