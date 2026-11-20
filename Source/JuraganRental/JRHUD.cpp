@@ -230,7 +230,8 @@ void AJRHUD::DrawHUD()
 	const int32 Mn = FMath::FloorToInt((GM->Hour - Hr) * 60.f);
 	const FString Power = GM->bMcbTripped ? FString(JRT(TEXT("MCB TURUN"))) : JRPrintf(JRT(TEXT("%d/%d VA")), GM->PowerVA, GM->CapVA);
 	const FString Top = JRPrintf(JRT(TEXT("%s  Hari %d   %02d:%02d   Kas %s   Reputasi %d   Daya %s")),
-		*GM->Layout().Name, GM->Day, Hr, Mn, *JRFormatRp(GM->Money), FMath::RoundToInt(GM->Rep), *Power);
+		*GM->Layout().Name, GM->Day, Hr, Mn, *JRFormatRp(GM->Money), FMath::RoundToInt(GM->Rep), *Power)
+		+ JRPrintf(JRT(TEXT("   Lv %d")), GM->JuraganLevel());
 	DrawRect(Panel, 0.f, 0.f, W, 40.f);
 	DrawText(Top, Led, 16.f, 9.f, Font, 1.25f);
 

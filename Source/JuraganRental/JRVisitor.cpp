@@ -78,7 +78,7 @@ void AJRVisitor::Tick(float DeltaSeconds)
 			}
 			return;
 		}
-		const float Step = FMath::Min(Dist, 260.f * DeltaSeconds);
+		const float Step = FMath::Min(Dist, WalkSpeed * DeltaSeconds);
 		FVector Next = Loc + Delta / Dist * Step;
 		const float SegLen = FVector::Dist2D(SegStart, Target);
 		const float Alpha = SegLen > 1.f ? 1.f - FMath::Clamp((Dist - Step) / SegLen, 0.f, 1.f) : 1.f;

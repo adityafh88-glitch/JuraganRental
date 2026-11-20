@@ -65,4 +65,16 @@ public:
 	UPROPERTY() int32 PendingNetPlan = -1;
 	UPROPERTY() int32 UsedPS = 0;	// berapa TV terakhir yang barang bekas
 	UPROPERTY() int32 UsedPC = 0;
+
+	// Paket 1: Level Juragan, upgrade unit, bisnis sampingan.
+	UPROPERTY() int32 Xp = -1;			// -1 = simpanan lama (XP diberikan sesuai era saat dimuat)
+	UPROPERTY() TArray<int32> LvPS;		// level unit per indeks
+	UPROPERTY() TArray<int32> LvPC;
+	UPROPERTY() TArray<int32> LvVIP;
+	UPROPERTY() bool bKulkas = false;
+	UPROPERTY() bool bKonter = false;
+	UPROPERTY() bool bPrinter = false;
+	UPROPERTY() int32 Drinks = 0;
+	UPROPERTY() int32 Paper = 0;
+	UPROPERTY() float Saldo = 0.f;
 };

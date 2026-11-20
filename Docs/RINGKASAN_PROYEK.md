@@ -46,6 +46,20 @@ Dokumen ini merangkum seluruh pekerjaan sejauh ini, untuk melanjutkan di sesi ba
 - **Mode demo Steam**: `bDemo` di `Config/DefaultGame.ini`. Berhenti di hari ke-7 atau saat Gerbang 1 terbuka, lalu ajakan wishlist (`DemoStoreURL` masih kosong).
 - **Bahasa Indonesia dan Inggris**: semua teks lewat `JRT()`, sekitar 517 terjemahan, otomatis mengikuti bahasa Windows.
 
+**Paket 1 permainan lanjutan** (lihat `Docs/USULAN_GAMEPLAY_LANJUTAN.md`, kode di `JRProgression.cpp` dan `JRService.*`)
+- **Level Juragan (XP):** XP dari pelanggan bayar (+2, VIP +4), mi (+1), misi (hadiah/2.000, mingguan +120), turnamen (+40), dan layanan sampingan (+1). Rumus XP level: `60n² + 90n`, dengan Lv 2 di 150 XP, Lv 7 di 2.700 XP, Lv 13 di 9.720 XP, dan maksimal Lv 20. Barang toko terkunci level lewat `ItemMinLevel`. Level tampil di HUD, tab HP "Unit", tab Info, dan laporan harian. Simpanan lama mendapat XP sesuai era.
+- **Upgrade unit Lv 1–5** (tab HP "Unit"): unit Lv 2/3/4/5 butuh Level Juragan 4/7/10/13.
+  - Efek per level: tarif +Rp 500 (VIP +Rp 2.000), kepuasan +3, peluang rusak −12%, pengunjung +5% per rata-rata level.
+  - Biaya perawatan Rp 1.500 per level per hari.
+  - Pelanggan memilih unit kosong dengan level tertinggi.
+  - Tampilan: TV PS jadi TV datar mulai Lv 2, PC pakai monitor LCD mulai Lv 4, plus lis LED berwarna.
+  - Level disimpan per tipe dan indeks (`LvPS`/`LvPC`/`LvVIP`).
+- **Bisnis sampingan Era 3**, berjajar di depan tangga lantai 1:
+  - **kulkas minuman** (Lv 7): dibeli pelanggan saat bayar, diisi krat dari kurir;
+  - **konter pulsa** (Lv 8): pakai saldo, untung dari biaya admin;
+  - **printer** (Lv 10): Rp 500 per lembar, diisi kertas dari kurir.
+  - Pembeli konter dan printer datang khusus dan dilayani dengan tahan E. Kasir ikut melayani bila sudah direkrut.
+
 **Audio dan visual**
 - 55 suara karakter dari ElevenLabs (Bocil dinaikkan nadanya 1,15), 5 lagu radio di meja kasir, efek suara hasil sintesis Python.
 - Model low-poly dibuat di Blender (`ArtSource/Props/JR_RentalProps.blend`).
@@ -58,7 +72,7 @@ Dokumen ini merangkum seluruh pekerjaan sejauh ini, untuk melanjutkan di sesi ba
 - **APK Android:** RunUAT BuildCookRun `-platform=Android -cookflavor=ASTC`, dengan `JAVA_HOME=D:\Dev\Tools\jdk-21`, `TEMP` dan `JAVA_TOOL_OPTIONS` mengarah ke `D:\Tmp`, dan NDK 27.2. APK terakhir sudah lama, sebelum radio.
 - **Uji otomatis** (`UnrealEditor.exe <uproject> -game -windowed ...`):
   - Dasar: `-jrautotest`.
-  - Tambahan untuk `-jrautotest`: `-jrera2`, `-jrera3`, `-jrstaff`, `-jrdecor`, `-jrtiers`, `-jrnet`, `-jrloak`, `-jrguests`, `-jrtuttest`, `-jrdemo`, `-jrbilling`, `-jrtour`, `-jrmovetest`, `-jrfasad`, `-jrluar`, `-jrenglish`.
+  - Tambahan untuk `-jrautotest`: `-jrera2`, `-jrera3`, `-jrstaff` (juga uji OB, log `JR_OBTEST`), `-jrpaket1` (bersama `-jrera3`: level, upgrade, dan bisnis sampingan, log `JR_PAKET1*`), `-jrphonetab=N` (0 Toko, 1 Unit, 2 Kelola, 3 Info, 4 Atur), `-jrdecor`, `-jrtiers`, `-jrnet`, `-jrloak`, `-jrguests`, `-jrtuttest`, `-jrdemo`, `-jrbilling`, `-jrtour`, `-jrmovetest`, `-jrfasad`, `-jrluar`, `-jrenglish`.
   - Uji berdiri sendiri: `-jrmenutest`, `-jrmysterytest`, dan bot ekonomi `-jrbalance -jrbaldays=N` (sebaiknya dengan `-nullrhi`).
   - Hasil: log `JR_*` di `Saved/Logs`, screenshot di `Saved/AutoTest`.
   - Untuk main langsung di era tertentu: `-jrera2` atau `-jrera3`.
@@ -78,7 +92,7 @@ Dokumen ini merangkum seluruh pekerjaan sejauh ini, untuk melanjutkan di sesi ba
   - Bot uji dan uji otomatis memakai slot simpanan terpisah `JRSave_Test`.
 
 ## Yang belum dan berikutnya
-1. **Uji main langsung oleh kamu** untuk tahap B (Era 3, billing, karyawan, misi, sampah, turnamen, misteri bab 2), lalu perbaikan dari masukan.
+1. **Uji main langsung oleh kamu** untuk tahap B dan Paket 1. Masukan pertama sudah ditangani: OB yang jarang memungut sampah sudah diperbaiki (memilih sampah lewat jarak jalan sebenarnya dan berjalan lebih gesit), dan Paket 1 dibuat karena isi toko cepat habis. Paket 2 dan 3 ada di usulan.
 2. **Latar belakang** di belakang gedung masih bukit gurun bawaan level. Ganti dengan rumah, pohon, dan tiang listrik.
 3. **Keseimbangan ekonomi Era 3** belum diuji dengan bot.
 4. **Berikutnya: versi Android setara PC.**

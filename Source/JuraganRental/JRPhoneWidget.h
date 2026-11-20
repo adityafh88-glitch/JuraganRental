@@ -45,6 +45,7 @@ protected:
 private:
 	void BuildTree();
 	void FillToko(AJRGameMode* GM);
+	void FillUnit(AJRGameMode* GM);	// Level Juragan dan upgrade unit
 	void FillTarif(AJRGameMode* GM);
 	void FillStaff(AJRGameMode* GM);
 	void FillInternet(AJRGameMode* GM);

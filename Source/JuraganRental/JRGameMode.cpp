@@ -1,4 +1,4 @@
-#include "JRGameMode.h"
+﻿#include "JRGameMode.h"
 #include "JRLang.h"
 
 #include "Engine/World.h"
@@ -16,6 +16,7 @@
 #include "JRHUD.h"
 #include "JRSound.h"
 #include "JRRadio.h"
+#include "JRService.h"
 #include "JRStation.h"
 #include "JRVisitor.h"
 #include "JRSaveGame.h"
@@ -129,11 +130,13 @@ void AJRGameMode::BeginPlay()
 	{
 		// Mulai langsung di Game Center 2 lantai (uji / playtest).
 		Era = 3; Money = 1500000.f; Rep = 62.f; CapVA = 4400; OwnedPS = 6; OwnedPC = 5; OwnedVIP = 3; bPS2 = true; PricePS = 3000;
+		Xp = XpForLevel(7);	// kira-kira level saat tiba di Game Center
 	}
 	else if (FParse::Param(FCommandLine::Get(), TEXT("jrera2")))
 	{
 		// Mulai langsung di ruko (uji / playtest).
 		Era = 2; Money = 1000000.f; Rep = 45.f; CapVA = 2900; OwnedPS = 4; OwnedPC = 3;
+		Xp = XpForLevel(4);	// kira-kira level saat tiba di ruko
 	}
 	else if (bTest)
 	{
@@ -173,6 +176,29 @@ void AJRGameMode::BeginPlay()
 		bStaffTest = Era >= 2 && FParse::Param(FCommandLine::Get(), TEXT("jrstaff"));
 		if (bStaffTest) { for (bool& B : Staff) B = true; SpawnStaffActors(); }
 		if (FParse::Param(FCommandLine::Get(), TEXT("jrtuttest"))) TutStep = TutStart;
+		bPaket1Test = Era >= 3 && FParse::Param(FCommandLine::Get(), TEXT("jrpaket1"));
+		if (bPaket1Test)
+		{
+			// Level 1: barang Era 3 harus terkunci level.
+			Xp = 0;
+			FString LockVip, LockKulkas;
+			for (const FJRShopItem& It : GetShopItems()) { if (It.Id == TEXT("vip")) LockVip = It.Lock; if (It.Id == TEXT("kulkas")) LockKulkas = It.Lock; }
+			UE_LOG(LogTemp, Display, TEXT("JR_PAKET1_LOCK lv=%d vip=[%s] kulkas=[%s]"), JuraganLevel(), *LockVip, *LockKulkas);
+			// Naik ke level 13 lewat AddXp (uji toast naik level), lalu beli semua bisnis sampingan.
+			AddXp(XpForLevel(13));
+			Money += 6000000.f;
+			const bool b1 = BuyItem(TEXT("kulkas")), b2 = BuyItem(TEXT("konter")), b3 = BuyItem(TEXT("printer")), b4 = BuyItem(TEXT("saldo"));
+			const bool b5 = BuyItem(TEXT("krat"));
+			// Upgrade beberapa unit: TV 1 sampai Lv 5, PC 1 sampai Lv 4, VIP 1 sampai Lv 2.
+			int32 Ups = 0;
+			for (AJRStation* S : Stations)
+			{
+				const int32 Target = S->Index != 0 ? 0 : S->Type == EJRUnitType::PS ? 5 : S->Type == EJRUnitType::PC ? 4 : 2;
+				while (S->UpLevel < Target && UpgradeUnit(S)) ++Ups;
+			}
+			UE_LOG(LogTemp, Display, TEXT("JR_PAKET1_BUY lv=%d xp=%d kulkas=%d konter=%d printer=%d saldo=%d krat=%d ups=%d services=%d drinks=%d paper=%d saldo=%.0f maint=%d"),
+				JuraganLevel(), Xp, b1, b2, b3, b4, b5, Ups, Services.Num(), Drinks, Paper, Saldo, Maintenance());
+		}
 		if (Era >= 2 && FParse::Param(FCommandLine::Get(), TEXT("jrnet"))) ChooseNetPlan(2);
 		if (FParse::Param(FCommandLine::Get(), TEXT("jrloak")))
 		{
@@ -222,6 +248,7 @@ void AJRGameMode::BuildWorld()
 	SpawnStaffActors();
 	SpawnDecor();
 	SpawnBillingPC();
+	SpawnServices();
 }
 
 void AJRGameMode::SpawnBillingPC()
@@ -315,6 +342,16 @@ void AJRGameMode::MakePath(const FVector& From, const FVector& To, TArray<FVecto
 	Out.Add(To);
 }
 
+float AJRGameMode::PathLen(const FVector& From, const FVector& To) const
+{
+	TArray<FVector> Pts;
+	MakePath(From, To, Pts);
+	float Len = 0.f;
+	FVector P = From;
+	for (const FVector& X : Pts) { Len += FVector::Dist2D(P, X); P = X; }
+	return Len;
+}
+
 void AJRGameMode::ClearWorld()
 {
 	for (AJRCustomer* C : Customers) if (C) C->Destroy();
@@ -330,6 +367,9 @@ void AJRGameMode::ClearWorld()
 	Trash.Reset();
 	for (AJRDecor* D : DecorActors) if (D) D->Destroy();
 	DecorActors.Reset();
+	for (AJRService* S : Services) if (S) S->Destroy();
+	Services.Reset();
+	ClearWalkIns();
 }
 
 /* ---------- Provider internet ---------- */
@@ -402,6 +442,7 @@ void AJRGameMode::TournamentFinal()
 		Stats.RepDelta += 4.f;
 		Regulars = FMath::Min(10, Regulars + 1);
 		AddToast(JRT(TEXT("Juara mengangkat piala. Penonton bersorak! Reputasi +4")), Good);
+		AddXp(40);
 	} };
 	if (Era >= 3 || Rep >= 60.f)
 	{
@@ -617,7 +658,7 @@ void AJRGameMode::SpawnStaffActors()
 	{
 		if (!HasStaff(Who)) return nullptr;
 		AJRVisitor* V = GetWorld()->SpawnActor<AJRVisitor>(Loc, FRotator(0.f, Yaw, 0.f), SP);
-		if (V) V->Setup(Mesh, TEXT("A_Idle"));
+		if (V) { V->Setup(Mesh, TEXT("A_Idle")); V->WalkSpeed = 360.f; }	// karyawan berjalan gesit
 		return V;
 	};
 	KasirStaff = Spawn(EJRStaff::Kasir, TEXT("SK_Mahasiswa"), L.Kasir() + FVector(75.f, -30.f, 0.f), 180.f);	// di belakang meja kasir
@@ -663,7 +704,7 @@ void AJRGameMode::TickStaff(float DeltaSeconds)
 			for (AJRStation* S : Stations)
 			{
 				if (!S || !S->bBroken) continue;
-				const float D = FVector::Dist(S->GetActorLocation(), TechStaff->GetActorLocation());
+				const float D = PathLen(TechStaff->GetActorLocation(), S->GetActorLocation());
 				if (D < BestD) { BestD = D; Best = S; }
 			}
 			return Best;
@@ -712,7 +753,8 @@ void AJRGameMode::TickStaff(float DeltaSeconds)
 			for (AJRTrash* T : Trash)
 			{
 				if (!T) continue;
-				const float D = FVector::Dist(T->GetActorLocation(), CleanStaff->GetActorLocation());
+				// Jarak jalan sebenarnya: sampah di lantai lain (lewat tangga) baru diambil setelah lantai ini bersih.
+				const float D = PathLen(CleanStaff->GetActorLocation(), T->GetActorLocation());
 				if (D < BestD) { BestD = D; Best = T; }
 			}
 			return Best;
@@ -724,7 +766,9 @@ void AJRGameMode::TickStaff(float DeltaSeconds)
 			if (AJRTrash* T = Nearest())
 			{
 				CleanJob = T;
-				const FVector Spot = T->GetActorLocation() + FVector(-40.f, 0.f, 0.f);
+				FVector Spot = T->GetActorLocation() + FVector(-40.f, 0.f, 0.f);
+				const FJRLayout& L = Layout();
+				Spot.Z = (L.HasUpstairs() && Spot.Z > L.FloorH * 0.5f) ? L.FloorH : 0.f;	// berdiri di lantai, bukan melayang setinggi kursi
 				SendStaff(CleanStaff, Spot, 0.f);
 				CleanState = 1;
 			}
@@ -737,10 +781,16 @@ void AJRGameMode::TickStaff(float DeltaSeconds)
 		case 2:
 			CleanTimer += DeltaSeconds;
 			if (!CleanJob.IsValid()) CleanState = 3;
-			else if (CleanTimer >= 1.5f)
+			else if (CleanTimer >= 0.8f)
 			{
+				// Pungut sampah ini sekaligus sampah lain yang berserakan di dekatnya (satu sapuan).
+				const FVector At = CleanJob->GetActorLocation();
 				PickTrash(CleanJob.Get());
 				StaffDone[3]++;
+				for (int32 i = Trash.Num() - 1; i >= 0; --i)
+				{
+					if (Trash[i] && FVector::Dist(Trash[i]->GetActorLocation(), At) < 130.f) { PickTrash(Trash[i]); StaffDone[3]++; }
+				}
 				CleanState = 3;
 				if (!Nearest()) SendStaff(CleanStaff, CleanPost(), 0.f);
 			}
@@ -787,6 +837,7 @@ void AJRGameMode::TickStaff(float DeltaSeconds)
 					C->Bill += MiePrice;
 					StaffDone[2]++;
 					Stats.MieSold++;
+					AddXp(1);
 					JRSound::PlayAt(this, TEXT("SFX_Notif"), O->GetActorLocation(), 0.7f);
 					AddToast(JRPrintf(JRT(TEXT("Koki mengantar mi ke %s. +%s masuk tagihan")), *O->DisplayName, *JRFormatRp(MiePrice)), Good);
 				}
@@ -1059,6 +1110,9 @@ void AJRGameMode::SaveProgress()
 	S->GuestsDone = GuestsDone; S->ViralDays = ViralDays;
 	S->NetPlan = NetPlan; S->PendingNetPlan = PendingNetPlan;
 	for (const AJRStation* X : Stations) if (X && X->bUsed) (X->Type == EJRUnitType::PS ? S->UsedPS : S->UsedPC)++;
+	S->Xp = Xp; S->LvPS = LvPS; S->LvPC = LvPC; S->LvVIP = LvVIP;
+	S->bKulkas = bKulkas; S->bKonter = bKonter; S->bPrinter = bPrinter;
+	S->Drinks = Drinks; S->Paper = Paper; S->Saldo = Saldo;
 	if (UGameplayStatics::SaveGameToSlot(S, SlotName(), 0))
 	{
 		ReportLines.Add(JRT(TEXT("Permainan tersimpan otomatis.")));
@@ -1101,6 +1155,11 @@ bool AJRGameMode::LoadProgress()
 	SeatTier = S->SeatTier; bFastPC = S->bFastPC; Decor = S->Decor;
 	GuestsDone = S->GuestsDone; ViralDays = S->ViralDays;
 	NetPlan = FMath::Max(S->NetPlan, bFastNet ? 1 : 0); PendingNetPlan = S->PendingNetPlan;
+	// Simpanan lama (sebelum Level Juragan): beri XP sesuai era agar barang yang sudah wajar tidak terkunci.
+	Xp = S->Xp >= 0 ? S->Xp : XpForLevel(Era >= 3 ? 7 : Era == 2 ? 4 : 1);
+	LvPS = S->LvPS; LvPC = S->LvPC; LvVIP = S->LvVIP;
+	bKulkas = S->bKulkas; bKonter = S->bKonter; bPrinter = S->bPrinter;
+	Drinks = S->Drinks; Paper = S->Paper; Saldo = S->Saldo;
 	CarryBox = NAME_None; bCarryMie = false; StoveState = EJRStoveState::Idle; bMcbTripped = false; bNetSlow = false;
 	Choices.Reset();
 	Hour = 24.f;
@@ -1231,6 +1290,7 @@ void AJRGameMode::TickMissions(bool bEndOfDay)
 			Stats.RepDelta += M.bWeekly ? 2.f : 0.5f;
 			JRSound::Play2D(this, TEXT("SFX_Kaching"), 0.7f);
 			AddToast(JRPrintf(JRT(TEXT("Misi %s selesai: %s  +%s")), M.bWeekly ? JRT(TEXT("mingguan")) : JRT(TEXT("harian")), *MissionText(M), *JRFormatRp(M.Reward)), Good);
+			AddXp(M.bWeekly ? 120 : FMath::Max(10, M.Reward / 2000));
 		}
 	}
 }
@@ -1466,9 +1526,42 @@ void AJRGameMode::TickAutoTest(float DeltaSeconds)
 	{
 		for (AJRStation* S : Stations) if (S->Type == EJRUnitType::VIP) { S->bBroken = true; UE_LOG(LogTemp, Display, TEXT("JR_STAFF_VIPBREAK %s"), *S->DisplayName); break; }
 	}
+	// Uji OB: sebar sampah di beberapa kursi (termasuk lantai 2), lalu pantau tiap detik.
+	if (bStaffTest && AutoTestTime > 6.f && AutoTestTime - DeltaSeconds <= 6.f)
+	{
+		int32 N = 0;
+		for (AJRStation* S : Stations) if (S && (N++ % 2 == 0)) SpawnTrash(S->GetSeatLocation() + FVector(30.f, 20.f, 1.f), 1);
+		UE_LOG(LogTemp, Display, TEXT("JR_OBTEST spawned trash=%d"), Trash.Num());
+	}
+	if (bStaffTest && CleanStaff && FMath::FloorToInt(AutoTestTime) != FMath::FloorToInt(AutoTestTime - DeltaSeconds))
+	{
+		UE_LOG(LogTemp, Display, TEXT("JR_OBTEST t=%.0f state=%d trash=%d picked=%d walking=%d pos=%s"), AutoTestTime, CleanState, Trash.Num(), StaffDone[3], CleanStaff->IsWalking() ? 1 : 0, *CleanStaff->GetActorLocation().ToCompactString());
+	}
 	if (bStaffTest && ((AutoTestTime > 9.f && AutoTestTime - DeltaSeconds <= 9.f) || (AutoTestTime > 12.f && AutoTestTime - DeltaSeconds <= 12.f)))
 	{
 		for (AJRCustomer* C : Customers) if (C->State == EJRCustomerState::Playing && !C->bRaging) { EndSession(C); break; }
+	}
+	// Uji Paket 1: pembeli konter/printer dilayani pemain (bot), krat dibawa ke kulkas.
+	if (bPaket1Test)
+	{
+		if (AutoTestTime > 2.f && AutoTestTime - DeltaSeconds <= 2.f)
+		{
+			SpawnWalkIn(EJRService::Konter);
+			SpawnWalkIn(EJRService::Printer);
+			SpawnDelivery(TEXT("krat"));
+			Drinks = 10;
+		}
+		if (AutoTestTime > 15.f && AutoTestTime - DeltaSeconds <= 15.f) for (int32 k = 0; k < 6; ++k) SellDrink();	// 6 pelanggan bayar di kasir
+		if (AutoTestTime > 12.f)
+		{
+			if (WaitingAt(EJRService::Konter)) ServiceInteract(EJRService::Konter);
+			if (WaitingAt(EJRService::Printer)) ServiceInteract(EJRService::Printer);
+		}
+		if (FMath::FloorToInt(AutoTestTime / 5.f) != FMath::FloorToInt((AutoTestTime - DeltaSeconds) / 5.f))
+		{
+			UE_LOG(LogTemp, Display, TEXT("JR_PAKET1 t=%.0f walkins=%d drinks=%d sold=%d topups=%d prints=%d side=%.0f saldo=%.0f paper=%d xp=%d lv=%d"),
+				AutoTestTime, WalkIns.Num(), Drinks, Stats.DrinksSold, Stats.TopUps, Stats.Prints, Stats.Side, Saldo, Paper, Xp, JuraganLevel());
+		}
 	}
 	// Kurir otomatis: angkat kardus lalu pasang.
 	if (!CarryBox.IsNone()) { InstallBox(); AutoTestInstalled++; }
@@ -1494,7 +1587,12 @@ void AJRGameMode::TickAutoTest(float DeltaSeconds)
 		{ 23.f, FVector(-250.f, -900.f, 190.f), FRotator(8.f, -2.f, 0.f), TEXT("JR_Shot_GC_Tangga") },
 		{ 26.f, FVector(-150.f, 300.f, 350.f + 190.f), FRotator(-12.f, -15.f, 0.f), TEXT("JR_Shot_GC_VIP") },
 	};
-	const FShot* Shots = Era >= 3 ? ShotsCenter : Era == 2 ? ShotsRuko : ShotsGarasi;
+	static const FShot ShotsPaket1[] = {
+		{ 20.f, FVector(250.f, -560.f, 210.f), FRotator(-18.f, -90.f, 0.f), TEXT("JR_Shot_Bisnis") },
+		{ 23.f, FVector(470.f, -700.f, 190.f), FRotator(-12.f, -40.f, 0.f), TEXT("JR_Shot_UpgradePS") },
+		{ 26.f, FVector(560.f, 820.f, 200.f), FRotator(-18.f, 70.f, 0.f), TEXT("JR_Shot_UpgradePC") },
+	};
+	const FShot* Shots = bPaket1Test ? ShotsPaket1 : Era >= 3 ? ShotsCenter : Era == 2 ? ShotsRuko : ShotsGarasi;
 	const int32 NumShots = 3;
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	ACharacter* Pawn = PC ? Cast<ACharacter>(PC->GetPawn()) : nullptr;
@@ -1543,6 +1641,12 @@ void AJRGameMode::TickAutoTest(float DeltaSeconds)
 		const bool bLoaded = LoadProgress();
 		const bool bSame = bLoaded && FMath::IsNearlyEqual(M0, Money, 1.f) && D0 == Day && U0 == Stations.Num() && B0 == Boxes.Num() && O0 == PendingOrders.Num();
 		UE_LOG(LogTemp, Display, TEXT("JR_NET plan=%d pending=%d"), NetPlan, PendingNetPlan);
+		{
+			int32 LvSum = 0;
+			for (const AJRStation* X : Stations) LvSum += X->UpLevel;
+			UE_LOG(LogTemp, Display, TEXT("JR_PAKET1_LOAD lv=%d xp=%d unitlv=%d units=%d kulkas=%d konter=%d printer=%d services=%d drinks=%d paper=%d saldo=%.0f"),
+				JuraganLevel(), Xp, LvSum, Stations.Num(), bKulkas, bKonter, bPrinter, Services.Num(), Drinks, Paper, Saldo);
+		}
 		{
 			int32 Used = 0; FString Names;
 			for (const AJRStation* X : Stations) if (X->bUsed) { Used++; Names += X->DisplayName + TEXT(";"); }
@@ -1607,6 +1711,7 @@ void AJRGameMode::BalanceBetweenDays(float DeltaSeconds)
 		UE_LOG(LogTemp, Display, TEXT("JR_BAL day=%d era=%d money=%.0f rep=%.1f income=%.0f elec=%.0f stock=%.0f rent=%.0f cust=%d units=%d va=%d | sat=%.0f paid=%d angryQ=%d angryS=%d kabur=%d breaks=%d trips=%d repDelta=%.2f events=%d"),
 			Day, Era, Money, Rep, Stats.Income, Stats.Elec, Stats.Stock, L.Rent + InternetToday(), Stats.Customers, Units, CapVA,
 			Avg, Stats.Paid, Stats.AngryQueue, Stats.AngryStart, Stats.Ran, Stats.Breaks, Stats.Trips, Stats.RepDelta, AutoTestEvents);
+		UE_LOG(LogTemp, Display, TEXT("JR_BAL_LV day=%d lv=%d xp=%d xpToday=%d"), Day, JuraganLevel(), Xp, Stats.Xp);
 		const bool bGate2 = false; // bot lanjut ke Era 3; berhenti di batas hari
 		int32 MaxDays = 30;
 		FParse::Value(FCommandLine::Get(), TEXT("jrbaldays="), MaxDays);
@@ -1683,6 +1788,7 @@ void AJRGameMode::SpawnStation(EJRUnitType Type)
 	AJRStation* S = GetWorld()->SpawnActor<AJRStation>(Loc, Rot, SP);
 	S->Setup(Type, I);
 	S->ApplySeatTier(SeatTier);
+	S->ApplyUpLevel(UnitLevelOf(Type, I));
 	Stations.Add(S);
 }
 
@@ -1813,6 +1919,7 @@ void AJRGameMode::Tick(float DeltaSeconds)
 
 	const float DtH = DeltaSeconds * HoursPerSecond();
 	Hour += DtH;
+	TickWalkIns(DeltaSeconds, DtH);
 
 	if (Hour < 23.f && FMath::FRand() < SpawnRate(Hour) * DtH)
 	{
@@ -1890,6 +1997,13 @@ float AJRGameMode::SpawnRate(float H) const
 		if (NetPlan == 2) R *= 1.1f; // gamer cari warnet fiber
 		if (bNagaServer) R *= 1.1f;  // komunitas Naga Online
 	}
+	// Unit yang diupgrade jadi omongan warga: tiap rata-rata +1 level menambah 5% pengunjung.
+	if (Stations.Num() > 0)
+	{
+		int32 Extra = 0;
+		for (const AJRStation* S : Stations) Extra += S->UpLevel - 1;
+		R *= 1.f + 0.05f * Extra / Stations.Num();
+	}
 	return R;
 }
 
@@ -1916,8 +2030,10 @@ int32 AJRGameMode::PickType(float H) const
 
 AJRStation* AJRGameMode::FindFree(EJRUnitType Type) const
 {
-	for (AJRStation* S : Stations) if (S->Type == Type && S->IsFree()) return S;
-	return nullptr;
+	// Pelanggan memilih unit kosong dengan level upgrade tertinggi.
+	AJRStation* Best = nullptr;
+	for (AJRStation* S : Stations) if (S->Type == Type && S->IsFree() && (!Best || S->UpLevel > Best->UpLevel)) Best = S;
+	return Best;
 }
 
 void AJRGameMode::SpawnCustomer()
@@ -2021,6 +2137,7 @@ void AJRGameMode::StartSession(AJRStation* S)
 	AJRCustomer* C = S->Customer;
 	if (!C) return;
 	C->Used = S->Type;
+	C->UnitLevel = S->UpLevel;
 	C->State = EJRCustomerState::Playing;
 
 	// Paket malam warnet (Era 2): flat sampai tutup.
@@ -2040,7 +2157,7 @@ void AJRGameMode::StartSession(AJRStation* S)
 	const float Hours = C->TypeIndex == Bocil ? 1.f
 		: (Era >= 2 ? OptionsRuko[FMath::RandRange(0, 4)] : OptionsGarasi[FMath::RandRange(0, 2)]);
 	C->HoursLeft = Hours;
-	C->Bill = Hours * PriceFor(S->Type);
+	C->Bill = Hours * UnitPrice(S);
 	if (C->TypeIndex == Bocil && FMath::FRand() < (bAutoTest ? 1.f : 0.2f))
 	{
 		C->EmakAt = bAutoTest ? 0.05f : FMath::FRandRange(0.25f, 0.7f);
@@ -2085,7 +2202,7 @@ void AJRGameMode::TickPlaying(AJRCustomer* C, float DtH)
 		if (!C->bLagged) { C->bLagged = true; C->SatAdj -= 10.f; }
 	}
 
-	const float BreakPerHour = (S->bUsed ? 1.6f : 1.f) * (S->Type == EJRUnitType::PS ? (bStikOri ? 0.07f : 0.22f) : S->Type == EJRUnitType::VIP ? 0.06f : 0.18f);
+	const float BreakPerHour = (S->bUsed ? 1.6f : 1.f) * (1.f - 0.12f * (S->UpLevel - 1)) * (S->Type == EJRUnitType::PS ? (bStikOri ? 0.07f : 0.22f) : S->Type == EJRUnitType::VIP ? 0.06f : 0.18f);
 	if (FMath::FRand() < BreakPerHour * DtH)
 	{
 		S->bBroken = true;
@@ -2363,6 +2480,7 @@ void AJRGameMode::DeliverMie(AJRStation* S)
 	C->Bill += MiePrice;
 	TutorialAdvance(TutMie);
 	Stats.MieSold++;
+	AddXp(1);
 	JRSound::PlayAt(this, TEXT("SFX_Notif"), S->GetActorLocation(), 0.7f);
 	AddToast(JRPrintf(JRT(TEXT("Mi diantar ke %s. +%s masuk tagihan")), *S->DisplayName, *JRFormatRp(MiePrice)), Good);
 }
@@ -2472,8 +2590,10 @@ void AJRGameMode::FinishPayment(AJRCustomer* C, float Paid)
 	const int32 S = CalcSatisfaction(C);
 	Stats.Satisfaction.Add(S);
 	C->Mood = Paid <= 0.f ? TEXT(";)") : S >= 60 ? TEXT(":)") : S >= 35 ? TEXT(":|") : TEXT(">:(");
+	AddXp(Paid <= 0.f ? 1 : C->Used == EJRUnitType::VIP ? 4 : 2);
 	if (Paid > 0.f)
 	{
+		SellDrink();	// kulkas minuman di Game Center
 		JRSound::PlayAt(this, TEXT("SFX_Kaching"), Layout().Kasir() + FVector(0, 0, 110));
 		if (FMath::FRand() < 0.5f) JRSound::Voice(this, VoiceCode[C->TypeIndex], TEXT("Bayar"), C->GetActorLocation());
 		AddToast(JRPrintf(JRT(TEXT("+%s dari %s")), *JRFormatRp(Paid), *C->DisplayName), Good);
@@ -2483,11 +2603,13 @@ void AJRGameMode::FinishPayment(AJRCustomer* C, float Paid)
 
 int32 AJRGameMode::CalcSatisfaction(const AJRCustomer* C) const
 {
-	const float PriceRatio = C->bPaket ? 1.f : float(PriceFor(C->Used)) / FairFor(C->Used);
+	const float LvBonus = LevelPriceBonus(C->Used, C->UnitLevel);
+	const float PriceRatio = C->bPaket ? 1.f : (PriceFor(C->Used) + LvBonus) / (FairFor(C->Used) + LvBonus);
 	const float S = 75.f - 0.3f * FMath::Max(0.f, C->WaitMinutes - 10.f) - 12.f * C->Breakdowns - 40.f * (PriceRatio - 1.f)
 		+ (C->bAte ? 5.f : 0.f) - 10.f * C->MissedOrders + C->SatAdj
 		+ 6.f * SeatTier + (C->Used == EJRUnitType::PC && bFastPC ? 5.f : 0.f)	// tempat duduk nyaman, PC kencang
 		+ DecorBonus()	// suasana ruangan
+		+ 3.f * (C->UnitLevel - 1)	// unit yang diupgrade
 		- TrashPenalty()	// ruangan kotor
 		+ (C->Used == EJRUnitType::PC && Era >= 2 ? (NetPlan == 2 ? 5.f : NetPlan == 1 ? 2.f : 0.f) : 0.f);	// internet kencang
 	return FMath::RoundToInt(FMath::Clamp(S, 0.f, 100.f));
@@ -2578,12 +2700,14 @@ void AJRGameMode::EndDay()
 	StoveState = EJRStoveState::Idle;
 	bCarryMie = false;
 	if (!CarryBox.IsNone()) { SpawnDelivery(CarryBox); CarryBox = NAME_None; }
+	ClearWalkIns();
 	Choices.Reset();
 	TickMissions(true);
 	const FJRLayout& L = Layout();
 	const int32 Wages = TotalWages();
 	const float Net = InternetToday();
-	Money -= Stats.Elec + L.Rent + Net + Wages;
+	const int32 Maint = Maintenance();
+	Money -= Stats.Elec + L.Rent + Net + Wages + Maint;
 
 	float Avg = 50.f;
 	if (Stats.Satisfaction.Num() > 0)
@@ -2608,6 +2732,12 @@ void AJRGameMode::EndDay()
 		ReportLines.Add(JRPrintf(JRT(TEXT("Sewa ruko: %s   Internet %s: %s")), *JRFormatRp(-L.Rent), NetName(NetPlan), *JRFormatRp(-Net)));
 	}
 	if (Wages > 0) ReportLines.Add(JRPrintf(JRT(TEXT("Gaji karyawan: %s")), *JRFormatRp(-Wages)));
+	if (Maint > 0) ReportLines.Add(JRPrintf(JRT(TEXT("Perawatan unit upgrade: %s")), *JRFormatRp(-Maint)));
+	if (Stats.Side > 0.f)
+	{
+		ReportLines.Add(JRPrintf(JRT(TEXT("Bisnis sampingan: +%s (minuman %d, top-up %d, print %d)")), *JRFormatRp(Stats.Side), Stats.DrinksSold, Stats.TopUps, Stats.Prints));
+	}
+	if (Stats.WalkInLost > 0) ReportLines.Add(JRPrintf(JRT(TEXT("Pembeli konter/printer yang pergi kecewa: %d")), Stats.WalkInLost));
 	if (Stats.Bonus > 0.f) ReportLines.Add(JRPrintf(JRT(TEXT("Hadiah misi: +%s")), *JRFormatRp(Stats.Bonus)));
 	if (TourPlayers > 0) ReportLines.Add(JRPrintf(JRT(TEXT("Turnamen: %d peserta, biaya daftar %s")), TourPlayers, *JRFormatRp(TourPlayers * TourFee)));
 	if (Era >= 2 && (Day + 1) % 7 == 6) ReportLines.Add(JRT(TEXT("Besok akhir pekan: kamu bisa mengadakan turnamen PS.")));
@@ -2616,12 +2746,17 @@ void AJRGameMode::EndDay()
 		Stats.RepDelta -= 0.15f * Trash.Num();
 		ReportLines.Add(JRPrintf(JRT(TEXT("Sampah berserakan: %d. Warga menilai rental kotor.")), Trash.Num()));
 	}
-	ReportLines.Add(JRPrintf(JRT(TEXT("Untung bersih: %s")), *JRFormatRp(Stats.Income - Stats.Elec - Stats.Stock - L.Rent - Net - Wages)));
+	ReportLines.Add(JRPrintf(JRT(TEXT("Untung bersih: %s")), *JRFormatRp(Stats.Income - Stats.Elec - Stats.Stock - L.Rent - Net - Wages - Maint)));
 	ReportLines.Add(JRPrintf(JRT(TEXT("Kabur tanpa bayar: %s")), *JRFormatRp(Stats.Kabur)));
 	ReportLines.Add(JRPrintf(JRT(TEXT("Utang baru dicatat: %s (total piutang %s)")), *JRFormatRp(Stats.Utang), *JRFormatRp(TotalDebt())));
 	if (PendingOrders.Num() > 0) ReportLines.Add(JRPrintf(JRT(TEXT("Pesanan diantar kurir besok pagi: %d kardus")), PendingOrders.Num()));
 	ReportLines.Add(JRPrintf(JRT(TEXT("Kepuasan rata-rata: %d/100")), FMath::RoundToInt(Avg)));
 	ReportLines.Add(JRPrintf(JRT(TEXT("Reputasi: %d -> %d")), FMath::RoundToInt(OldRep), FMath::RoundToInt(Rep)));
+	{
+		const int32 Lv = JuraganLevel();
+		ReportLines.Add(Lv >= MaxJuraganLevel ? JRPrintf(JRT(TEXT("Level Juragan %d (maksimal). XP hari ini +%d")), Lv, Stats.Xp)
+			: JRPrintf(JRT(TEXT("Level Juragan %d: XP %d/%d (hari ini +%d)")), Lv, Xp, XpForLevel(Lv + 1), Stats.Xp));
+	}
 
 	// Berita besok (Era 2): game hype
 	if (!HypeName.IsEmpty() && --HypeDays <= 0)
@@ -2712,6 +2847,29 @@ TArray<FJRShopItem> AJRGameMode::GetShopItems() const
 		const bool bFullVip = Count(EJRUnitType::VIP) + InPipeline(TEXT("vip")) >= Layout().MaxVip();
 		Out.Add({ TEXT("vip"), JRT(TEXT("Booth VIP lantai 2")), JRT(TEXT("Sofa, TV 32 inci, dan PlayStasiun 3. Tarif wajar Rp 8.000/jam. Daya 400 VA.")), 400000,
 			bFullVip ? FString(JRT(TEXT("Tempat penuh"))) : FullLoad + 400 > CapSoon ? JRPrintf(JRT(TEXT("Daya kurang (%d/%d VA). Tambah daya dulu")), FullLoad + 400, CapSoon) : FString() });
+
+		// Bisnis sampingan: kulkas minuman, konter pulsa, printer. Pemasangan langsung, isi ulang lewat kurir/saldo.
+		const FString Installed = JRT(TEXT("Sudah dipasang"));
+		Out.Add({ TEXT("kulkas"), JRT(TEXT("Kulkas minuman")),
+			JRT(TEXT("Pelanggan membeli es teh dan soda (Rp 5.000) saat bayar di kasir. Langsung terpasang, isi awal 24 botol.")), 350000, bKulkas ? Installed : FString() });
+		if (bKulkas)
+		{
+			Out.Add({ TEXT("krat"), JRT(TEXT("Krat minuman (24 botol)")), JRT(TEXT("Modal Rp 2.500 per botol. Diantar kurir besok pagi, lalu bawa ke kulkas.")), 60000,
+				Drinks + InPipeline(TEXT("krat")) * KratSize >= MaxDrinks ? FString(JRT(TEXT("Kulkas sudah penuh"))) : FString() });
+		}
+		Out.Add({ TEXT("konter"), JRT(TEXT("Konter pulsa & top-up")),
+			JRT(TEXT("Warga datang beli pulsa dan top-up game. Untung biaya admin Rp 2.000-3.000 per transaksi. Butuh saldo.")), 500000, bKonter ? Installed : FString() });
+		if (bKonter)
+		{
+			Out.Add({ TEXT("saldo"), JRT(TEXT("Isi saldo konter Rp 200.000")), JRT(TEXT("Saldo terpakai tiap top-up dan kembali jadi uang tunai saat pembeli membayar.")), 200000, FString() });
+		}
+		Out.Add({ TEXT("printer"), JRT(TEXT("Printer & fotokopi")),
+			JRT(TEXT("Anak sekolah dan mahasiswa datang mencetak tugas: Rp 500 per lembar. Isi awal 1 rim kertas.")), 600000, bPrinter ? Installed : FString() });
+		if (bPrinter)
+		{
+			Out.Add({ TEXT("kertas"), JRT(TEXT("Kertas HVS 1 rim (500 lembar)")), JRT(TEXT("Modal Rp 100 per lembar. Diantar kurir besok pagi, lalu bawa ke printer.")), 50000,
+				Paper + InPipeline(TEXT("kertas")) * RimSize >= MaxPaper ? FString(JRT(TEXT("Kertas sudah penuh"))) : FString() });
+		}
 	}
 	if (Era >= 2)
 	{
@@ -2729,8 +2887,7 @@ TArray<FJRShopItem> AJRGameMode::GetShopItems() const
 	DecorItem(TEXT("neon"), JRT(TEXT("Dekor: lampu neon RGB")), JRT(TEXT("Lis lampu ungu-biru ala game center. Kepuasan +3, daya 30 VA.")), 80000);
 	if (Era >= 2)
 	{
-		DecorItem(TEXT("ac"), JRT(TEXT("Dekor: AC split")), JRT(TEXT("Sejuk seperti warnet kota. Kepuasan +8, daya 600 VA.")), 400000);
-		if (!Decor.Contains(TEXT("ac")) && FullLoad + 600 > CapSoon) Out.Last().Lock = JRPrintf(JRT(TEXT("Daya kurang (%d/%d VA). Tambah daya dulu")), FullLoad + 600, CapSoon);
+		DecorItem(TEXT("ac"), JRT(TEXT("Dekor: AC split")), JRT(TEXT("Sejuk seperti warnet kota. Kepuasan +8, daya 600 VA.")), 400000);		if (!Decor.Contains(TEXT("ac")) && FullLoad + 600 > CapSoon) Out.Last().Lock = JRPrintf(JRT(TEXT("Daya kurang (%d/%d VA). Tambah daya dulu")), FullLoad + 600, CapSoon);
 	}
 	Out.Add({ TEXT("duduk1"), JRT(TEXT("Bantal & kursi busa")), JRT(TEXT("Semua unit lebih nyaman: kepuasan pelanggan +6.")), 100000, Done(SeatTier >= 1) });
 	if (Era == 1)
@@ -2749,6 +2906,13 @@ TArray<FJRShopItem> AJRGameMode::GetShopItems() const
 		{
 			Out.Add({ TEXT("hype"), JRPrintf(JRT(TEXT("Install %s di semua PC")), *HypeName), JRT(TEXT("Gamer online datang lebih banyak selama game ini hype.")), 60000, Done(bHypeInstalled) });
 		}
+	}
+	// Level Juragan: barang yang belum dimiliki baru bisa dibeli setelah levelnya cukup.
+	const int32 Lv = JuraganLevel();
+	for (FJRShopItem& It : Out)
+	{
+		const int32 Need = ItemMinLevel(It.Id);
+		if (It.Lock.IsEmpty() && Lv < Need) It.Lock = JRPrintf(JRT(TEXT("Butuh Level Juragan %d")), Need);
 	}
 	return Out;
 }
@@ -2788,6 +2952,23 @@ bool AJRGameMode::BuyItem(FName Id)
 			AddToast(JRT(TEXT("Komputer billing terpasang di samping kasir. Nyalakan unit dari sana!")), Good);
 			return true;
 		}
+		if (Id == TEXT("kulkas") || Id == TEXT("konter") || Id == TEXT("printer"))
+		{
+			if (Id == TEXT("kulkas")) { bKulkas = true; Drinks = FMath::Max(Drinks, (int32)KratSize); }
+			else if (Id == TEXT("konter")) bKonter = true;
+			else { bPrinter = true; Paper = FMath::Max(Paper, (int32)RimSize); }
+			SpawnServices();
+			AddToast(Id == TEXT("konter") ? FString(JRT(TEXT("Konter pulsa terpasang di depan tangga. Isi saldo dulu lewat HP > Toko.")))
+				: JRPrintf(JRT(TEXT("%s terpasang di depan tangga lantai 1.")), *It.Name), Good);
+			return true;
+		}
+		if (Id == TEXT("saldo"))
+		{
+			Saldo += It.Cost;
+			AddToast(JRPrintf(JRT(TEXT("Saldo konter sekarang %s")), *JRFormatRp(Saldo)), Good);
+			return true;
+		}
+		if (Id == TEXT("krat") || Id == TEXT("kertas")) Stats.Stock += It.Cost;	// modal stok, tetap diantar kurir
 		if (Id == TEXT("ps2")) { bPS2 = true; PricePS = FMath::Max(PricePS, 3000); }
 		else if (Id == TEXT("duduk1") || Id == TEXT("duduk2"))
 		{
@@ -2845,6 +3026,11 @@ void AJRGameMode::PickBox(AJRDeliveryBox* Box)
 		CapVA = Id == TEXT("daya") ? 2200 : 4400;
 		AddToast(JRPrintf(JRT(TEXT("Petugas listrik datang. Daya naik ke %d VA")), CapVA), Good);
 	}
+	else if (Id == TEXT("krat") || Id == TEXT("kertas"))
+	{
+		CarryBox = Id;
+		AddToast(Id == TEXT("krat") ? FString(JRT(TEXT("Bawa krat minuman ke kulkas di depan tangga"))) : FString(JRT(TEXT("Bawa kertas ke printer di depan tangga"))));
+	}
 	else
 	{
 		CarryBox = Id;
@@ -2855,6 +3041,15 @@ void AJRGameMode::PickBox(AJRDeliveryBox* Box)
 bool AJRGameMode::GetInstallSlot(FVector& OutLoc, FRotator& OutRot) const
 {
 	if (CarryBox.IsNone()) return false;
+	if (CarryBox == TEXT("krat") || CarryBox == TEXT("kertas"))
+	{
+		// Penanda hijau di depan kulkas / printer
+		const EJRService K = CarryBox == TEXT("krat") ? EJRService::Kulkas : EJRService::Printer;
+		if (!HasService(K) || Era < 3) return false;
+		OutLoc = ServiceSpot(K) - FVector(40.f, 0.f, 0.f);
+		OutRot = FRotator(0.f, 90.f, 0.f);
+		return true;
+	}
 	const EJRUnitType Type = TypeForItem(CarryBox);
 	const int32 I = Count(Type);
 	if (I >= MaxFor(Type)) return false;
@@ -2865,6 +3060,11 @@ bool AJRGameMode::GetInstallSlot(FVector& OutLoc, FRotator& OutRot) const
 void AJRGameMode::InstallBox()
 {
 	if (CarryBox.IsNone()) return;
+	if (CarryBox == TEXT("krat") || CarryBox == TEXT("kertas"))
+	{
+		ServiceInteract(CarryBox == TEXT("krat") ? EJRService::Kulkas : EJRService::Printer);
+		return;
+	}
 	const EJRUnitType Type = TypeForItem(CarryBox);
 	if (Count(Type) >= MaxFor(Type)) return;
 	SpawnStation(Type);

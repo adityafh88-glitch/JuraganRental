@@ -26,6 +26,8 @@ public:
 	/** Jalan mengikuti titik-titik (boleh beda lantai), lalu diam di titik terakhir menghadap FinalYaw. */
 	void WalkPath(const TArray<FVector>& Points, float FinalYaw);
 	bool IsWalking() const { return Path.Num() > 0; }
+	/** Kecepatan jalan WalkPath (cm/detik). Karyawan sedikit lebih gesit dari tamu. */
+	float WalkSpeed = 260.f;
 
 	virtual void Tick(float DeltaSeconds) override;
 

@@ -48,6 +48,10 @@ public:
 	/** Tingkat tempat duduk: 0 standar, 1 empuk, 2 gaming. */
 	void ApplySeatTier(int32 Tier);
 
+	/** Level upgrade unit (1-5): layar datar, lampu LED berwarna, tarif dan kepuasan naik. */
+	int32 UpLevel = 1;
+	void ApplyUpLevel(int32 Level);
+
 	UPROPERTY()
 	TObjectPtr<AJRCustomer> Customer;
 
@@ -72,6 +76,15 @@ private:
 	TObjectPtr<class UStaticMeshComponent> SeatExtra;	// bantal (PS) atau sandaran tinggi (PC)
 
 	int32 SeatTier = -1;
+
+	UPROPERTY()
+	TObjectPtr<class UStaticMeshComponent> OldScreen;	// TV tabung (PS) atau monitor CRT (PC)
+
+	UPROPERTY()
+	TArray<TObjectPtr<class UStaticMeshComponent>> FlatParts;	// TV/monitor layar datar hasil upgrade
+
+	UPROPERTY()
+	TObjectPtr<class UStaticMeshComponent> Led;	// lis lampu LED penanda level
 
 	float ActivityTimer = 2.f;	// detik sampai bunyi aktivitas berikutnya
 	void PlayActivitySound();

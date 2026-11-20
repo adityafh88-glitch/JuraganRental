@@ -70,6 +70,7 @@ public:
 	float SatAdj = 0.f;			// penyesuaian kepuasan dari kejadian
 	bool bLagged = false;		// sudah kena internet lemot
 	bool bPaket = false;		// paket malam warnet
+	int32 UnitLevel = 1;		// level upgrade unit yang dipakai (1-5)
 	FString Mood;
 
 private:

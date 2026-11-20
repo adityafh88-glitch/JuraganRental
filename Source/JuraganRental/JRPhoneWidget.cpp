@@ -15,6 +15,7 @@
 #include "Components/VerticalBoxSlot.h"
 #include "Styling/CoreStyle.h"
 #include "JRGameMode.h"
+#include "JRStation.h"
 #include "JRSound.h"
 #include "JRHUD.h"
 #include "JRSettings.h"
@@ -180,10 +181,12 @@ void UJRPhoneWidget::BuildTabs()
 {
 	TabRow->ClearChildren();
 	UHorizontalBox* Tabs = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	const TCHAR* Names[] = { JRT(TEXT("Toko")), JRT(TEXT("Kelola")), JRT(TEXT("Hari ini")), JRT(TEXT("Atur")) };
-	for (int32 i = 0; i < 4; ++i)
+	const TCHAR* Names[] = { JRT(TEXT("Toko")), JRT(TEXT("Unit")), JRT(TEXT("Kelola")), JRT(TEXT("Info")), JRT(TEXT("Atur")) };
+	for (int32 i = 0; i < UE_ARRAY_COUNT(Names); ++i)
 	{
 		UJRPhoneButton* B = MakeButton(Names[i], [this, i]() { CurrentTab = i; Refresh(true); }, true, CurrentTab == i);
+		// Lima tab: huruf sedikit lebih kecil agar muat di layar HP (juga di layar ponsel sungguhan).
+		if (UTextBlock* T = Cast<UTextBlock>(B->GetContent())) T->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 11));
 		UHorizontalBoxSlot* S = Tabs->AddChildToHorizontalBox(B);
 		S->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		S->SetPadding(FMargin(i == 0 ? 0.f : 4.f, 0.f, 0.f, 0.f));
@@ -199,7 +202,7 @@ void UJRPhoneWidget::Refresh(bool bForce)
 	HeaderMoney->SetText(FText::FromString(JRFormatRp(GM->Money)));
 
 	// Tab Hari ini: cukup perbarui teksnya (angka berubah terus, jangan bangun ulang tombol).
-	if (!bForce && CurrentTab == 2 && BuiltTab == 2)
+	if (!bForce && CurrentTab == 3 && BuiltTab == 3)
 	{
 		FillHariIni(GM);
 		return;
@@ -209,6 +212,12 @@ void UJRPhoneWidget::Refresh(bool bForce)
 	FString Sig = FString::Printf(TEXT("%d|%d|%d|%d|%d|%d|%d|%d%d%d"), CurrentTab, GM->PricePS + GM->PriceVIP * 7, GM->PricePC, GM->CapVA, GM->Era, GM->bPaketMalam ? 1 : 0, GM->Phase == EJRGamePhase::Playing ? 1 : 0,
 		GM->HasStaff(EJRStaff::Kasir) ? 1 : 0, GM->HasStaff(EJRStaff::Teknisi) ? 1 : 0, GM->HasStaff(EJRStaff::Koki) ? 1 : 0);
 	Sig += FString::Printf(TEXT("|n%d%d"), GM->NetPlan, GM->PendingNetPlan);
+	if (CurrentTab == 1)
+	{
+		// Tab Unit: XP dan status tiap tombol upgrade
+		Sig += FString::Printf(TEXT("|x%d"), GM->Xp);
+		for (const AJRStation* S : GM->GetStations()) Sig += FString::Printf(TEXT("%d"), S->UpLevel) + GM->UnitUpgradeLock(S);
+	}
 	for (const FJRShopItem& It : GM->GetShopItems())
 	{
 		Sig += It.Lock + (GM->Money >= It.Cost ? TEXT("1") : TEXT("0"));
@@ -223,8 +232,9 @@ void UJRPhoneWidget::Refresh(bool bForce)
 	switch (CurrentTab)
 	{
 	case 0: FillToko(GM); break;
-	case 1: FillTarif(GM); break;
-	case 3: FillAtur(); break;
+	case 1: FillUnit(GM); break;
+	case 2: FillTarif(GM); break;
+	case 4: FillAtur(); break;
 	default: FillHariIni(GM); break;
 	}
 }
@@ -248,6 +258,40 @@ void UJRPhoneWidget::FillToko(AJRGameMode* GM)
 			if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>()) G->BuyItem(Id);
 			Refresh(true);
 		}, It.Lock.IsEmpty() && bCanPay), 6.f);
+	}
+}
+
+void UJRPhoneWidget::FillUnit(AJRGameMode* GM)
+{
+	const int32 Lv = GM->JuraganLevel();
+	AddLine(MakeText(JRPrintf(JRT(TEXT("LEVEL JURAGAN %d")), Lv), 15, LcdInk, true), 0.f);
+	AddLine(MakeText(Lv >= AJRGameMode::MaxJuraganLevel ? FString(JRT(TEXT("Level maksimal. Kamu juragan sejati!")))
+		: JRPrintf(JRT(TEXT("XP %d / %d")), GM->Xp, AJRGameMode::XpForLevel(Lv + 1)), 13, LcdInk), 2.f);
+	AddLine(MakeText(JRT(TEXT("XP dari pelanggan yang bayar, misi, turnamen, dan bisnis sampingan. Naik level membuka barang baru di Toko dan upgrade unit.")), 11, LcdMuted), 2.f);
+
+	AddLine(MakeText(JRT(TEXT("UPGRADE UNIT")), 15, LcdInk, true), 18.f);
+	AddLine(MakeText(JRPrintf(JRT(TEXT("Tiap level: tarif +Rp 500/jam (VIP +Rp 2.000), pelanggan lebih puas dan lebih jarang rusak. Perawatan %s per level per hari.")),
+		*JRFormatRp(AJRGameMode::MaintPerLevel)), 11, LcdMuted), 2.f);
+	TArray<AJRStation*> List;
+	for (AJRStation* S : GM->GetStations()) if (S) List.Add(S);
+	List.Sort([](const AJRStation& A, const AJRStation& B) { return A.Type != B.Type ? (uint8)A.Type < (uint8)B.Type : A.Index < B.Index; });
+	for (AJRStation* S : List)
+	{
+		AddLine(MakeText(JRPrintf(JRT(TEXT("%s  Lv %d: %s")), *S->DisplayName, S->UpLevel, *AJRGameMode::UnitLevelName(S->Type, S->UpLevel)), 13, LcdInk, true), 12.f);
+		const FString Lock = GM->UnitUpgradeLock(S);
+		const int32 Next = S->UpLevel + 1;
+		if (S->UpLevel < AJRGameMode::MaxUnitLevel)
+		{
+			AddLine(MakeText(JRPrintf(JRT(TEXT("Berikutnya: %s")), *AJRGameMode::UnitLevelName(S->Type, Next)), 11, LcdMuted), 2.f);
+		}
+		const FString Label = Lock.IsEmpty() ? JRPrintf(JRT(TEXT("Upgrade ke Lv %d: %s")), Next, *JRFormatRp(AJRGameMode::UnitUpgradeCost(S->Type, Next))) : Lock;
+		TWeakObjectPtr<AJRStation> WS(S);
+		AddLine(MakeButton(Label, [this, WS]()
+		{
+			AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>();
+			if (G && WS.IsValid()) G->UpgradeUnit(WS.Get());
+			Refresh(true);
+		}, Lock.IsEmpty()), 6.f);
 	}
 }
 
@@ -398,6 +442,7 @@ void UJRPhoneWidget::FillHariIni(AJRGameMode* GM)
 		JRPrintf(JRT(TEXT("Kabur tanpa bayar: %s")), *JRFormatRp(S.Kabur)),
 		JRPrintf(JRT(TEXT("Piutang di buku utang: %s")), *JRFormatRp(GM->TotalDebt())),
 		JRPrintf(JRT(TEXT("Reputasi: %d")), FMath::RoundToInt(GM->Rep)),
+		JRPrintf(JRT(TEXT("Level Juragan %d  (XP %d)")), GM->JuraganLevel(), GM->Xp),
 		JRPrintf(JRT(TEXT("Daya: %d / %d VA")), GM->PowerVA, GM->CapVA),
 		GM->Era == 1 ? JRT(TEXT("Target Gerbang 1: Rp 600.000 dan reputasi 40.")) : JRT(TEXT("Target Gerbang 2: Rp 3 juta, reputasi 60, 10 unit.")),
 	};

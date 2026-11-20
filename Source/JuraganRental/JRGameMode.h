@@ -41,6 +41,10 @@ struct FJRDayStats
 	int32 AngryQueue = 0, AngryStart = 0, Ran = 0, Breaks = 0, Trips = 0, Paid = 0;
 	int32 MieSold = 0, Started = 0, Repairs = 0;
 	float Bonus = 0.f;	// hadiah misi hari ini
+	float Side = 0.f;	// untung bisnis sampingan (minuman, top-up, print)
+	int32 DrinksSold = 0, TopUps = 0, Prints = 0, WalkInLost = 0;
+	bool bFridgeWarned = false;
+	int32 Xp = 0;		// XP yang didapat hari ini
 };
 
 /** Tata letak satu era: ukuran ruangan dan posisi semua perabot (cm). */
@@ -160,6 +164,8 @@ public:
 	bool Gate2Open() const;
 	/** Jalur jalan pelanggan (lewat tangga jika berpindah lantai). */
 	void MakePath(const FVector& From, const FVector& To, TArray<FVector>& Out) const;
+	/** Panjang jalan sebenarnya (lewat tangga bila beda lantai), untuk memilih tugas terdekat. */
+	float PathLen(const FVector& From, const FVector& To) const;
 	static EJRUnitType TypeForItem(FName Id) { return Id == TEXT("vip") ? EJRUnitType::VIP : IsPCItem(Id) ? EJRUnitType::PC : EJRUnitType::PS; }
 	int32 MaxFor(EJRUnitType Type) const { return Type == EJRUnitType::VIP ? Layout().MaxVip() : Layout().MaxUnits(); }
 	int32 TotalUnits() const { return Stations.Num(); }
@@ -243,6 +249,43 @@ public:
 	bool HasStaff(EJRStaff S) const { return Staff[(int32)S]; }
 	void ToggleStaff(EJRStaff S);
 	int32 TotalWages() const;
+
+	/* ---------- Level Juragan (XP): isi toko terbuka bertahap ---------- */
+	int32 Xp = 0;
+	static constexpr int32 MaxJuraganLevel = 20;
+	static int32 XpForLevel(int32 Level);	// total XP untuk mencapai level ini
+	int32 JuraganLevel() const;
+	void AddXp(int32 Amount);
+	static int32 ItemMinLevel(FName Id);	// level juragan minimal untuk membeli barang (1 = bebas)
+
+	/* ---------- Upgrade unit (Lv 1-5) ---------- */
+	static constexpr int32 MaxUnitLevel = 5;
+	static int32 UnitLevelReq(int32 Level) { return Level <= 1 ? 1 : 1 + (Level - 1) * 3; }	// Lv2: L4, Lv3: L7, Lv4: L10, Lv5: L13
+	static int32 UnitUpgradeCost(EJRUnitType Type, int32 ToLevel);
+	static int32 LevelPriceBonus(EJRUnitType Type, int32 Level) { return (FMath::Clamp(Level, 1, 5) - 1) * (Type == EJRUnitType::VIP ? 2000 : 500); }
+	static FString UnitLevelName(EJRUnitType Type, int32 Level);
+	static constexpr int32 MaintPerLevel = 1500;	// perawatan per level per unit per hari
+	int32 UnitPrice(const AJRStation* S) const;
+	FString UnitUpgradeLock(const AJRStation* S) const;	// kosong = bisa diupgrade
+	bool UpgradeUnit(AJRStation* S);
+	int32 UnitLevelOf(EJRUnitType Type, int32 Index) const;
+	int32 Maintenance() const;
+
+	/* ---------- Bisnis sampingan Game Center (Era 3) ---------- */
+	bool bKulkas = false, bKonter = false, bPrinter = false;
+	int32 Drinks = 0;		// botol di kulkas
+	int32 Paper = 0;		// lembar kertas di printer
+	float Saldo = 0.f;		// saldo deposit konter pulsa
+	static constexpr int32 DrinkPrice = 5000;
+	static constexpr int32 KratSize = 24;
+	static constexpr int32 MaxDrinks = 48;
+	static constexpr int32 RimSize = 500;
+	static constexpr int32 MaxPaper = 1000;
+	static constexpr int32 SheetPrice = 500;
+	FJRInteraction ServiceInteraction(EJRService Kind) const;
+	void ServiceInteract(EJRService Kind);
+	FString ServiceLabel(EJRService Kind, bool& bAlert) const;
+	bool HasService(EJRService Kind) const { return Kind == EJRService::Kulkas ? bKulkas : Kind == EJRService::Konter ? bKonter : bPrinter; }
 
 	/* ---------- Cerita misteri "TV 1" (5 bab, menjelang tutup) ---------- */
 	int32 MysteryStep = 0;		// 0..4 = bab 1 (TV 1), 5..7 = bab 2 (Naga Online, Era 2+), 8 = semua tamat
@@ -369,6 +412,36 @@ private:
 	FVector StaffSpot(const AJRStation* S) const;
 	void SendStaff(class AJRVisitor* V, const FVector& To, float Yaw);
 	void DestroyStaff();
+
+	/* Level unit per tipe dan indeks (sumber kebenaran; dipakai ulang saat pindah era dan dimuat) */
+	TArray<int32> LvPS, LvPC, LvVIP;
+	TArray<int32>& LevelArray(EJRUnitType Type) { return Type == EJRUnitType::PS ? LvPS : Type == EJRUnitType::VIP ? LvVIP : LvPC; }
+
+	/* Bisnis sampingan */
+	UPROPERTY()
+	TArray<TObjectPtr<class AJRService>> Services;
+	void SpawnServices();
+	FVector ServicePos(EJRService Kind) const;
+	FVector ServiceSpot(EJRService Kind) const;	// tempat pembeli berdiri
+	struct FJRWalkIn
+	{
+		TWeakObjectPtr<class AJRVisitor> V;
+		EJRService Kind = EJRService::Konter;
+		FString Name;
+		int32 Amount = 0;	// nominal top-up (Rp) atau jumlah lembar
+		int32 Fee = 0;		// biaya admin top-up
+		float Wait = 0.f;	// detik menunggu sejak tiba
+		bool bArrived = false;
+		bool bHinted = false;
+	};
+	TArray<FJRWalkIn> WalkIns;
+	const FJRWalkIn* WaitingAt(EJRService Kind) const;
+	void SpawnWalkIn(EJRService Kind);
+	void TickWalkIns(float DeltaSeconds, float DtH);
+	void ServeWalkIn(EJRService Kind);
+	void ClearWalkIns();
+	void SellDrink();
+	bool bPaket1Test = false;	// -jrpaket1: uji level, upgrade unit, dan bisnis sampingan
 
 	UPROPERTY()
 	TArray<TObjectPtr<class AJRDecor>> DecorActors;

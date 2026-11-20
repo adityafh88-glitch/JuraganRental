@@ -75,6 +75,15 @@ enum class EJRStaff : uint8
 	Count
 };
 
+/** Bisnis sampingan Game Center (Era 3). */
+enum class EJRService : uint8
+{
+	Kulkas,		// kulkas minuman: dibeli pelanggan saat bayar
+	Konter,		// konter pulsa & top-up game: pembeli datang khusus
+	Printer,	// printer & fotokopi: anak sekolah/mahasiswa mencetak tugas
+	Count
+};
+
 enum class EJRGamePhase : uint8
 {
 	Menu,		// menu utama (dunia sudah dibangun sebagai latar)

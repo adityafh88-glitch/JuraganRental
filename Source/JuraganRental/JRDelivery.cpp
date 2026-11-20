@@ -139,7 +139,9 @@ FJRInteraction AJRSlotMarker::GetInteraction() const
 	if (bShown)
 	{
 		Out.Kind = EJRInteractKind::Press;
-		Out.Prompt = JRT(TEXT("Pasang unit di sini"));
+		const AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
+		const bool bSupply = GM && (GM->CarryBox == TEXT("krat") || GM->CarryBox == TEXT("kertas"));
+		Out.Prompt = bSupply ? JRT(TEXT("Isi stok di sini")) : JRT(TEXT("Pasang unit di sini"));
 	}
 	return Out;
 }

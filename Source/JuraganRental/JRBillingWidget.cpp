@@ -203,7 +203,7 @@ void UJRBillingWidget::Refresh(bool bForce)
 			TWeakObjectPtr<AJRStation> WS(R.S);
 			UJRPhoneButton* B = WidgetTree->ConstructWidget<UJRPhoneButton>(UJRPhoneButton::StaticClass());
 			B->SetBackgroundColor(Btn);
-			if (UButtonSlot* BS = Cast<UButtonSlot>(B->SetContent(MakeText(JRPrintf(JRT(TEXT("Nyalakan  %s/jam")), *JRFormatRp(GM->PriceFor(R.S->Type))), 13, FLinearColor::White, true))))
+			if (UButtonSlot* BS = Cast<UButtonSlot>(B->SetContent(MakeText(JRPrintf(JRT(TEXT("Nyalakan  %s/jam")), *JRFormatRp(GM->UnitPrice(R.S))), 13, FLinearColor::White, true))))
 			{
 				BS->SetPadding(FMargin(10.f, 5.f));
 			}

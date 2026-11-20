@@ -60,6 +60,7 @@ void AJRStation::Setup(EJRUnitType InType, int32 InIndex)
 		AddProp(this, Root, TEXT("SM_Meja_TV"), FVector(0, 0, 0));
 		UStaticMeshComponent* Tv = AddProp(this, Root, TEXT("SM_TV_Tabung"), FVector(-4, 0, 50));
 		Tv->SetMaterialByName(TEXT("M_TV_Screen"), ScreenMat);
+		OldScreen = Tv;
 		AddProp(this, Root, TEXT("SM_Konsol_PlayStasiun"), FVector(0, 16.5f, 28.5f));
 		Seat = AddProp(this, Root, TEXT("SM_Karpet"), FVector(SeatDistance(), 0, 0), 0.f, false);
 		AddProp(this, Root, TEXT("SM_Stik"), FVector(SeatDistance() - 45, 45, 2), 160.f, false);
@@ -70,6 +71,7 @@ void AJRStation::Setup(EJRUnitType InType, int32 InIndex)
 		AddProp(this, Root, TEXT("SM_Meja_Warnet"), FVector(0, 0, 0));
 		UStaticMeshComponent* Monitor = AddProp(this, Root, TEXT("SM_Monitor_CRT"), FVector(-8, 0, 75));
 		Monitor->SetMaterialByName(TEXT("M_TV_Screen"), ScreenMat);
+		OldScreen = Monitor;
 		AddProp(this, Root, TEXT("SM_CPU"), FVector(-5, 30, 0));
 		AddProp(this, Root, TEXT("SM_Keyboard"), FVector(18, 0, 75), 0.f, false);
 		AddProp(this, Root, TEXT("SM_Mouse"), FVector(16, 30, 75), 0.f, false);
@@ -114,6 +116,52 @@ void AJRStation::ApplySeatTier(int32 Tier)
 		// Sandaran tinggi di belakang kursi (busa: biru, gaming: merah)
 		SeatExtra->SetRelativeLocation(FVector(SeatDistance() + 22.f, 0.f, bGaming ? 85.f : 70.f));
 		SeatExtra->SetRelativeScale3D(bGaming ? FVector(0.08f, 0.48f, 0.75f) : FVector(0.07f, 0.42f, 0.45f));
+	}
+}
+
+void AJRStation::ApplyUpLevel(int32 Level)
+{
+	UpLevel = FMath::Clamp(Level, 1, 5);
+
+	// Lis LED di kaki meja/sofa: hijau (Lv 2), biru (3), ungu (4), emas (5)
+	static const uint32 LedCol[] = { 0x000000, 0x3ccf6e, 0x3a8dff, 0xb04cff, 0xffc23d };
+	if (UpLevel >= 2)
+	{
+		const FLinearColor Col = Hex(LedCol[UpLevel - 1]);
+		if (!Led)
+		{
+			const bool bVip = Type == EJRUnitType::VIP;
+			Led = AddPart(this, Root, EShape::Cube, bVip ? FVector(4, 170, 4) : FVector(4, 104, 4),
+				bVip ? FVector(SeatDistance() + 50, 0, 3) : FVector(Type == EJRUnitType::PC ? 34.f : 26.f, 0, 3), Col, false);
+		}
+		else Paint(Led, Col);
+		Led->SetVisibility(true);
+	}
+	else if (Led) Led->SetVisibility(false);
+
+	// Layar datar: TV LED untuk PS mulai Lv 2 (makin besar tiap level), monitor LCD untuk PC mulai Lv 4.
+	for (UStaticMeshComponent* P : FlatParts) if (P) P->DestroyComponent();
+	FlatParts.Reset();
+	const bool bFlat = (Type == EJRUnitType::PS && UpLevel >= 2) || (Type == EJRUnitType::PC && UpLevel >= 4);
+	if (OldScreen) OldScreen->SetVisibility(!bFlat);
+	if (!bFlat) return;
+	if (Type == EJRUnitType::PS)
+	{
+		const float W = 74.f + (UpLevel - 2) * 12.f, H = W * 0.58f, Z = 56.f + H / 2.f;
+		FlatParts.Add(AddPart(this, Root, EShape::Cube, FVector(16, 30, 4), FVector(-6, 0, 52), Hex(0x15161a), false));	// kaki
+		FlatParts.Add(AddPart(this, Root, EShape::Cube, FVector(5, W, H), FVector(-8, 0, Z), Hex(0x15161a), false));		// bingkai
+		UStaticMeshComponent* Panel = AddPart(this, Root, EShape::Cube, FVector(2, W - 6.f, H - 6.f), FVector(-5, 0, Z), Hex(0x0d0f12), false);
+		Panel->SetMaterial(0, ScreenMat);
+		FlatParts.Add(Panel);
+	}
+	else
+	{
+		const float W = UpLevel >= 5 ? 66.f : 56.f, H = W * 0.6f, Z = 84.f + H / 2.f;
+		FlatParts.Add(AddPart(this, Root, EShape::Cube, FVector(14, 18, 8), FVector(-10, 0, 79), Hex(0x15161a), false));	// kaki
+		FlatParts.Add(AddPart(this, Root, EShape::Cube, FVector(4, W, H), FVector(-12, 0, Z), Hex(0x15161a), false));		// bingkai
+		UStaticMeshComponent* Panel = AddPart(this, Root, EShape::Cube, FVector(2, W - 5.f, H - 5.f), FVector(-9.5f, 0, Z), Hex(0x0d0f12), false);
+		Panel->SetMaterial(0, ScreenMat);
+		FlatParts.Add(Panel);
 	}
 }
 
@@ -191,7 +239,7 @@ FJRInteraction AJRStation::GetInteraction() const
 	else if (Customer && Customer->State == EJRCustomerState::WaitStart)
 	{
 		Out.Kind = EJRInteractKind::Press;
-		Out.Prompt = JRPrintf(JRT(TEXT("Nyalakan %s  (%s/jam)")), *DisplayName, *JRFormatRp(GM->PriceFor(Type)));
+		Out.Prompt = JRPrintf(JRT(TEXT("Nyalakan %s  (%s/jam)")), *DisplayName, *JRFormatRp(GM->UnitPrice(this)));
 	}
 	else if (GM->CanOfferMie(this))
 	{
@@ -243,7 +291,7 @@ void AJRStation::Tick(float DeltaSeconds)
 
 	const bool bPlaying = Customer && Customer->State == EJRCustomerState::Playing;
 	FLinearColor ScreenColor = Hex(0x0d0f12);
-	FString Text = DisplayName;
+	FString Text = UpLevel > 1 ? JRPrintf(JRT(TEXT("%s  Lv%d")), *DisplayName, UpLevel) : DisplayName;
 	FColor TextColor(160, 165, 175);
 
 	if (bHaunted && !Customer)
