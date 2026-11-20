@@ -1,4 +1,4 @@
-// HUD: status toko, petunjuk interaksi, notifikasi, laporan harian, dan HP jadul (Tab).
+﻿// HUD: status toko, petunjuk interaksi, notifikasi, laporan harian, dan HP jadul (Tab).
 
 #pragma once
 
@@ -35,8 +35,17 @@ public:
 	bool IsTouchMode() const { return bTouchMode; }
 	/** Pasang ulang joystick layar sesuai pengaturan (tetap/ikut jari). */
 	void ApplyTouchSettings();
+	/** Ukuran tampilan layar sentuh (HP dalam game, menu, dialog, dan teks HUD). PC selalu 1. */
+	void ApplyUIScale();
 
 private:
+	float UIS = 1.f;	// skala teks/panel HUD Canvas, mengikuti skala UMG di mode sentuh
+	float LookYaw0 = 0.f;	// -jrtouchflow: arah pandang sebelum simulasi geser
+
+	/** Layar pembuka KAH Gamedev + logo, sekali saat game pertama dibuka. */
+	UPROPERTY()
+	TObjectPtr<class UJRSplashWidget> Splash;
+	bool bSplashChecked = false;
 	void DrawPanel(const FString& Title, const TArray<FString>& Lines, const FString& Footer);
 
 	void SyncChoice();

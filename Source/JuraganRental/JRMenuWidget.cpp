@@ -1,4 +1,4 @@
-#include "JRMenuWidget.h"
+﻿#include "JRMenuWidget.h"
 #include "JRLang.h"
 
 #include "Blueprint/WidgetTree.h"
@@ -11,6 +11,8 @@
 #include "Components/ScrollBox.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
+#include "Components/Image.h"
+#include "Engine/Texture2D.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "GameFramework/GameUserSettings.h"
@@ -18,6 +20,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Styling/CoreStyle.h"
 #include "JRGameMode.h"
+#include "JRHUD.h"
 #include "JRPhoneWidget.h"
 #include "JRSettings.h"
 #include "JRSound.h"
@@ -94,6 +97,16 @@ void UJRMenuWidget::BuildTree()
 	UVerticalBox* Col = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	Box->SetContent(Col);
 
+	// Logo judul di menu utama (halaman lain memakai judul teks)
+	LogoImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+	if (UTexture2D* Tex = LoadObject<UTexture2D>(nullptr, TEXT("/Game/UI/Logo/Logo_Judul.Logo_Judul"))) LogoImage->SetBrushFromTexture(Tex);
+	{
+		FSlateBrush B = LogoImage->GetBrush();
+		B.ImageSize = FVector2D(320.f, 180.f);	// bawaan brush 32x32
+		LogoImage->SetBrush(B);
+	}
+	Col->AddChildToVerticalBox(LogoImage)->SetHorizontalAlignment(HAlign_Center);
+
 	TitleText = MakeText(TEXT(""), 30, Led, true);
 	TitleText->SetJustification(ETextJustify::Center);
 	Col->AddChildToVerticalBox(TitleText);
@@ -128,8 +141,11 @@ void UJRMenuWidget::Begin(EJRMenuPage NewPage, const FString& Title, const FStri
 	Page = NewPage;
 	CardSize->SetWidthOverride(Width);
 	TitleText->SetText(FText::FromString(Title));
+	const bool bLogo = NewPage == EJRMenuPage::Main && LogoImage && LogoImage->GetBrush().GetResourceObject();
+	if (LogoImage) LogoImage->SetVisibility(bLogo ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	TitleText->SetVisibility(bLogo ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
 	SubtitleText->SetText(FText::FromString(Subtitle));
-	SubtitleText->SetVisibility(Subtitle.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+	SubtitleText->SetVisibility(Subtitle.IsEmpty() || bLogo ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);	// logo sudah memuat subjudul
 	Content->ClearChildren();
 	SetVisibility(ESlateVisibility::Visible);
 	if (OnChanged) OnChanged();
@@ -185,7 +201,7 @@ void UJRMenuWidget::ShowMain()
 	Begin(EJRMenuPage::Main, JRT(TEXT("JURAGAN RENTAL")), JRT(TEXT("Rental PS & Warnet Simulator")), 460.f);
 	AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
 	const FString Summary = AJRGameMode::SaveSummary();
-	AddButton(Summary.IsEmpty() ? FString(JRT(TEXT("Lanjutkan"))) : JRPrintf(JRT(TEXT("Lanjutkan  (%s)")), *Summary), [this, GM]()
+	AddButton(Summary.IsEmpty() ? FString(JRT(TEXT("Lanjutkan"))) : JRPrintf(JRT(TEXT("Lanjutkan\n%s")), *Summary), [this, GM]()
 	{
 		if (GM && GM->LoadProgress()) Close();
 	}, true, !Summary.IsEmpty());
@@ -345,7 +361,7 @@ void UJRMenuWidget::ShowSettings()
 	AddRow(JRT(TEXT("Musik radio")), OnOff(S->bMusic), [S]() { S->bMusic = !S->bMusic; JRSettings::Save(); });
 
 	AddSection(JRT(TEXT("KONTROL")));
-	AddRow(bMobile ? JRT(TEXT("Kepekaan joystick lihat")) : JRT(TEXT("Kepekaan mouse")), FString::Printf(TEXT("%.2gx"), S->LookSpeed), [S]()
+	AddRow(bMobile ? JRT(TEXT("Kepekaan geser layar")) : JRT(TEXT("Kepekaan mouse")), FString::Printf(TEXT("%.2gx"), S->LookSpeed), [S]()
 	{
 		static const float Steps[] = { 0.5f, 0.75f, 1.f, 1.25f, 1.5f, 2.f };
 		int32 Next = 0;
@@ -354,6 +370,22 @@ void UJRMenuWidget::ShowSettings()
 		JRSettings::Save();
 	});
 	AddRow(JRT(TEXT("Arah lihat atas/bawah")), S->bInvertLook ? JRT(TEXT("Dibalik")) : JRT(TEXT("Normal")), [S]() { S->bInvertLook = !S->bInvertLook; JRSettings::Save(); });
+	AJRHUD* Hud = GetOwningPlayer() ? Cast<AJRHUD>(GetOwningPlayer()->GetHUD()) : nullptr;
+	if (bMobile || (Hud && Hud->IsTouchMode()))
+	{
+		AddRow(JRT(TEXT("Ukuran tampilan")), JRSettings::UIScaleName(S->UIScale), [S, Hud]()
+		{
+			S->UIScale = JRSettings::NextUIScale(S->UIScale);
+			JRSettings::Save();
+			if (Hud) Hud->ApplyUIScale();
+		});
+		AddRow(JRT(TEXT("Ukuran joystick")), JRSettings::JoystickSizeName(S->JoystickSize), [S, Hud]()
+		{
+			S->JoystickSize = JRSettings::NextJoystickSize(S->JoystickSize);
+			JRSettings::Save();
+			if (Hud) Hud->ApplyTouchSettings();
+		});
+	}
 
 	// Sengaja dua bahasa agar mudah ditemukan apa pun bahasa yang aktif.
 	AddSection(JRT(TEXT("BAHASA / LANGUAGE")));

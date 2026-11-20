@@ -60,6 +60,13 @@ Dokumen ini merangkum seluruh pekerjaan sejauh ini, untuk melanjutkan di sesi ba
   - **printer** (Lv 10): Rp 500 per lembar, diisi kertas dari kurir.
   - Pembeli konter dan printer datang khusus dan dilayani dengan tahan E. Kasir ikut melayani bila sudah direkrut.
 
+**Versi Android (layar sentuh)**
+- **Kontrol:** joystick kiri untuk jalan, **geser jari di sisi kanan layar untuk menoleh** (`UJRLookPad`, tanpa joystick kanan). Tombol AKSI dan LANJUT ada di pojok kanan bawah. Tombol jeda (ikon dua batang) dan HP (berbentuk HP jadul) ada di kiri atas.
+- **Tombol sentuh** diatur tampil/sembunyi oleh HUD tiap frame (`UJRTouchWidget::SyncVisibility`), karena widget yang Collapsed tidak menjalankan NativeTick.
+- **Ukuran tampilan** (Kecil/Sedang/Besar/Sangat besar, bawaan Besar 1,8) mengatur `ApplicationScale` UMG. HUD Canvas ikut diskalakan lewat `UIS`. Pilihan **ukuran joystick** dan **kepekaan geser layar** ada di Pengaturan dan HP > Atur.
+- **Splash KAH Gamedev:** ubin K/A/H muncul pop-up, lalu logo Juragan Rental membal masuk (`UJRSplashWidget`). Ketuk untuk melewati. Logo judul juga tampil di menu utama.
+- **Logo dan ikon:** dibuat oleh `Tools/make_logo.ps1` (GDI+ dan font Luckiest Guy di `ArtSource/Fonts`, lisensi Apache 2.0). Hasilnya ada di `ArtSource/Logo`: logo judul, ikon 512, header Play Store 1024x500, dan ubin KAH. Ikon Android ditulis ke `Build/Android/res/drawable*/icon.png`. Logo diimpor ke `/Game/UI/Logo` dengan `Tools/import_logo.py`, dan `/Game/UI` selalu ikut dikemas.
+
 **Audio dan visual**
 - 55 suara karakter dari ElevenLabs (Bocil dinaikkan nadanya 1,15), 5 lagu radio di meja kasir, efek suara hasil sintesis Python.
 - Model low-poly dibuat di Blender (`ArtSource/Props/JR_RentalProps.blend`).
@@ -69,11 +76,14 @@ Dokumen ini merangkum seluruh pekerjaan sejauh ini, untuk melanjutkan di sesi ba
 - **Build editor** (Unreal Editor harus tertutup):
   `& 'C:\Program Files\Epic Games\UE_5.8\Engine\Build\BatchFiles\Build.bat' JuraganRentalEditor Win64 Development '-Project=D:\Dev\JuraganRental\JuraganRental.uproject' -WaitMutex`
 - **Paket `.exe` rilis:** RunUAT BuildCookRun `-platform=Win64 -clientconfig=Shipping`, hasilnya ke `Build\Windows`. ZIP terakhir: `Build\JuraganRental_PC_Demo_v0.2.zip`, versi sebelum tahap B, jadi perlu dibuat ulang.
-- **APK Android:** RunUAT BuildCookRun `-platform=Android -cookflavor=ASTC`, dengan `JAVA_HOME=D:\Dev\Tools\jdk-21`, `TEMP` dan `JAVA_TOOL_OPTIONS` mengarah ke `D:\Tmp`, dan NDK 27.2. APK terakhir sudah lama, sebelum radio.
+- **APK Android:** RunUAT BuildCookRun `-platform=Android -cookflavor=ASTC`, dengan `JAVA_HOME=D:\Dev\Tools\jdk-21`, `TEMP` dan `JAVA_TOOL_OPTIONS` mengarah ke `D:\Tmp`, dan NDK 27.2. Hasilnya di `Build\Android_ASTC\JuraganRental-arm64.apk` (build Development). Pindai dengan Windows Defender sebelum dikirim ke HP.
 - **Uji otomatis** (`UnrealEditor.exe <uproject> -game -windowed ...`):
   - Dasar: `-jrautotest`.
   - Tambahan untuk `-jrautotest`: `-jrera2`, `-jrera3`, `-jrstaff` (juga uji OB, log `JR_OBTEST`), `-jrpaket1` (bersama `-jrera3`: level, upgrade, dan bisnis sampingan, log `JR_PAKET1*`), `-jrphonetab=N` (0 Toko, 1 Unit, 2 Kelola, 3 Info, 4 Atur), `-jrdecor`, `-jrtiers`, `-jrnet`, `-jrloak`, `-jrguests`, `-jrtuttest`, `-jrdemo`, `-jrbilling`, `-jrtour`, `-jrmovetest`, `-jrfasad`, `-jrluar`, `-jrenglish`.
   - Uji berdiri sendiri: `-jrmenutest`, `-jrmysterytest`, dan bot ekonomi `-jrbalance -jrbaldays=N` (sebaiknya dengan `-nullrhi`).
+  - Mode sentuh di PC: `-jrtouch` (mouse dipakai sebagai jari). `-jrtouchflow` menguji alur menu utama, tombol sentuh, dan simulasi geser layar (log `JR_TOUCHFLOW`).
+  - Splash: `-jrnosplash` untuk melewati splash, `-jrsplashat=detik` untuk membekukan animasi supaya bisa dipotret.
+  - Selalu tambahkan `-unattended`, supaya dialog crash reporter tidak muncul di layar pengguna.
   - Hasil: log `JR_*` di `Saved/Logs`, screenshot di `Saved/AutoTest`.
   - Untuk main langsung di era tertentu: `-jrera2` atau `-jrera3`.
 - **Teks baru:**
@@ -95,9 +105,7 @@ Dokumen ini merangkum seluruh pekerjaan sejauh ini, untuk melanjutkan di sesi ba
 1. **Uji main langsung oleh kamu** untuk tahap B dan Paket 1. Masukan pertama sudah ditangani: OB yang jarang memungut sampah sudah diperbaiki (memilih sampah lewat jarak jalan sebenarnya dan berjalan lebih gesit), dan Paket 1 dibuat karena isi toko cepat habis. Paket 2 dan 3 ada di usulan.
 2. **Latar belakang** di belakang gedung masih bukit gurun bawaan level. Ganti dengan rumah, pohon, dan tiang listrik.
 3. **Keseimbangan ekonomi Era 3** belum diuji dengan bot.
-4. **Berikutnya: versi Android setara PC.**
-   - Build APK baru.
-   - Uji kontrol sentuh untuk fitur baru: billing, tangga, menu, misi.
-   - Performa di HP.
-   - Tata letak UI di layar kecil.
+4. **Versi Android (sedang dikerjakan, Android rilis duluan).**
+   - Sudah: skala UI di layar kecil, tombol sentuh, geser layar, splash, logo, dan ikon.
+   - Belum: tes performa di HP sungguhan (FPS, panas), opening adegan garasi, dan build Shipping dengan kunci rilis untuk Play Store.
 5. **Tahap C (Steam)** ditunda: achievement, cloud save, halaman toko, trailer.

@@ -1,4 +1,4 @@
-// Menu layar penuh: menu utama, menu jeda (Esc), halaman pengaturan, dan konfirmasi.
+﻿// Menu layar penuh: menu utama, menu jeda (Esc), halaman pengaturan, dan konfirmasi.
 // Dibangun dari C++ seperti widget lain (tanpa aset UMG).
 
 #pragma once
@@ -59,6 +59,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UTextBlock> TitleText;
+
+	UPROPERTY()
+	TObjectPtr<class UImage> LogoImage;	// logo Juragan Rental di menu utama
 
 	UPROPERTY()
 	TObjectPtr<UTextBlock> SubtitleText;

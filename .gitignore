@@ -3,7 +3,11 @@ Binaries/
 Intermediate/
 Saved/
 DerivedDataCache/
-Build/
+Build/*
+# kecuali ikon aplikasi Android (dibuat Tools/make_logo.ps1, dipakai saat build APK)
+!Build/Android/
+Build/Android/*
+!Build/Android/res/
 .vs/
 .idea/
 .vscode/

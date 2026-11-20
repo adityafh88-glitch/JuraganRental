@@ -1,4 +1,4 @@
-#include "JRPhoneWidget.h"
+﻿#include "JRPhoneWidget.h"
 #include "JRLang.h"
 
 #include "Blueprint/WidgetTree.h"
@@ -404,6 +404,16 @@ void UJRPhoneWidget::FillAtur()
 	Toggle(JRT(TEXT("Arah lihat atas/bawah")), JRT(TEXT("Dibalik: geser ke atas untuk melihat ke bawah.")),
 		S->bInvertLook ? JRT(TEXT("DIBALIK (ketuk untuk normal)")) : JRT(TEXT("NORMAL (ketuk untuk dibalik)")),
 		[S]() { S->bInvertLook = !S->bInvertLook; });
+	AJRHUD* Hud = GetOwningPlayer() ? Cast<AJRHUD>(GetOwningPlayer()->GetHUD()) : nullptr;
+	if (Hud && Hud->IsTouchMode())
+	{
+		Toggle(JRT(TEXT("Ukuran tampilan")), JRT(TEXT("Besarkan teks dan tombol bila terlalu kecil di layar HP-mu.")),
+			JRPrintf(JRT(TEXT("%s (ketuk untuk ganti)")), *JRSettings::UIScaleName(S->UIScale)),
+			[S, Hud]() { S->UIScale = JRSettings::NextUIScale(S->UIScale); Hud->ApplyUIScale(); });
+		Toggle(JRT(TEXT("Ukuran joystick")), JRT(TEXT("Perkecil joystick bila terlalu memenuhi layar, perbesar bila sulit dikendalikan.")),
+			JRPrintf(JRT(TEXT("%s (ketuk untuk ganti)")), *JRSettings::JoystickSizeName(S->JoystickSize)),
+			[S, Hud]() { S->JoystickSize = JRSettings::NextJoystickSize(S->JoystickSize); Hud->ApplyTouchSettings(); });
+	}
 
 }
 
