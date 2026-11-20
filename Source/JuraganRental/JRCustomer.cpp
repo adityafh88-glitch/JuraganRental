@@ -1,5 +1,6 @@
 #include "JRCustomer.h"
 #include "JRLang.h"
+#include "UObject/StrongObjectPtr.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
 #include "Animation/AnimSequence.h"
@@ -77,7 +78,10 @@ void AJRCustomer::RandomizeLook()
 {
 	// Warna baju, celana, rambut, dan kulit diacak agar pelanggan tidak terlihat kembar.
 	// Bocil SD dan anak SMA tetap berseragam (hanya rambut dan kulit yang beragam).
-	static UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/M_JR_Color.M_JR_Color"));
+	// Dikunci (strong pointer) agar tidak dibersihkan garbage collector saat semua pelanggan pergi.
+	static TStrongObjectPtr<UMaterialInterface> BaseRef(LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/M_JR_Color.M_JR_Color")));
+	if (!BaseRef.IsValid()) BaseRef.Reset(LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/M_JR_Color.M_JR_Color")));
+	UMaterialInterface* Base = BaseRef.Get();
 	if (!Base) return;
 	auto Pick = [](std::initializer_list<FLinearColor> L) { const int32 i = FMath::RandRange(0, (int32)L.size() - 1); return *(L.begin() + i); };
 	const bool bUniform = TypeIndex == 0 || TypeIndex == 1;

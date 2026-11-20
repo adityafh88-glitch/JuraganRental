@@ -21,6 +21,13 @@ public:
 	/** Bangun ruangan: setengah panjang (X) dan lebar (Y) dalam cm, posisi pintu di dinding depan. */
 	void Build(const struct FJRLayout& L, int32 Era);
 
+private:
+	/** Tampak depan dari jalan: papan nama, kanopi, jendela, spanduk, lampu. */
+	void BuildFacade(const struct FJRLayout& L, int32 Era, float WallH);
+	class UTextRenderComponent* OutsideText(const FString& Text, const FVector& Loc, float Size, const FColor& Color);
+
+public:
+
 	/** Material teks tanpa cahaya untuk papan nama (direferensikan di sini agar ikut dikemas). */
 	UPROPERTY()
 	TObjectPtr<class UMaterialInterface> SignMaterial;

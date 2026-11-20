@@ -1,5 +1,6 @@
 #include "JRStation.h"
 #include "JRLang.h"
+#include "UObject/StrongObjectPtr.h"
 
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -82,7 +83,8 @@ void AJRStation::ApplySeatTier(int32 Tier)
 {
 	if (Tier == SeatTier || !Seat || Type == EJRUnitType::VIP) return;	// sofa VIP sudah nyaman
 	SeatTier = Tier;
-	static UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+	static TStrongObjectPtr<UStaticMesh> CubeRef(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")));
+	UStaticMesh* Cube = CubeRef.Get();
 	if (Tier <= 0)
 	{
 		if (SeatExtra) SeatExtra->SetVisibility(false);

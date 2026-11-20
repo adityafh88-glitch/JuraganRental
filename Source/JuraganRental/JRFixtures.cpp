@@ -327,6 +327,100 @@ void AJRDecor::Setup(FName Id, float HX, float HY, float DoorY)
 	}
 }
 
+UTextRenderComponent* AJRRoom::OutsideText(const FString& Text, const FVector& Loc, float Size, const FColor& Color)
+{
+	UTextRenderComponent* T = NewObject<UTextRenderComponent>(this);
+	T->SetupAttachment(Root);
+	T->SetRelativeLocation(Loc);
+	T->SetRelativeRotation(FRotator(0, 180, 0));	// terbaca dari jalan (menghadap -X)
+	T->SetHorizontalAlignment(EHTA_Center);
+	T->SetVerticalAlignment(EVRTA_TextCenter);
+	T->SetWorldSize(Size);
+	T->SetTextRenderColor(Color);
+	if (SignMaterial) T->SetTextMaterial(SignMaterial);
+	T->SetText(FText::FromString(Text));
+	T->RegisterComponent();
+	AddInstanceComponent(T);
+	return T;
+}
+
+void AJRRoom::BuildFacade(const FJRLayout& L, int32 Era, float WallH)
+{
+	const float HX = L.HalfX, HY = L.HalfY, DoorY = L.DoorY;
+	const float Face = -(HX + 20.f);	// sisi luar dinding depan
+	const FColor White(255, 255, 255), Dark(30, 25, 20), Yellow(255, 214, 80);
+
+	// Pelipit gelap di kaki dinding depan
+	AddPart(this, Root, EShape::Cube, FVector(4, 2 * HY + 40, 40), FVector(Face - 2.f, 0, 20), Hex(0x4a4f57), false);
+
+	// Papan nama di atas pintu (rangka gelap + panel warna era) dan lis lampu
+	const float SignW = FMath::Min(700.f, 2 * HY * 0.45f);
+	const float SignZ = WallH > 400.f ? 290.f : 262.f;
+	const FLinearColor Panel = Era >= 3 ? Hex(0x1d3d8f) : Era == 2 ? Hex(0xb5282b) : Hex(0xe0a526);
+	AddPart(this, Root, EShape::Cube, FVector(10, SignW + 20, 82), FVector(Face - 5.f, DoorY, SignZ), Hex(0x22252b), false);
+	AddPart(this, Root, EShape::Cube, FVector(4, SignW, 70), FVector(Face - 11.f, DoorY, SignZ), Panel, false);
+	const FString Name = Era >= 3 ? JRT(TEXT("GAME CENTER JURAGAN")) : Era == 2 ? JRT(TEXT("GAME CENTER JURAGAN")) : JRT(TEXT("RENTAL PS & WARNET JURAGAN"));
+	OutsideText(Name, FVector(Face - 14.f, DoorY, SignZ + 6.f), Era == 1 ? 30.f : 36.f, Era == 1 ? Dark : White);
+	OutsideText(JRT(TEXT("PS  -  WARNET  -  MI INSTAN")), FVector(Face - 14.f, DoorY, SignZ - 24.f), 15.f, Era == 1 ? Dark : Yellow);
+	AddPart(this, Root, EShape::Cube, FVector(4, SignW + 20, 4), FVector(Face - 12.f, DoorY, SignZ - 44.f), Hex(0x6ff0ff), false);
+
+	// Kanopi bergaris merah-putih di atas pintu
+	const int32 Stripes = 7;
+	const float CanW = 260.f, StripeW = CanW / Stripes;
+	for (int32 i = 0; i < Stripes; ++i)
+	{
+		const float Y = DoorY - CanW / 2 + (i + 0.5f) * StripeW;
+		if (UStaticMeshComponent* S = AddPart(this, Root, EShape::Cube, FVector(110, StripeW, 4), FVector(Face - 50.f, Y, 228.f), i % 2 ? Hex(0xf2f2ee) : Hex(0xc9302c), false))
+		{
+			S->SetRelativeRotation(FRotator(-14.f, 0.f, 0.f));	// miring ke arah jalan
+		}
+	}
+
+	// Jendela kaca kiri dan kanan pintu, dengan tulisan tempel
+	for (int32 Side : { -1, 1 })
+	{
+		const float Y = DoorY + Side * 260.f;
+		if (FMath::Abs(Y) > HY - 80.f) continue;
+		AddPart(this, Root, EShape::Cube, FVector(4, 170, 110), FVector(Face - 2.f, Y, 135.f), Hex(0x2b3138), false);	// kusen
+		AddPart(this, Root, EShape::Cube, FVector(4, 156, 96), FVector(Face - 4.f, Y, 135.f), Hex(0x24496b), false);	// kaca gelap agar tulisan terbaca
+		OutsideText(Side < 0 ? JRT(TEXT("BUKA 08.00 - 24.00")) : JRT(TEXT("PS2  -  PC GAMING")), FVector(Face - 7.f, Y, 150.f), 15.f, White);
+		OutsideText(Side < 0 ? JRT(TEXT("SELAMAT DATANG")) : JRT(TEXT("MI + ES TEH")), FVector(Face - 7.f, Y, 120.f), 13.f, Yellow);
+	}
+
+	// Spanduk turnamen (ruko dan game center)
+	if (Era >= 2)
+	{
+		const float Y = DoorY - 520.f > -HY + 120.f ? DoorY - 560.f : DoorY + 560.f;
+		AddPart(this, Root, EShape::Cube, FVector(3, 300, 70), FVector(Face - 3.f, Y, 230.f), Hex(0xf4f1e6), false);
+		OutsideText(JRT(TEXT("TURNAMEN PS TIAP SABTU!")), FVector(Face - 6.f, Y, 238.f), 17.f, FColor(190, 30, 25));
+		OutsideText(JRT(TEXT("Hadiah jutaan - daftar di kasir")), FVector(Face - 6.f, Y, 214.f), 11.f, Dark);
+	}
+
+	// Game Center: papan besar di lantai 2 dan jendela lantai 2
+	if (Era >= 3)
+	{
+		AddPart(this, Root, EShape::Cube, FVector(10, 820, 120), FVector(Face - 5.f, 0.f, L.FloorH + 210.f), Hex(0x111318), false);
+		OutsideText(JRT(TEXT("GAME CENTER JURAGAN  -  2 LANTAI")), FVector(Face - 12.f, 0.f, L.FloorH + 222.f), 46.f, FColor(110, 240, 255));
+		OutsideText(JRT(TEXT("VIP LOUNGE  -  PLAYSTASIUN 3  -  WARNET FIBER")), FVector(Face - 12.f, 0.f, L.FloorH + 180.f), 17.f, Yellow);
+		for (float Y : { -0.7f * HY, -0.35f * HY, 0.35f * HY, 0.7f * HY })
+		{
+			AddPart(this, Root, EShape::Cube, FVector(4, 200, 100), FVector(Face - 2.f, Y, L.FloorH + 90.f), Hex(0x2b3138), false);
+			AddPart(this, Root, EShape::Cube, FVector(4, 186, 86), FVector(Face - 4.f, Y, L.FloorH + 90.f), Hex(0x6fa3c9), false);
+		}
+	}
+
+	// Lampu sorot papan nama (menerangi tampak depan saat malam)
+	UPointLightComponent* Spot = NewObject<UPointLightComponent>(this);
+	Spot->SetupAttachment(Root);
+	Spot->SetRelativeLocation(FVector(Face - 90.f, DoorY, SignZ + 20.f));
+	Spot->SetIntensityUnits(ELightUnits::Candelas);
+	Spot->SetIntensity(25.f);
+	Spot->SetAttenuationRadius(500.f);
+	Spot->SetLightColor(FLinearColor(1.f, 0.9f, 0.75f));
+	Spot->RegisterComponent();
+	AddInstanceComponent(Spot);
+}
+
 void AJRRoom::SetLightsOn(bool bOn)
 {
 	for (UPointLightComponent* L : Lights) if (L) L->SetVisibility(bOn);
@@ -452,6 +546,8 @@ void AJRRoom::Build(const FJRLayout& L, int32 Era)
 			}
 		}
 	}
+
+	BuildFacade(L, Era, WallH);
 
 	// Pintu rolling terbuka dan keset
 	AddProp(this, Root, TEXT("SM_Pintu_Rolling"), FVector(-(HX - 17), DoorY, 0), 0.f, false);

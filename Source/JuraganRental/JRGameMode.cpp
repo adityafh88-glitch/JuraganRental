@@ -1417,6 +1417,21 @@ void AJRGameMode::TickAutoTest(float DeltaSeconds)
 			FScreenshotRequest::RequestScreenshot(FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / TEXT("AutoTest/JR_Tour.png")), true, false);
 		if (AutoTestTime > 16.f && AutoTestTime - DeltaSeconds <= 16.f) { UE_LOG(LogTemp, Display, TEXT("JR_TOUR players=%d running=%d"), TourPlayers, bTourRunning ? 1 : 0); Hour = 20.01f; }
 	}
+	// -jrfasad: potret tampak depan gedung dari seberang jalan
+	if (FParse::Param(FCommandLine::Get(), TEXT("jrfasad")) && AutoTestTime < 4.f)
+	{
+		APlayerController* FPC = GetWorld()->GetFirstPlayerController();
+		if (ACharacter* Pw = FPC ? Cast<ACharacter>(FPC->GetPawn()) : nullptr)
+		{
+			const FJRLayout& FL = Layout();
+			Pw->GetCharacterMovement()->DisableMovement();
+			Pw->SetActorEnableCollision(false);
+			Pw->SetActorLocation(FVector(-(FL.HalfX + 1050.f), FL.DoorY - 150.f, (FL.HasUpstairs() ? 320.f : 220.f) - 64.f));
+			FPC->SetControlRotation(FRotator(FL.HasUpstairs() ? 4.f : -2.f, 5.f, 0.f));
+		}
+		if (AutoTestTime > 2.f && AutoTestTime - DeltaSeconds <= 2.f)
+			FScreenshotRequest::RequestScreenshot(FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / FString::Printf(TEXT("AutoTest/JR_Fasad_Era%d.png"), Era)), true, false);
+	}
 	// -jrluar: potret pemandangan jalan dari dalam pintu
 	if (FParse::Param(FCommandLine::Get(), TEXT("jrluar")) && AutoTestTime < 4.f)
 	{
