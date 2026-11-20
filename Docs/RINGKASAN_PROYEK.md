@@ -109,7 +109,7 @@ Dokumen ini merangkum seluruh pekerjaan sejauh ini, untuk melanjutkan di sesi ba
 3. **Keseimbangan ekonomi Era 3** belum diuji dengan bot.
 4. **Versi Android (sedang dikerjakan, Android rilis duluan).**
    - Sudah: skala UI di layar kecil, tombol sentuh, geser layar, splash, logo, dan ikon.
-   - Sudah juga: opening garasi, versi 0.9.0 (kode versi 2), dan perusahaan KAH Gamedev. APK Shipping untuk penguji: `Build\Rilis\JuraganRental-v0.9.0-uji.apk` (disalin dari `Binaries\Android\JuraganRental-Android-Shipping-arm64.apk`). Plugin Android File Server dimatikan karena langkah AFS membuat build Shipping gagal.
+   - Sudah juga: opening garasi, versi 0.9.0 (kode versi 2), dan perusahaan KAH Gamedev. APK Shipping untuk penguji: `Build\Rilis\JuraganRental-v0.9.0-uji-gles.apk` (disalin dari `Binaries\Android\JuraganRental-Android-Shipping-arm64.apk`). Plugin Android File Server dimatikan karena langkah AFS membuat build Shipping gagal. `bBuildForES31=True` wajib: tanpa cadangan OpenGL ES, HP yang Vulkan-nya bermasalah langsung crash saat dibuka (sudah terjadi di HP kedua pengguna).
    - Belum: tes performa di HP sungguhan, kunci upload (dibuat pengguna), build AAB untuk Play Store, dan kebijakan privasi. Panduannya ada di `Docs/PANDUAN_UJI_COBA.md`, ide promosi di `Docs/IDE_MARKETING.md`.
    - Keputusan sebelum unggahan pertama: nama paket `com.juraganrental.game` tidak bisa diganti setelah diunggah.
 5. **Tahap C (Steam)** ditunda: achievement, cloud save, halaman toko, trailer.

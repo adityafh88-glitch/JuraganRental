@@ -6,7 +6,7 @@ Panduan ini untuk kamu dan teman-teman yang ikut menguji game sebelum rilis di P
 
 | File | Untuk |
 |---|---|
-| `Build\Rilis\JuraganRental-v0.9.0-uji.apk` | **Dibagikan ke penguji.** Build Shipping: ringan, tanpa konsol debug. |
+| `Build\Rilis\JuraganRental-v0.9.0-uji-gles.apk` | **Dibagikan ke penguji.** Build Shipping: ringan, tanpa konsol debug, mendukung Vulkan dan OpenGL ES (HP yang Vulkan-nya bermasalah tidak crash lagi). |
 | `Build\Android_ASTC\JuraganRental-arm64.apk` | Build Development, khusus kamu. Ketuk layar dengan 4 jari untuk membuka konsol, lalu ketik `stat fps` untuk melihat FPS. |
 
 Sebelum membagikan, pindai dulu dengan Windows Defender (klik kanan → *Scan with Microsoft Defender*).
