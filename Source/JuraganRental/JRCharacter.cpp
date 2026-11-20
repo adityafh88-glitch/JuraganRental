@@ -1,4 +1,4 @@
-#include "JRCharacter.h"
+﻿#include "JRCharacter.h"
 #include "JRSettings.h"
 
 #include "Camera/CameraComponent.h"
@@ -18,6 +18,7 @@
 #include "JRGameMode.h"
 #include "JRHUD.h"
 #include "JRInteractable.h"
+#include "Engine/OverlapResult.h"
 
 AJRCharacter::AJRCharacter()
 {
@@ -227,6 +228,19 @@ void AJRCharacter::UpdateTarget()
 		{
 			NewTarget = Hit.GetActor();
 		}
+		// Bantuan bidik: benda kecil (sampah, kardus) cukup dekat arah pandang, tidak harus tepat di titik tengah.
+		// Layar sentuh lebih longgar karena membidik dengan jari kurang presisi.
+		const APlayerController* PC = Cast<APlayerController>(Controller);
+		const AJRHUD* Hud = PC ? Cast<AJRHUD>(PC->GetHUD()) : nullptr;
+		const bool bTouch = Hud && Hud->IsTouchMode();
+		if (!NewTarget) NewTarget = FindAssistTarget(Start, Camera->GetForwardVector(), 260.f, bTouch ? 13.f : 6.f);
+		const float Now = GetWorld()->GetTimeSeconds();
+		if (NewTarget) TargetSeenAt = Now;
+		else if (TargetActor.IsValid() && Now - TargetSeenAt < (bTouch ? 0.35f : 0.15f)
+			&& FVector::Dist(TargetActor->GetActorLocation(), Start) < 320.f)
+		{
+			NewTarget = TargetActor.Get();	// bidikan goyang sesaat: sasaran dipertahankan sebentar
+		}
 	}
 	if (NewTarget != TargetActor.Get())
 	{
@@ -235,6 +249,41 @@ void AJRCharacter::UpdateTarget()
 	}
 	const IJRInteractable* I = Cast<IJRInteractable>(NewTarget);
 	CurrentInteraction = I ? I->GetInteraction() : FJRInteraction();
+}
+
+AActor* AJRCharacter::FindAssistTarget(const FVector& Start, const FVector& Dir, float Range, float ConeDeg) const
+{
+	TArray<FOverlapResult> Overlaps;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(JRAssist), false, this);
+	GetWorld()->OverlapMultiByChannel(Overlaps, Start, FQuat::Identity, ECC_Visibility, FCollisionShape::MakeSphere(Range), Params);
+	const float MinDot = FMath::Cos(FMath::DegreesToRadians(ConeDeg));
+	AActor* Best = nullptr;
+	float BestScore = -1.f;
+	TSet<AActor*> Seen;
+	for (const FOverlapResult& O : Overlaps)
+	{
+		AActor* A = O.GetActor();
+		if (!A || Seen.Contains(A) || !A->Implements<UJRInteractable>()) continue;
+		Seen.Add(A);
+		const IJRInteractable* I = Cast<IJRInteractable>(A);
+		const EJRInteractKind Kind = I->GetInteraction().Kind;
+		if (Kind == EJRInteractKind::None) continue;
+		const FVector Point = A->GetComponentsBoundingBox(true).GetCenter();
+		const FVector To = Point - Start;
+		const float Dist = To.Size();
+		if (Dist > Range || Dist < 1.f) continue;
+		const float Dot = FVector::DotProduct(To / Dist, Dir);
+		if (Dot < MinDot) continue;
+		// Utamakan yang paling segaris dengan pandangan; yang bisa ditekan/ditahan diutamakan dari sekadar info.
+		const float Score = Dot + (Kind == EJRInteractKind::Info ? 0.f : 0.05f);
+		if (Score <= BestScore) continue;
+		// Harus terlihat (tidak terhalang dinding/benda lain)
+		FHitResult Hit;
+		if (GetWorld()->LineTraceSingleByChannel(Hit, Start, Point, ECC_Visibility, Params) && Hit.GetActor() != A) continue;
+		Best = A;
+		BestScore = Score;
+	}
+	return Best;
 }
 
 void AJRCharacter::Tick(float DeltaSeconds)

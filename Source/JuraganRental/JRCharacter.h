@@ -1,4 +1,4 @@
-// Pemain orang pertama: jalan dengan WASD, lihat dengan mouse, interaksi dengan E.
+﻿// Pemain orang pertama: jalan dengan WASD, lihat dengan mouse, interaksi dengan E.
 
 #pragma once
 
@@ -75,6 +75,8 @@ private:
 	TObjectPtr<UInputAction> PauseAction;
 
 	TWeakObjectPtr<AActor> TargetActor;
+	float TargetSeenAt = 0.f;	// terakhir sasaran benar-benar terbidik (target tidak hilang saat bidikan goyang sesaat)
+	AActor* FindAssistTarget(const FVector& Start, const FVector& Dir, float Range, float ConeDeg) const;
 	bool bInteractHeld = false;
 	bool bRotationInitialized = false;
 };

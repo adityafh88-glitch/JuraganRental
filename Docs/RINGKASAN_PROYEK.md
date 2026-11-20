@@ -64,6 +64,8 @@ Dokumen ini merangkum seluruh pekerjaan sejauh ini, untuk melanjutkan di sesi ba
 - **Kontrol:** joystick kiri untuk jalan, **geser jari di sisi kanan layar untuk menoleh** (`UJRLookPad`, tanpa joystick kanan). Tombol AKSI dan LANJUT ada di pojok kanan bawah. Tombol jeda (ikon dua batang) dan HP (berbentuk HP jadul) ada di kiri atas.
 - **Tombol sentuh** diatur tampil/sembunyi oleh HUD tiap frame (`UJRTouchWidget::SyncVisibility`), karena widget yang Collapsed tidak menjalankan NativeTick.
 - **Ukuran tampilan** (Kecil/Sedang/Besar/Sangat besar, bawaan Besar 1,8) mengatur `ApplicationScale` UMG. HUD Canvas ikut diskalakan lewat `UIS`. Pilihan **ukuran joystick** dan **kepekaan geser layar** ada di Pengaturan dan HP > Atur.
+- **Opening garasi** (Main baru, Era 1, `AJROpening`): kamera dari gang menuju garasi, rolling door terangkat, lalu masuk melihat TV, dengan teks narasi berbingkai film. LANJUT/Enter untuk melewati. Uji dengan `-jropening` dan `-jropeningat=detik`; lewati dengan `-jrnoopening`.
+- **Bantuan bidik:** benda kecil cukup dekat arah pandang (sentuh 13°, PC 6°), dan target bertahan sebentar saat bidikan goyang. Tombol AKSI bereaksi saat jari menyentuh. **Panel misi** bisa diciutkan (ketuk judul MISI atau lewat Pengaturan).
 - **Splash KAH Gamedev:** ubin K/A/H muncul pop-up, lalu logo Juragan Rental membal masuk (`UJRSplashWidget`). Ketuk untuk melewati. Logo judul juga tampil di menu utama.
 - **Logo dan ikon:** dibuat oleh `Tools/make_logo.ps1` (GDI+ dan font Luckiest Guy di `ArtSource/Fonts`, lisensi Apache 2.0). Hasilnya ada di `ArtSource/Logo`: logo judul, ikon 512, header Play Store 1024x500, dan ubin KAH. Ikon Android ditulis ke `Build/Android/res/drawable*/icon.png`. Logo diimpor ke `/Game/UI/Logo` dengan `Tools/import_logo.py`, dan `/Game/UI` selalu ikut dikemas.
 
@@ -107,5 +109,7 @@ Dokumen ini merangkum seluruh pekerjaan sejauh ini, untuk melanjutkan di sesi ba
 3. **Keseimbangan ekonomi Era 3** belum diuji dengan bot.
 4. **Versi Android (sedang dikerjakan, Android rilis duluan).**
    - Sudah: skala UI di layar kecil, tombol sentuh, geser layar, splash, logo, dan ikon.
-   - Belum: tes performa di HP sungguhan (FPS, panas), opening adegan garasi, dan build Shipping dengan kunci rilis untuk Play Store.
+   - Sudah juga: opening garasi, versi 0.9.0 (kode versi 2), dan perusahaan KAH Gamedev. APK Shipping untuk penguji: `Build\Rilis\JuraganRental-v0.9.0-uji.apk` (disalin dari `Binaries\Android\JuraganRental-Android-Shipping-arm64.apk`). Plugin Android File Server dimatikan karena langkah AFS membuat build Shipping gagal.
+   - Belum: tes performa di HP sungguhan, kunci upload (dibuat pengguna), build AAB untuk Play Store, dan kebijakan privasi. Panduannya ada di `Docs/PANDUAN_UJI_COBA.md`, ide promosi di `Docs/IDE_MARKETING.md`.
+   - Keputusan sebelum unggahan pertama: nama paket `com.juraganrental.game` tidak bisa diganti setelah diunggah.
 5. **Tahap C (Steam)** ditunda: achievement, cloud save, halaman toko, trailer.

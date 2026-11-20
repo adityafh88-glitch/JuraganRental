@@ -13,6 +13,7 @@
 #include "JRMenuWidget.h"
 #include "JRBillingWidget.h"
 #include "JRSplashWidget.h"
+#include "JROpening.h"
 #include "Kismet/GameplayStatics.h"
 #include "JRSound.h"
 #include "GameFramework/InputSettings.h"
@@ -324,6 +325,34 @@ void AJRHUD::DrawHUD()
 	UIS = bTouchMode ? FMath::Max(0.5f, GetDefault<UUserInterfaceSettings>()->GetDPIScaleBasedOnSize(FIntPoint(FMath::RoundToInt(W), FMath::RoundToInt(H)))) : 1.f;
 	const float S = UIS;
 
+	// Adegan pembuka: layar bergaris hitam ala film + teks narasi, tanpa HUD lain.
+	if (const AJROpening* Op = GM->GetOpening())
+	{
+		const float Bar = H * 0.11f;
+		DrawRect(FLinearColor::Black, 0.f, 0.f, W, Bar);
+		DrawRect(FLinearColor::Black, 0.f, H - Bar, W, Bar);
+		const FString Cap = Op->Caption();
+		if (!Cap.IsEmpty())
+		{
+			float TW = 0.f, TH = 0.f;
+			GetTextSize(Cap, TW, TH, Font, 1.f);
+			const float TS = FMath::Min(1.45f * S, (W * 0.86f) / FMath::Max(1.f, TW));	// teks panjang diperkecil agar muat
+			GetTextSize(Cap, TW, TH, Font, TS);
+			FLinearColor C = Ink;
+			C.A = Op->CaptionAlpha();
+			const float CY = H - Bar - TH - 22.f * S;
+			DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.55f * C.A), (W - TW) * 0.5f - 18.f * S, CY - 8.f * S, TW + 36.f * S, TH + 16.f * S);	// pita gelap agar terbaca
+			DrawText(Cap, C, (W - TW) * 0.5f, CY, Font, TS);
+		}
+		const FString Skip = bTouchMode ? JRT(TEXT("Ketuk LEWATI untuk melewati")) : JRT(TEXT("ENTER: lewati"));
+		float SW = 0.f, SH = 0.f;
+		GetTextSize(Skip, SW, SH, Font, 0.9f * S);
+		DrawText(Skip, Muted, bTouchMode ? 24.f * S : W - SW - 24.f * S, H - Bar * 0.5f - SH * 0.5f, Font, 0.9f * S);
+		const float F = Op->Fade();
+		if (F > 0.01f) DrawRect(FLinearColor(0.f, 0.f, 0.f, F), 0.f, 0.f, W, H);
+		return;
+	}
+
 	// Status atas
 	const int32 Hr = FMath::FloorToInt(GM->Hour);
 	const int32 Mn = FMath::FloorToInt((GM->Hour - Hr) * 60.f);
@@ -403,9 +432,24 @@ void AJRHUD::DrawHUD()
 			PW = FMath::Max(PW, TW + 24.f * S);
 		}
 		PW = FMath::Min(PW, W * 0.45f);
-		DrawRect(Panel, PX, PY, PW, 30.f * S + LineH * GM->Missions.Num());
-		DrawText(JRT(TEXT("MISI")), Led, PX + 12.f * S, PY + 6.f * S, Font, 1.f * S);
-		for (int32 i = 0; i < GM->Missions.Num(); ++i)
+		// Ringkas: satu baris "MISI 1/4 selesai [+]" agar tidak menutupi layar; ketuk (atau atur di HP) untuk membuka.
+		const bool bCompact = JRSettings::Get()->bMissionsCompact;
+		int32 DoneCount = 0;
+		for (const FJRMission& M : GM->Missions) DoneCount += M.bDone ? 1 : 0;
+		const FString Head = JRPrintf(JRT(TEXT("MISI  %d/%d selesai")), DoneCount, GM->Missions.Num()) + (bCompact ? TEXT("  [+]") : TEXT("  [-]"));
+		if (bCompact)
+		{
+			float TW = 0.f, TH = 0.f;
+			GetTextSize(Head, TW, TH, Font, 1.f * S);
+			DrawRect(Panel, PX, PY, TW + 24.f * S, 30.f * S);
+			DrawText(Head, Led, PX + 12.f * S, PY + 6.f * S, Font, 1.f * S);
+		}
+		else
+		{
+			DrawRect(Panel, PX, PY, PW, 30.f * S + LineH * GM->Missions.Num());
+			DrawText(Head, Led, PX + 12.f * S, PY + 6.f * S, Font, 1.f * S);
+		}
+		for (int32 i = 0; i < (bCompact ? 0 : GM->Missions.Num()); ++i)
 		{
 			const FJRMission& M = GM->Missions[i];
 			FString Prog;

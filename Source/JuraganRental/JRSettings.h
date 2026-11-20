@@ -37,6 +37,9 @@ public:
 	float JoystickSize = 0.85f;	// ukuran joystick layar (1 = bawaan Unreal; layar HP kecil cocok sedikit lebih kecil)
 
 	UPROPERTY()
+	bool bMissionsCompact = false;	// daftar misi diciutkan jadi satu baris
+
+	UPROPERTY()
 	int32 Language = 0;			// 0 otomatis (ikut Windows), 1 Indonesia, 2 English
 };
 

@@ -370,6 +370,7 @@ void UJRMenuWidget::ShowSettings()
 		JRSettings::Save();
 	});
 	AddRow(JRT(TEXT("Arah lihat atas/bawah")), S->bInvertLook ? JRT(TEXT("Dibalik")) : JRT(TEXT("Normal")), [S]() { S->bInvertLook = !S->bInvertLook; JRSettings::Save(); });
+	AddRow(JRT(TEXT("Daftar misi")), S->bMissionsCompact ? JRT(TEXT("Ringkas")) : JRT(TEXT("Lengkap")), [S]() { S->bMissionsCompact = !S->bMissionsCompact; JRSettings::Save(); });
 	AJRHUD* Hud = GetOwningPlayer() ? Cast<AJRHUD>(GetOwningPlayer()->GetHUD()) : nullptr;
 	if (bMobile || (Hud && Hud->IsTouchMode()))
 	{

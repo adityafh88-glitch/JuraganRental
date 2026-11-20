@@ -404,6 +404,9 @@ void UJRPhoneWidget::FillAtur()
 	Toggle(JRT(TEXT("Arah lihat atas/bawah")), JRT(TEXT("Dibalik: geser ke atas untuk melihat ke bawah.")),
 		S->bInvertLook ? JRT(TEXT("DIBALIK (ketuk untuk normal)")) : JRT(TEXT("NORMAL (ketuk untuk dibalik)")),
 		[S]() { S->bInvertLook = !S->bInvertLook; });
+	Toggle(JRT(TEXT("Daftar misi")), JRT(TEXT("Ringkas: hanya satu baris di pojok kiri atas agar layar lebih lega.")),
+		S->bMissionsCompact ? JRT(TEXT("RINGKAS (ketuk untuk lengkap)")) : JRT(TEXT("LENGKAP (ketuk untuk ringkas)")),
+		[S]() { S->bMissionsCompact = !S->bMissionsCompact; });
 	AJRHUD* Hud = GetOwningPlayer() ? Cast<AJRHUD>(GetOwningPlayer()->GetHUD()) : nullptr;
 	if (Hud && Hud->IsTouchMode())
 	{

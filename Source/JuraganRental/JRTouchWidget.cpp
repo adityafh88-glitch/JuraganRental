@@ -195,6 +195,10 @@ void UJRTouchWidget::BuildTree()
 
 	ActionButton = MakeRing(JRT(TEXT("AKSI")), 14, FLinearColor(1.f, 0.76f, 0.29f));
 	ActionLabel = Cast<UTextBlock>(ActionButton->GetContent());
+	// Langsung bereaksi saat jari menyentuh (bawaan UButton menunggu jari diangkat dan batal bila jari bergeser sedikit).
+	ActionButton->SetTouchMethod(EButtonTouchMethod::Down);
+	ActionButton->SetClickMethod(EButtonClickMethod::MouseDown);
+	ActionButton->SetPressMethod(EButtonPressMethod::ButtonPress);
 	ActionButton->OnPressed.AddDynamic(this, &UJRTouchWidget::OnInteractPressed);
 	ActionButton->OnReleased.AddDynamic(this, &UJRTouchWidget::OnInteractReleased);
 	PlaceThumb(ActionButton, 108.f);
@@ -230,8 +234,25 @@ void UJRTouchWidget::BuildTree()
 	}
 	Pause->OnClicked.AddDynamic(this, &UJRTouchWidget::OnPause);
 	PlaceTopLeft(Pause, 24.f, 52.f);
+	PauseButton = Pause;
+
+	// Ketuk judul panel misi (digambar HUD di x=180, y=50) untuk membuka/menciutkan daftar misi.
+	MissionToggle = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+	{
+		FButtonStyle Clear;
+		FSlateBrush None;
+		None.DrawAs = ESlateBrushDrawType::NoDrawType;
+		Clear.SetNormal(None); Clear.SetHovered(None); Clear.SetPressed(None);
+		MissionToggle->SetStyle(Clear);
+		MissionToggle->OnClicked.AddDynamic(this, &UJRTouchWidget::OnMissions);
+		UCanvasPanelSlot* S = Canvas->AddChildToCanvas(MissionToggle);
+		S->SetAnchors(FAnchors(0.f, 0.f));
+		S->SetPosition(FVector2D(176.f, 46.f));
+		S->SetSize(FVector2D(260.f, 38.f));
+	}
 
 	UButton* Phone = MakePhoneButton();
+	PhoneButton = Phone;
 	Phone->OnClicked.AddDynamic(this, &UJRTouchWidget::OnPhone);
 	{
 		UCanvasPanelSlot* S = Canvas->AddChildToCanvas(Phone);
@@ -289,6 +310,21 @@ void UJRTouchWidget::SyncVisibility()
 	const bool bShowNext = GM && GM->Phase != EJRGamePhase::Playing;
 	const ESlateVisibility Want = bShowNext ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
 	if (NextButton && NextButton->GetVisibility() != Want) NextButton->SetVisibility(Want);
+	// Saat adegan pembuka, tombol LANJUT berfungsi sebagai LEWATI.
+	if (UTextBlock* NL = NextButton ? Cast<UTextBlock>(NextButton->GetContent()) : nullptr)
+	{
+		const FString Want2 = (GM && GM->IsOpening()) ? JRT(TEXT("Lewati")) : JRT(TEXT("Lanjut"));
+		if (NL->GetText().ToString() != Want2) NL->SetText(FText::FromString(Want2));
+	}
+	const ESlateVisibility WantMis = (GM && GM->Phase == EJRGamePhase::Playing && !GM->IsTutorial()) ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
+	if (MissionToggle && MissionToggle->GetVisibility() != WantMis) MissionToggle->SetVisibility(WantMis);
+	// Adegan pembuka: hanya tombol LEWATI yang tampil.
+	const bool bOpening = GM && GM->IsOpening();
+	for (UButton* B : { PauseButton.Get(), PhoneButton.Get() })
+	{
+		const ESlateVisibility V = bOpening ? ESlateVisibility::Collapsed : ESlateVisibility::Visible;
+		if (B && B->GetVisibility() != V) B->SetVisibility(V);
+	}
 	const ESlateVisibility WantAction = bShowNext ? ESlateVisibility::Collapsed : ESlateVisibility::Visible;
 	if (ActionButton && ActionButton->GetVisibility() != WantAction) ActionButton->SetVisibility(WantAction);
 }
@@ -333,6 +369,13 @@ FReply UJRLookPad::NativeOnTouchEnded(const FGeometry& InGeometry, const FPointe
 	if (InGestureEvent.GetPointerIndex() != Finger) return FReply::Unhandled();
 	Finger = -1;
 	return FReply::Handled().ReleaseMouseCapture();
+}
+
+void UJRTouchWidget::OnMissions()
+{
+	UJRSettingsSave* S = JRSettings::Get();
+	S->bMissionsCompact = !S->bMissionsCompact;
+	JRSettings::Save();
 }
 
 void UJRTouchWidget::OnInteractPressed()

@@ -1,4 +1,4 @@
-// Aturan inti Juragan Rental: waktu dan hari, pelanggan, billing, listrik, kantin, kejadian,
+﻿// Aturan inti Juragan Rental: waktu dan hari, pelanggan, billing, listrik, kantin, kejadian,
 // kurir, laporan, toko, dan perpindahan era (Garasi -> Ruko kecil).
 // Angka-angka mengikuti prototype web (lihat GDD bagian Ekonomi).
 
@@ -305,6 +305,11 @@ public:
 	bool LoadProgress();
 	void BeginNewGame();		// dari menu utama: mulai hari pertama
 
+	/* ---------- Adegan pembuka (Main baru, Era 1) ---------- */
+	bool IsOpening() const { return Opening.IsValid(); }
+	const class AJROpening* GetOpening() const { return Opening.Get(); }
+	void SkipOpening();
+
 	/* ---------- Dipanggil pemain ---------- */
 	void Confirm();				// Enter: buka toko / mulai hari berikutnya
 	void StartSession(AJRStation* Station);
@@ -489,6 +494,7 @@ private:
 	void ClearWorld();
 	static const TCHAR* SlotName();
 	bool bMenuTest = false;		// -jrmenutest: potret menu utama dan pengaturan
+	TWeakObjectPtr<class AJROpening> Opening;
 
 	// -jrbalance: bot pemain yang cukup cekatan main beberapa hari (waktu dipercepat) untuk mengukur ekonomi.
 	bool bBalance = false;

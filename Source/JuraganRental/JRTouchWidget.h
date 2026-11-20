@@ -66,6 +66,18 @@ private:
 	UFUNCTION()
 	void OnPause();
 
+	UFUNCTION()
+	void OnMissions();
+
+	UPROPERTY()
+	TObjectPtr<UButton> MissionToggle;	// area transparan di atas judul panel misi
+
+	UPROPERTY()
+	TObjectPtr<UButton> PauseButton;
+
+	UPROPERTY()
+	TObjectPtr<UButton> PhoneButton;
+
 	UPROPERTY()
 	TObjectPtr<UButton> NextButton;
 

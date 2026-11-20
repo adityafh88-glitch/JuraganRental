@@ -17,6 +17,7 @@
 #include "JRSound.h"
 #include "JRRadio.h"
 #include "JRService.h"
+#include "JROpening.h"
 #include "JRStation.h"
 #include "JRVisitor.h"
 #include "JRSaveGame.h"
@@ -161,7 +162,8 @@ void AJRGameMode::BeginPlay()
 		UGameplayStatics::SetGlobalTimeDilation(this, 6.f);
 	}
 	if (bMenuTest) SetTickableWhenPaused(true); // uji menu jeda tetap berjalan saat game dijeda
-	if (!bTest && !bBalance && !bMysteryTest && !FParse::Param(FCommandLine::Get(), TEXT("jrera2")) && !FParse::Param(FCommandLine::Get(), TEXT("jrera3"))) Phase = EJRGamePhase::Menu;
+	if (FParse::Param(FCommandLine::Get(), TEXT("jropening"))) BeginNewGame();	// uji: langsung putar adegan pembuka
+	if (!bTest && !bBalance && !bMysteryTest && !FParse::Param(FCommandLine::Get(), TEXT("jrera2")) && !FParse::Param(FCommandLine::Get(), TEXT("jrera3")) && !FParse::Param(FCommandLine::Get(), TEXT("jropening"))) Phase = EJRGamePhase::Menu;
 
 	if (bTest)
 	{
@@ -1196,6 +1198,25 @@ void AJRGameMode::BeginNewGame()
 	Missions.Reset();
 	NewDailyMissions();
 	NewWeeklyMission();
+	// Adegan pembuka garasi (dilewati di uji otomatis yang memakai alur menu)
+	const TCHAR* Cmd = FCommandLine::Get();
+	const bool bSkip = bMenuTest || FParse::Param(Cmd, TEXT("jrtouchflow")) || FParse::Param(Cmd, TEXT("jrnoopening"));
+	if (Era == 1 && !bSkip)
+	{
+		FActorSpawnParameters SP;
+		SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		if (AJROpening* O = GetWorld()->SpawnActor<AJROpening>(FVector::ZeroVector, FRotator::ZeroRotator, SP))
+		{
+			O->Start(Layout().HalfX, Layout().DoorY);
+			Opening = O;
+		}
+	}
+}
+
+void AJRGameMode::SkipOpening()
+{
+	if (AJROpening* O = Opening.Get()) O->Finish();
+	Opening.Reset();
 }
 
 /* ---------- Misi harian dan mingguan ---------- */
@@ -3095,6 +3116,7 @@ void AJRGameMode::CheckDemoOver()
 void AJRGameMode::Confirm()
 {
 	if (bDemoOver) return;	// layar akhir demo yang menentukan langkah berikutnya
+	if (IsOpening()) { SkipOpening(); return; }	// LANJUT/Enter saat adegan pembuka = lewati adegan
 	if (Phase == EJRGamePhase::Intro)
 	{
 		Phase = EJRGamePhase::Playing;
