@@ -1,4 +1,4 @@
-#include "JRLang.h"
+﻿#include "JRLang.h"
 
 #include "Internationalization/Culture.h"
 #include "Internationalization/Internationalization.h"
@@ -48,6 +48,7 @@ namespace JRLang
 				Cached = S->Language == 2 ? 1 : 0;
 			}
 			if (FParse::Param(FCommandLine::Get(), TEXT("jrenglish"))) Cached = 1;
+			if (FParse::Param(FCommandLine::Get(), TEXT("jrindo"))) Cached = 0;	// paksa Bahasa Indonesia (mis. rekaman promosi)
 		}
 		return Cached == 1;
 	}

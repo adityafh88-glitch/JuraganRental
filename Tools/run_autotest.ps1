@@ -5,7 +5,10 @@ param(
     [int]$Timeout = 240,
     # Opsional: potret jendela game (BUKAN seluruh layar) setelah $ShotAfter detik
     [string]$Shot = '',
-    [int]$ShotAfter = 35
+    [int]$ShotAfter = 35,
+    # Ukuran jendela (catatan: Windows dengan skala 150% bisa memperkecil jendela sebenarnya)
+    [int]$ResX = 1600,
+    [int]$ResY = 720
 )
 # Jalankan uji otomatis Juragan Rental dan tampilkan baris log JR_*.
 $Proj = 'D:\Dev\JuraganRental'
@@ -13,7 +16,7 @@ $log = "$Proj\Saved\Logs\JuraganRental.log"
 $exe = 'C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe'
 $start = Get-Date
 # -unattended wajib: mencegah dialog crash reporter muncul di layar pengguna
-$p = Start-Process -FilePath $exe -ArgumentList ("`"$Proj\JuraganRental.uproject`" -game -windowed -ResX=1600 -ResY=720 -nosplash -unattended " + $GameArgs) -PassThru
+$p = Start-Process -FilePath $exe -ArgumentList ("`"$Proj\JuraganRental.uproject`" -game -windowed -ResX=$ResX -ResY=$ResY -nosplash -unattended " + $GameArgs) -PassThru
 
 if ($Shot) {
     Start-Sleep -Seconds $ShotAfter

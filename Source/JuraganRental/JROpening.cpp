@@ -7,6 +7,11 @@
 #include "Kismet/GameplayStatics.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
+#include "Misc/Paths.h"
+#include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
+#include "UnrealClient.h"
+#include "Engine/World.h"
 #include "JRBlockout.h"
 #include "JRSound.h"
 
@@ -115,7 +120,17 @@ void AJROpening::Tick(float DeltaSeconds)
 
 	PlaceCamera();
 	UpdateShutter();
-	if (!bFreeze && Time >= Duration) Finish();
+	// -jrcapture (dengan -jropening -benchmark -fps=30): simpan setiap frame viewport tanpa HUD ke Saved/Capture,
+	// untuk bahan video promosi. Game keluar sendiri setelah adegan selesai.
+	static const bool bCapture = FParse::Param(FCommandLine::Get(), TEXT("jrcapture"));
+	if (bCapture && GEngine)
+	{
+		static int32 Frame = 0;
+		const FString File = FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / FString::Printf(TEXT("Capture/op_%05d.png"), Frame++));
+		FScreenshotRequest::RequestScreenshot(File, false, false);	// tangkap viewport apa adanya: riwayat Lumen/TSR utuh, tidak berbintik
+		if (Time >= Duration) { UE_LOG(LogTemp, Display, TEXT("JR_CAPTURE frames=%d"), Frame); FGenericPlatformMisc::RequestExit(false); }
+	}
+	if (!bFreeze && !bCapture && Time >= Duration) Finish();
 }
 
 FString AJROpening::Caption() const

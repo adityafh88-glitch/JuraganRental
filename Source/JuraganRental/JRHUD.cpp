@@ -428,6 +428,8 @@ void AJRHUD::DrawHUD()
 	// Adegan pembuka: layar bergaris hitam ala film + teks narasi, tanpa HUD lain.
 	if (const AJROpening* Op = GM->GetOpening())
 	{
+		static const bool bCapture = FParse::Param(FCommandLine::Get(), TEXT("jrcapture"));
+		if (bCapture) return;	// rekaman promosi: gambar bersih tanpa pita hitam dan teks
 		const float Bar = H * 0.11f;
 		DrawRect(FLinearColor::Black, 0.f, 0.f, W, Bar);
 		DrawRect(FLinearColor::Black, 0.f, H - Bar, W, Bar);

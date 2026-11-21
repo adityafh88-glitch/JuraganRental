@@ -24,6 +24,9 @@ SKIP_FILES = {"JRLang.cpp", "JRSettings.cpp", "JRSaveGame.cpp", "JRBlockout.cpp"
 def user_facing(t):
     if t in SKIP_EXACT or SKIP_PREFIX.match(t):
         return False
+    # Nama file/path (mis. "Capture/promo%d_%05d.png") bukan teks pemain
+    if re.search(r"\.(png|txt|wav|json|ini|log)", t) or re.match(r"^[\w%]+/", t):
+        return False
     has_letters = re.search(r"[A-Za-z]{2}", t) is not None
     if not has_letters:
         return False

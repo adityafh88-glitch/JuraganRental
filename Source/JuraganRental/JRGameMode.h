@@ -353,6 +353,22 @@ public:
 	void DevLevelUp();
 	void DevAddRep(float Amount);
 
+	/* ---------- Rekaman promosi (-jrpromo=N -jrcapture, lihat JRPromo.cpp) ---------- */
+	int32 PromoId = 0;			// 0 = tidak aktif; 2..5 = skenario video posting
+	float PromoT = 0.f;			// detik sejak skenario mulai (langkah tetap 1/30 dtk dengan -benchmark -fps=30)
+	int32 PromoFrame = 0;		// nomor frame rekaman berikutnya
+	bool bPromoRec = false;		// sedang merekam
+	TArray<FString> PromoCues;	// "frame nama_suara" untuk ditempel FFmpeg
+	TArray<FJRChoice> PromoHeld;	// dialog ditahan sebentar agar kejadiannya terlihat dulu
+	float PromoHeldUntil = -1.f;
+	UPROPERTY()
+	TObjectPtr<class ACameraActor> PromoCam;
+	void PromoSetup();			// dipanggil di BeginPlay sebelum BuildWorld
+	void TickPromo(float DeltaSeconds);
+	void PromoCue(const FString& Sound);
+	AJRCustomer* PromoSeat(AJRStation* S, int32 TypeIndex);
+	bool PromoStart(AJRStation* S);
+
 private:
 	void BuildWorld();
 	void MoveToEra2();

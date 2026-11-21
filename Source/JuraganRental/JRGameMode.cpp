@@ -144,6 +144,8 @@ void AJRGameMode::BeginPlay()
 	{
 		OwnedPS = 3; OwnedPC = 2; CapVA = 2200; // supaya kompor bisa jalan bersama 5 unit
 	}
+	FParse::Value(FCommandLine::Get(), TEXT("jrpromo="), PromoId);
+	if (PromoId > 0) PromoSetup();
 	BuildWorld();
 	NewDailyMissions();
 	NewWeeklyMission();
@@ -165,7 +167,8 @@ void AJRGameMode::BeginPlay()
 	}
 	if (bMenuTest) SetTickableWhenPaused(true); // uji menu jeda tetap berjalan saat game dijeda
 	if (FParse::Param(FCommandLine::Get(), TEXT("jropening"))) BeginNewGame();	// uji: langsung putar adegan pembuka
-	if (!bTest && !bBalance && !bMysteryTest && !FParse::Param(FCommandLine::Get(), TEXT("jrera2")) && !FParse::Param(FCommandLine::Get(), TEXT("jrera3")) && !FParse::Param(FCommandLine::Get(), TEXT("jropening"))) Phase = EJRGamePhase::Menu;
+	if (PromoId > 0) Phase = EJRGamePhase::Playing;
+	else if (!bTest && !bBalance && !bMysteryTest && !FParse::Param(FCommandLine::Get(), TEXT("jrera2")) && !FParse::Param(FCommandLine::Get(), TEXT("jrera3")) && !FParse::Param(FCommandLine::Get(), TEXT("jropening"))) Phase = EJRGamePhase::Menu;
 
 	if (bTest)
 	{
@@ -1133,6 +1136,7 @@ FString AJRGameMode::SaveSummary()
 
 void AJRGameMode::SaveProgress()
 {
+	if (PromoId > 0) return;	// rekaman promosi tidak boleh menimpa simpanan pemain
 	UJRSaveGame* S = Cast<UJRSaveGame>(UGameplayStatics::CreateSaveGameObject(UJRSaveGame::StaticClass()));
 	S->SavedAt = FDateTime::Now();
 	S->Era = Era; S->Day = Day; S->Money = Money; S->Rep = Rep; S->CapVA = CapVA;
@@ -1947,6 +1951,7 @@ void AJRGameMode::Tick(float DeltaSeconds)
 
 	for (FJRToast& T : Toasts) T.TimeLeft -= DeltaSeconds;
 	Toasts.RemoveAll([](const FJRToast& T) { return T.TimeLeft <= 0.f; });
+	if (PromoId > 0) TickPromo(DeltaSeconds);
 
 	// Mode uji: potret dialog pertama lalu pilih opsi pertama.
 	if ((bAutoTest || bBalance || bMysteryTest) && Choices.Num() > 0)
@@ -2108,7 +2113,7 @@ void AJRGameMode::Tick(float DeltaSeconds)
 	Hour += DtH;
 	TickWalkIns(DeltaSeconds, DtH);
 
-	if (Hour < 23.f && FMath::FRand() < SpawnRate(Hour) * DtH)
+	if (PromoId == 0 && Hour < 23.f && FMath::FRand() < SpawnRate(Hour) * DtH)
 	{
 		SpawnCustomer();
 	}
@@ -2253,6 +2258,34 @@ void AJRGameMode::SpawnCustomer()
 	if (!Assign(C)) ToQueue(C);
 }
 
+AJRCustomer* AJRGameMode::PromoSeat(AJRStation* S, int32 TypeIndex)
+{
+	// Rekaman promosi: pelanggan langsung duduk di unit (tanpa berjalan dari pintu).
+	if (!S || S->Customer) return nullptr;
+	const FTypeDef& T = Types[FMath::Clamp(TypeIndex, 0, (int32)UE_ARRAY_COUNT(Types) - 1)];
+	FActorSpawnParameters SP;
+	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	AJRCustomer* C = GetWorld()->SpawnActor<AJRCustomer>(S->GetSeatLocation(), S->GetSeatRotation(), SP);
+	if (!C) return nullptr;
+	C->Setup(TypeIndex, JRT(T.Name), T.Mesh, T.Scale, S->Type, false);
+	Customers.Add(C);
+	S->Customer = C;
+	C->Station = S;
+	C->Patience = 99.f;
+	C->WalkTo(S->GetSeatLocation(), EJRCustomerState::WaitStart);
+	return C;
+}
+
+bool AJRGameMode::PromoStart(AJRStation* S)
+{
+	AJRCustomer* C = S ? S->Customer.Get() : nullptr;
+	if (!C || C->State != EJRCustomerState::WaitStart) return false;
+	StartSession(S);
+	C->HoursLeft = 50.f;	// tidak selesai selama rekaman
+	C->EmakAt = -1.f;
+	return true;
+}
+
 bool AJRGameMode::Assign(AJRCustomer* C)
 {
 	AJRStation* S = FindFree(C->Want);
@@ -2391,7 +2424,7 @@ void AJRGameMode::TickPlaying(AJRCustomer* C, float DtH)
 	}
 
 	const float BreakPerHour = (S->bUsed ? 1.6f : 1.f) * (1.f - 0.12f * (S->UpLevel - 1)) * (S->Type == EJRUnitType::PS ? (bStikOri ? 0.07f : 0.22f) : S->Type == EJRUnitType::VIP ? 0.06f : 0.18f);
-	if (FMath::FRand() < BreakPerHour * DtH)
+	if (PromoId == 0 && FMath::FRand() < BreakPerHour * DtH)	// rekaman promosi: tanpa kerusakan acak
 	{
 		S->bBroken = true;
 		C->Breakdowns++;
