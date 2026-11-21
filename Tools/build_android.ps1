@@ -45,7 +45,8 @@ if ($Mode -eq 'Rilis') {
     $files = @($apk.FullName)
 }
 
-# Cek tanda tangan APK
+# Cek tanda tangan APK (Java menulis "Picked up JAVA_TOOL_OPTIONS" ke stderr: jangan dianggap error)
+$ErrorActionPreference = 'Continue'
 $bt = Get-ChildItem "$Sdk\build-tools" | Sort-Object Name -Descending | Select-Object -First 1
 $apkFile = $files | Where-Object { $_ -like '*.apk' } | Select-Object -First 1
 & "$($bt.FullName)\apksigner.bat" verify --print-certs $apkFile 2>&1 | Select-String 'DN|Verifies|ERROR' | Select-Object -First 3 | ForEach-Object { 'Tanda tangan: ' + $_.Line.Trim() }

@@ -696,3 +696,16 @@ Viralin	Viralin
 \"nambah sejam\"	\"one more hour\"
 pelanggan	customers
 untung bersih	net profit
+Versi %s  -  KAH Gamedev	Version %s  -  KAH Gamedev
+MENU DEVELOPER	DEVELOPER MENU
+Hanya untuk uji coba. Matikan bDevMenu sebelum rilis.	Testing only. Turn off bDevMenu before release.
+Lompat ke Era 2 (Ruko)	Jump to Era 2 (Shophouse)
+Lompat ke Era 3 (Game Center)	Jump to Era 3 (Game Center)
+Kas + Rp 5 juta	Cash + Rp 5 million
+Naik 1 Level Juragan	Gain 1 Boss Level
+Reputasi + 20	Reputation + 20
+[DEV] Kas +%s	[DEV] Cash +%s
+[DEV] Reputasi %.0f	[DEV] Reputation %.0f
+Level Juragan naik dari XP: pelanggan yang bayar, mi dan jasa sampingan, misi harian, misi mingguan, dan turnamen. Setiap level membuka barang baru di HP > Toko dan upgrade unit. Pantau XP-mu di HP > Unit.	Boss Level rises with XP: paying customers, noodles and side services, daily missions, weekly missions, and tournaments. Every level unlocks new items in Phone > Shop and unit upgrades. Track your XP in Phone > Units.
+Siap, Juragan!	Got it, Boss!
+Butuh Level Juragan %d (sekarang Level %d, XP %d/%d). Layani pelanggan sampai bayar, jual mi dan jasa, serta selesaikan misi untuk menambah XP.	Needs Boss Level %d (now Level %d, XP %d/%d). Serve customers until they pay, sell noodles and services, and finish missions to earn XP.

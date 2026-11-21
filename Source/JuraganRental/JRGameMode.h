@@ -345,6 +345,14 @@ public:
 
 	void AddToast(const FString& Text, const FLinearColor& Color = FLinearColor(0.37f, 0.70f, 1.f));
 
+	/* ---------- Menu developer (Config/DefaultGame.ini [JuraganRental] bDevMenu) ----------
+	   Dibuka dengan mengetuk baris versi di HP > Atur sebanyak 7 kali. MATIKAN sebelum rilis produksi. */
+	bool bDevMenu = false;
+	void DevJumpEra(int32 NewEra);
+	void DevAddMoney(float Amount);
+	void DevLevelUp();
+	void DevAddRep(float Amount);
+
 private:
 	void BuildWorld();
 	void MoveToEra2();

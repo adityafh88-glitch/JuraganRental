@@ -151,6 +151,7 @@ void AJRGameMode::BeginPlay()
 	{
 		GConfig->GetBool(TEXT("JuraganRental"), TEXT("bDemo"), bDemo, GGameIni);
 		GConfig->GetString(TEXT("JuraganRental"), TEXT("DemoStoreURL"), DemoStoreURL, GGameIni);
+		GConfig->GetBool(TEXT("JuraganRental"), TEXT("bDevMenu"), bDevMenu, GGameIni);
 	}
 	if (FParse::Param(FCommandLine::Get(), TEXT("jrdemo"))) bDemo = true;
 	bMenuTest = FParse::Param(FCommandLine::Get(), TEXT("jrmenutest"));
@@ -325,6 +326,46 @@ void AJRGameMode::MoveToEra(int32 NewEra)
 	}
 	AddToast(Era >= 3 ? JRT(TEXT("Selamat datang di Game Center 2 lantai! Beli booth VIP untuk lantai 2 lewat HP > Toko."))
 		: JRT(TEXT("Selamat datang di ruko baru! Sewa dan internet ditagih tiap tutup toko.")), Good);
+}
+
+/* ---------- Menu developer ---------- */
+
+void AJRGameMode::DevJumpEra(int32 NewEra)
+{
+	if (!bDevMenu || NewEra <= Era || NewEra > 3) return;
+	// Bekal kira-kira seperti pemain yang baru tiba di era itu (sama dengan -jrera2 / -jrera3).
+	const bool b3 = NewEra >= 3;
+	Money = FMath::Max(Money, b3 ? 1500000.f : 1000000.f);
+	Rep = FMath::Max(Rep, b3 ? 62.f : 45.f);
+	Xp = FMath::Max(Xp, XpForLevel(b3 ? 7 : 4));
+	if (b3) bPS2 = true;
+	MoveToEra(NewEra);
+	const int32 WantPS = b3 ? 6 : 4, WantPC = b3 ? 5 : 3, WantVIP = b3 ? 3 : 0;
+	while (Count(EJRUnitType::PS) < WantPS && Count(EJRUnitType::PS) < MaxFor(EJRUnitType::PS)) SpawnStation(EJRUnitType::PS);
+	while (Count(EJRUnitType::PC) < WantPC && Count(EJRUnitType::PC) < MaxFor(EJRUnitType::PC)) SpawnStation(EJRUnitType::PC);
+	while (Count(EJRUnitType::VIP) < WantVIP && Count(EJRUnitType::VIP) < MaxFor(EJRUnitType::VIP)) SpawnStation(EJRUnitType::VIP);
+	OwnedPS = Count(EJRUnitType::PS); OwnedPC = Count(EJRUnitType::PC); OwnedVIP = Count(EJRUnitType::VIP);
+	UE_LOG(LogTemp, Display, TEXT("JR_DEV era=%d units=%d money=%.0f lv=%d"), Era, TotalUnits(), Money, JuraganLevel());
+}
+
+void AJRGameMode::DevAddMoney(float Amount)
+{
+	if (!bDevMenu) return;
+	Money += Amount;
+	AddToast(JRPrintf(JRT(TEXT("[DEV] Kas +%s")), *JRFormatRp(Amount)), Good);
+}
+
+void AJRGameMode::DevLevelUp()
+{
+	if (!bDevMenu) return;
+	AddXp(FMath::Max(1, XpForLevel(JuraganLevel() + 1) - Xp));
+}
+
+void AJRGameMode::DevAddRep(float Amount)
+{
+	if (!bDevMenu) return;
+	Rep = FMath::Min(100.f, Rep + Amount);
+	AddToast(JRPrintf(JRT(TEXT("[DEV] Reputasi %.0f")), Rep), Good);
 }
 
 bool AJRGameMode::Gate2Open() const
@@ -1930,6 +1971,29 @@ void AJRGameMode::Tick(float DeltaSeconds)
 			ResolveChoice(bBalance && Choices.Num() > 0 ? FMath::RandRange(0, Choices[0].Labels.Num() - 1) : 0);
 		}
 		AutoTestTime += DeltaSeconds;
+	}
+
+	// -jrautotest -jrlvtip: paksa naik ke Level 2 agar penjelasan Level Juragan muncul (dipotret sebagai dialog pertama).
+	if (bAutoTest && FParse::Param(FCommandLine::Get(), TEXT("jrlvtip")))
+	{
+		static bool bLvTipDone = false;
+		if (!bLvTipDone && AutoTestTime > 4.f && Choices.Num() == 0)
+		{
+			bLvTipDone = true;
+			AddXp(FMath::Max(1, XpForLevel(2) - Xp));
+			UE_LOG(LogTemp, Display, TEXT("JR_LVTIP lv=%d choices=%d title=[%s]"), JuraganLevel(), Choices.Num(), Choices.Num() > 0 ? *Choices[0].Title : TEXT(""));
+		}
+	}
+
+	// -jrautotest -jrdevtest: menu developer lompat ke Era 2 lalu Era 3, tambah kas dan level.
+	if (bAutoTest && FParse::Param(FCommandLine::Get(), TEXT("jrdevtest")))
+	{
+		static float DevT = 0.f;
+		static int32 DevStep = 0;
+		DevT += DeltaSeconds;
+		if (DevStep == 0 && DevT > 3.f) { DevJumpEra(2); DevStep = 1; }
+		else if (DevStep == 1 && DevT > 5.f) { DevJumpEra(3); const int32 Lv = JuraganLevel(); DevLevelUp(); DevAddMoney(5000000.f); DevAddRep(20.f);
+			UE_LOG(LogTemp, Display, TEXT("JR_DEVTEST era=%d vip=%d lv=%d->%d money=%.0f rep=%.0f layout=%s"), Era, Count(EJRUnitType::VIP), Lv, JuraganLevel(), Money, Rep, *Layout().Name); DevStep = 2; }
 	}
 
 	// -jrautotest -jrera2 -jrmovetest: penuhi Gerbang 2, tutup toko, pindah ke Era 3, simpan dan muat.

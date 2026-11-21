@@ -76,4 +76,9 @@ private:
 	int32 BuiltTab = -1;
 	float RefreshTimer = 0.f;
 	FString LastSignature;
+
+	// Menu developer: ketuk baris versi di tab Atur 7 kali (hanya bila bDevMenu aktif)
+	int32 DevTaps = 0;
+	FName LevelTipId;	// barang terkunci level yang penjelasannya sedang ditampilkan di Toko
+	bool bDevOpen = false;
 };

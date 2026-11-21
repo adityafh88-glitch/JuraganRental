@@ -25,6 +25,8 @@ Skrip: `Tools/build_android.ps1 -Mode Rilis|Dev` (PowerShell). Skrip ini mengatu
 
 ## Aturan
 
+- **Menu developer:** `Config/DefaultGame.ini` → `[JuraganRental] bDevMenu=True` menyalakan cheat tersembunyi (HP > Atur > ketuk baris versi 7x: lompat era, kas, level, reputasi). Boleh menyala untuk uji internal/tertutup, tetapi **wajib `bDevMenu=False`** sebelum build yang diunggah ke jalur **produksi**. Tanyakan pengguna bila ragu.
+
 - **Jangan pernah membaca, mencetak, atau meng-commit** `Config/Android/AndroidEngine.ini` (berisi kata sandi kunci) maupun file `*.keystore`. Kalau kunci hilang, pengguna sendiri yang menjalankan `Tools/buat_kunci_upload.ps1`.
 - Nama paket `com.juraganrental.game` **permanen** setelah unggahan pertama ke Play Console. Jangan ubah `PackageName` tanpa persetujuan pengguna.
 - Konfigurasi penting yang tidak boleh diubah sembarangan: `bBuildForES31=True` (cadangan untuk HP yang crash di Vulkan), `bEnableBundle=True`, plugin AFS dimatikan.

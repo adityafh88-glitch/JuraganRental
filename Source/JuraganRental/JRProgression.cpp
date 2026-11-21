@@ -2,6 +2,7 @@
 // (kulkas minuman, konter pulsa & top-up, printer & fotokopi).
 
 #include "JRGameMode.h"
+#include "Misc/CommandLine.h"
 #include "JRLang.h"
 
 #include "Engine/World.h"
@@ -139,6 +140,13 @@ void AJRGameMode::AddXp(int32 Amount)
 	}
 	JRSound::Play2D(this, TEXT("SFX_Ding"), 0.8f);
 	AddMoment(EJRMoment::LevelUp);
+	// Penjelasan sekali saat pertama kali naik level (dari Level 1).
+	if (Old <= 1 && !bBalance && (!bAutoTest || FParse::Param(FCommandLine::Get(), TEXT("jrlvtip"))))
+	{
+		PushChoice(JRPrintf(JRT(TEXT("Naik ke Level Juragan %d!")), New),
+			JRT(TEXT("Level Juragan naik dari XP: pelanggan yang bayar, mi dan jasa sampingan, misi harian, misi mingguan, dan turnamen. Setiap level membuka barang baru di HP > Toko dan upgrade unit. Pantau XP-mu di HP > Unit.")),
+			{ JRT(TEXT("Siap, Juragan!")) }, { []() {} });
+	}
 	AddToast(Opened.IsEmpty() ? JRPrintf(JRT(TEXT("Naik ke Level Juragan %d!")), New)
 		: JRPrintf(JRT(TEXT("Naik ke Level Juragan %d! Terbuka: %s")), New, *Opened), Gold);
 }

@@ -22,6 +22,8 @@
 #include "JRStyle.h"
 #include "Components/ButtonSlot.h"
 #include "GameFramework/PlayerController.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/CommandLine.h"
 
 namespace JRLocal_PhoneWidget
 {
@@ -259,6 +261,22 @@ void UJRPhoneWidget::FillToko(AJRGameMode* GM)
 		else if (!bCanPay) Label = JRPrintf(JRT(TEXT("Kas kurang (%s)")), *JRFormatRp(It.Cost));
 		else Label = JRPrintf(JRT(TEXT("Beli %s")), *JRFormatRp(It.Cost));
 		const FName Id = It.Id;
+		const int32 Need = AJRGameMode::ItemMinLevel(Id);
+		if (!It.Lock.IsEmpty() && GM->JuraganLevel() < Need)
+		{
+			if (LevelTipId.IsNone() && FParse::Param(FCommandLine::Get(), TEXT("jrlvtip"))) LevelTipId = Id;	// uji: buka penjelasan barang terkunci pertama
+			// Terkunci level: tetap bergaya nonaktif, tetapi bisa diketuk untuk melihat cara membukanya.
+			UJRPhoneButton* B = MakeButton(Label, [this, Id]() { LevelTipId = (LevelTipId == Id) ? NAME_None : Id; Refresh(true); });
+			JRStyle::Apply(B, JRStyle::EBtn::Disabled, 12.f, JRStyle::ETheme::Lcd);
+			AddLine(B, 6.f);
+			if (LevelTipId == Id)
+			{
+				UE_LOG(LogTemp, Display, TEXT("JR_LVTIP shop item=%s need=%d"), *Id.ToString(), Need);
+				AddLine(MakeText(JRPrintf(JRT(TEXT("Butuh Level Juragan %d (sekarang Level %d, XP %d/%d). Layani pelanggan sampai bayar, jual mi dan jasa, serta selesaikan misi untuk menambah XP.")),
+					Need, GM->JuraganLevel(), GM->Xp, AJRGameMode::XpForLevel(Need)), 11, LcdInk), 4.f);
+			}
+			continue;
+		}
 		AddLine(MakeButton(Label, [this, Id]()
 		{
 			if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>()) G->BuyItem(Id);
@@ -457,6 +475,39 @@ void UJRPhoneWidget::FillAtur()
 			[S, Hud]() { S->JoystickSize = JRSettings::NextJoystickSize(S->JoystickSize); Hud->ApplyTouchSettings(); });
 	}
 
+	// Baris versi. Bila bDevMenu aktif, 7 ketukan membuka menu developer.
+	AJRGameMode* GMD = GetWorld()->GetAuthGameMode<AJRGameMode>();
+	FString Ver;
+	if (GConfig) GConfig->GetString(TEXT("/Script/EngineSettings.GeneralProjectSettings"), TEXT("ProjectVersion"), Ver, GGameIni);
+	const FString VerText = JRPrintf(JRT(TEXT("Versi %s  -  KAH Gamedev")), *Ver);
+	if (!GMD || !GMD->bDevMenu)
+	{
+		AddLine(MakeText(VerText, 11, LcdMuted), 20.f);
+		return;
+	}
+	AddLine(MakeButton(VerText, [this]()
+	{
+		if (bDevOpen) return;
+		if (++DevTaps >= 7) { bDevOpen = true; Refresh(true); }
+	}), 20.f);
+	if (FParse::Param(FCommandLine::Get(), TEXT("jrdevopen"))) bDevOpen = true;	// uji: menu developer langsung terbuka
+	if (!bDevOpen) return;
+
+	AddLine(MakeText(JRT(TEXT("MENU DEVELOPER")), 15, LcdInk, true), 16.f);
+	AddLine(MakeText(JRT(TEXT("Hanya untuk uji coba. Matikan bDevMenu sebelum rilis.")), 11, LcdMuted), 2.f);
+	auto Dev = [this](const FString& Label, TFunction<void(AJRGameMode*)> Act, bool bEnabled = true)
+	{
+		AddLine(MakeButton(Label, [this, Act]()
+		{
+			if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>()) Act(G);
+			Refresh(true);
+		}, bEnabled), 6.f);
+	};
+	Dev(JRT(TEXT("Lompat ke Era 2 (Ruko)")), [](AJRGameMode* G) { G->DevJumpEra(2); }, GMD->Era < 2);
+	Dev(JRT(TEXT("Lompat ke Era 3 (Game Center)")), [](AJRGameMode* G) { G->DevJumpEra(3); }, GMD->Era < 3);
+	Dev(JRT(TEXT("Kas + Rp 5 juta")), [](AJRGameMode* G) { G->DevAddMoney(5000000.f); });
+	Dev(JRT(TEXT("Naik 1 Level Juragan")), [](AJRGameMode* G) { G->DevLevelUp(); });
+	Dev(JRT(TEXT("Reputasi + 20")), [](AJRGameMode* G) { G->DevAddRep(20.f); });
 }
 
 void UJRPhoneWidget::FillStaff(AJRGameMode* GM)
