@@ -518,6 +518,12 @@ private:
 	void TickAutoTest(float DeltaSeconds);
 	void SaveProgress(bool bMidDay = false);
 	float NextAutoSaveHour = 10.f;
+	// Siang ke malam: matahari dan cahaya langit mengikuti jam dalam game.
+	void TickSky();
+	TWeakObjectPtr<class ADirectionalLight> SkySun;
+	TWeakObjectPtr<class ASkyLight> SkyFill;
+	bool bSkyInit = false;
+	float SunBase = 0.f, FillBase = 0.f, SunYaw = 0.f, LastSkyHour = -99.f, LastCaptureDay = -1.f;
 	FDelegateHandle AppBgHandle, AppQuitHandle;
 	void OnAppBackground();
 	void TickMystery(float DeltaSeconds);
@@ -547,7 +553,6 @@ private:
 	static const TCHAR* SlotName();
 	bool bMenuTest = false;		// -jrmenutest: potret menu utama dan pengaturan
 	TWeakObjectPtr<class AJROpening> Opening;
-	float HideLandscapeTimer = 0.f;	// cek berkala landscape gurun bawaan level
 
 	// -jrbalance: bot pemain yang cukup cekatan main beberapa hari (waktu dipercepat) untuk mengukur ekonomi.
 	bool bBalance = false;

@@ -178,7 +178,7 @@ UStaticMeshComponent* AJRDecor::Shape(UStaticMesh* Mesh, const FVector& Loc, con
 	C->SetRelativeRotation(Rot);
 	C->SetRelativeScale3D(Scale);
 	C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	C->SetMaterial(0, MakeColorMat(this, Color)); // warna jenuh (dikali Glow malah jadi putih)
+	C->SetMaterial(0, SharedColorMat(Color)); // warna jenuh (dikali Glow malah jadi putih); material bersama per warna
 	C->RegisterComponent();
 	return C;
 }
@@ -532,18 +532,27 @@ void AJRRoom::Build(const FJRLayout& L, int32 Era)
 	const bool bUp = L.HasUpstairs();
 	const float FH = L.FloorH;
 	const float WallH = bUp ? FH + 350.f : 300.f;	// tinggi dinding luar
+	// Warna khas tiap era (dinding atas, cat bawah/lambri, lis, lantai, nat):
+	// Garasi = cat krem + tosca khas rumah kampung, lantai semen; Ruko = kuning muda + biru, keramik krem;
+	// Game Center = ungu tua ala gamer, lantai abu gelap.
+	// Dinding bangunan (juga tampak dari luar) tetap netral; warna dalam berupa lapisan cat tipis di sisi dalam.
 	const FLinearColor Wall = bRuko ? Hex(0xcfd8d4) : Hex(0xd8cdb4);
 	const FLinearColor Wall2 = bRuko ? Hex(0xbac6c2) : Hex(0xc9bc9f);
-	const FLinearColor Floor = bRuko ? Hex(0xb3ada0) : Hex(0x8f8270);
-	const FLinearColor Grout = bRuko ? Hex(0x9f998c) : Hex(0x7d715f);
+	const FLinearColor Paint  = bUp ? Hex(0x3d3a63) : bRuko ? Hex(0xf2e2a6) : Hex(0xeee0bd);
+	const FLinearColor Paint2 = bUp ? Hex(0x35325a) : bRuko ? Hex(0xe8d595) : Hex(0xe6d6af);
+	const FLinearColor Lower = bUp ? Hex(0x23213d) : bRuko ? Hex(0x4f7fb5) : Hex(0x4f9e93);
+	const FLinearColor Trim  = bUp ? Hex(0x29d3ff) : bRuko ? Hex(0x2f5a8c) : Hex(0x2f6f66);
+	const FLinearColor Floor = bUp ? Hex(0x55545e) : bRuko ? Hex(0xe2d6c0) : Hex(0x7f7a72);
+	const FLinearColor Grout = bUp ? Hex(0x3e3d46) : bRuko ? Hex(0xc4b79f) : Hex(0x6c675f);
 
-	// Lantai keramik (atas lantai di Z = 1 cm) + nat tiap 2 m
+	// Lantai: garasi semen dengan nat besar tiap 2 m, ruko/game center keramik tiap 1 m
 	AddPart(this, Root, EShape::Cube, FVector(2 * HX, 2 * HY, 10), FVector(0, 0, -4), Floor);
-	for (float X = -HX + 100.f; X < HX; X += 200.f)
+	const float Tile = bRuko ? 100.f : 200.f;
+	for (float X = -HX + Tile; X < HX; X += Tile)
 	{
 		AddPart(this, Root, EShape::Cube, FVector(3, 2 * HY, 1), FVector(X, 0, 1.5f), Grout, false);
 	}
-	for (float Y = -HY + 100.f; Y < HY; Y += 200.f)
+	for (float Y = -HY + Tile; Y < HY; Y += Tile)
 	{
 		AddPart(this, Root, EShape::Cube, FVector(2 * HX, 3, 1), FVector(0, Y, 1.5f), Grout, false);
 	}
@@ -557,10 +566,37 @@ void AJRRoom::Build(const FJRLayout& L, int32 Era)
 	AddPart(this, Root, EShape::Cube, FVector(20, R1 - R0, WallH), FVector(-(HX + 10), (R0 + R1) / 2, WallH / 2), Wall2); // depan, kanan pintu
 	AddPart(this, Root, EShape::Cube, FVector(20, 200, WallH - 220.f), FVector(-(HX + 10), DoorY, (220.f + WallH) / 2), Wall2); // di atas pintu
 
+	// Cat dinding dalam (setebal 1 cm, setinggi dinding) lalu cat bawah (lambri) 110 cm + lis di lantai 1
+	{
+		auto Cat = [&](float SX, float SY, float CX, float CY, const FLinearColor& C)
+		{
+			AddPart(this, Root, EShape::Cube, FVector(SX, SY, WallH), FVector(CX, CY, WallH / 2), C, false);
+		};
+		Cat(1, 2 * HY, HX - 0.5f, 0, Paint);
+		Cat(2 * HX, 1, 0, -(HY - 0.5f), Paint2);
+		Cat(2 * HX, 1, 0, HY - 0.5f, Paint2);
+		Cat(1, (DoorY - 100.f) + HY, -(HX - 0.5f), (-HY + DoorY - 100.f) / 2, Paint2);
+		Cat(1, HY - (DoorY + 100.f), -(HX - 0.5f), (DoorY + 100.f + HY) / 2, Paint2);
+		AddPart(this, Root, EShape::Cube, FVector(1, 200, WallH - 220.f), FVector(-(HX - 0.5f), DoorY, (220.f + WallH) / 2), Paint2, false);	// di atas pintu
+	}
+	{
+		const float LH = 110.f;
+		auto Lambri = [&](float SX, float SY, float CX, float CY)
+		{
+			AddPart(this, Root, EShape::Cube, FVector(SX, SY, LH), FVector(CX, CY, LH / 2), Lower, false);
+			AddPart(this, Root, EShape::Cube, FVector(SX + 1.f, SY + 1.f, 6), FVector(CX, CY, LH + 3.f), Trim, false);
+		};
+		Lambri(2, 2 * HY, HX - 1.f, 0);															// belakang
+		Lambri(2 * HX, 2, 0, -(HY - 1.f));															// kiri
+		Lambri(2 * HX, 2, 0, HY - 1.f);															// kanan
+		Lambri(2, (DoorY - 100.f) + HY, -(HX - 1.f), (-HY + DoorY - 100.f) / 2);					// depan, kiri pintu
+		Lambri(2, HY - (DoorY + 100.f), -(HX - 1.f), (DoorY + 100.f + HY) / 2);					// depan, kanan pintu
+	}
+
 	if (!bUp)
 	{
 		// Plafon
-		AddPart(this, Root, EShape::Cube, FVector(2 * HX + 40, 2 * HY + 40, 10), FVector(0, 0, 305), Hex(0xe8e4da));
+		AddPart(this, Root, EShape::Cube, FVector(2 * HX + 40, 2 * HY + 40, 10), FVector(0, 0, 305), bRuko ? Hex(0xf3efe4) : Hex(0xd9d3c4));
 	}
 	else
 	{
@@ -636,7 +672,7 @@ void AJRRoom::Build(const FJRLayout& L, int32 Era)
 				Up->SetRelativeLocation(Pos - FVector(0, 0, 10));
 				Up->SetMobility(EComponentMobility::Movable);
 				Up->SetIntensityUnits(ELightUnits::Candelas);
-				Up->SetIntensity(45.f);
+				Up->SetIntensity(34.f);
 				Up->SetAttenuationRadius(1200.f);
 				Up->SetLightColor(FLinearColor(1.f, 0.9f, 0.8f));
 				Up->SetCastShadows(false);	// lampu ruangan tanpa bayangan: jauh lebih ringan di HP
@@ -687,6 +723,8 @@ void AJRRoom::Build(const FJRLayout& L, int32 Era)
 		AddProp(this, Root, TEXT("SM_Poster"), FVector(0.2f * HX, HY - 2, 150), -90.f, false);
 	}
 
+	BuildClutter(L, Era);
+
 	// Lampu neon
 	const float Xs[] = { -0.5f * HX, 0.07f * HX, 0.64f * HX };
 	for (float X : Xs)
@@ -700,7 +738,7 @@ void AJRRoom::Build(const FJRLayout& L, int32 Era)
 			Light->SetRelativeLocation(Pos - FVector(0, 0, 10));
 			Light->SetMobility(EComponentMobility::Movable);
 			Light->SetIntensityUnits(ELightUnits::Candelas);
-			Light->SetIntensity(bRuko ? 55.f : 45.f);
+			Light->SetIntensity(bRuko ? 40.f : 34.f);	// lebih redup: dinding berwarna tidak pucat, langit-langit tidak silau
 			Light->SetAttenuationRadius(bRuko ? 1300.f : 1100.f);
 			Light->SetLightColor(FLinearColor(1.f, 0.97f, 0.9f));
 			Light->SetCastShadows(false);	// lampu ruangan tanpa bayangan: jauh lebih ringan di HP
@@ -708,6 +746,63 @@ void AJRRoom::Build(const FJRLayout& L, int32 Era)
 			Lights.Add(Light);
 			AddInstanceComponent(Light);
 		}
+	}
+}
+
+/* ---------- Barang pengisi ruangan (model Polyfork, tanpa tabrakan agar jalur pelanggan aman) ---------- */
+
+void AJRRoom::BuildClutter(const FJRLayout& L, int32 Era)
+{
+	const float HX = L.HalfX, HY = L.HalfY, DoorY = L.DoorY;
+	const bool bUp = L.HasUpstairs();
+	// FaceYaw: arah hadap model (0 = +X / ke dinding belakang, 180 = ke pintu, 90 = ke kanan, -90 = ke kiri)
+	auto Put = [&](const TCHAR* Name, const FVector& At, float FaceYaw, float Scale = 1.f)
+	{
+		if (UStaticMeshComponent* C = AddProp(this, Root, Name, At, FaceYaw + PfYaw, false))
+		{
+			C->SetRelativeScale3D(FVector(Scale));
+			C->SetCastShadow(false);
+		}
+	};
+	const float CeilZ = bUp ? L.FloorH - 14.f : 300.f;
+	// Catatan: model dinding Polyfork sudah membawa tinggi gantungnya sendiri (Z di sini = geseran dari tinggi itu):
+	// jam 222-258 cm, papan menu 140-252, bingkai 120-190, lampu hias 270-287, pot gantung 265-320.
+
+	// Jam dinding (Game Center: dinding kiri tertutup tangga, pindah ke kanan) dan papan menu kantin dekat kompor
+	if (!bUp) Put(TEXT("SM_PF_Wall_Clock"), FVector(0.14f * HX, -(HY - 6.f), 0.f), 90.f);
+	else Put(TEXT("SM_PF_Wall_Clock"), FVector(0.15f * HX, HY - 6.f, 0.f), -90.f);
+	Put(TEXT("SM_PF_Chalkboard_Menu_Board"), FVector(L.Stove().X - 170.f, -(HY - 2.f), -40.f), 90.f);
+	// Dinding kanan (+Y): bingkai gambar di antara PC 1 dan PC 2
+	if (L.PcX.Num() >= 2) Put(TEXT("SM_PF_Framed_Wall_Art"), FVector((L.PcX[0] + L.PcX[1]) * 0.5f, HY - 2.f, 15.f), -90.f);
+	// Pojok belakang: kabel ruwet di belakang TV pertama
+	if (L.PsY.Num() > 0) Put(TEXT("SM_PF_Cable_Spaghetti_Bundle"), FVector(HX - 25.f, L.PsY[0] - 95.f, 0.f), 180.f, 0.8f);
+	// Pojok depan kanan: rak kawat berisi kardus, krat minuman
+	{
+		const FVector Rack(-(HX - 32.f), HY - 120.f, 0.f);
+		Put(TEXT("SM_PF_Wire_Shelving_Rack"), Rack, 0.f);
+		Put(TEXT("SM_PF_Cardboard_Delivery_Box"), Rack + FVector(0.f, -20.f, 104.f), 0.f, 0.85f);
+		Put(TEXT("SM_PF_Cardboard_Delivery_Box"), Rack + FVector(0.f, 25.f, 141.f), 10.f, 0.7f);
+		Put(TEXT("SM_PF_Beverage_Crate"), FVector(-(HX - 30.f), HY - 220.f, 0.f), 0.f);
+		Put(TEXT("SM_PF_Beverage_Crate"), FVector(-(HX - 30.f), HY - 220.f, 41.f), 15.f);
+	}
+	// Depan: tanaman di antara bangku antre dan kasir, APAR dekat pintu, tempat sampah kasir
+	Put(TEXT("SM_PF_Floor_Houseplant"), FVector(-(HX - 45.f), -0.28f * HY, 0.f), 0.f);
+	Put(TEXT("SM_PF_Fire_Extinguisher"), FVector(-(HX - 14.f), DoorY - 125.f, 0.f), 0.f);
+	Put(TEXT("SM_PF_Wastepaper_Bin"), FVector(L.Kasir().X - 80.f, L.Kasir().Y - 110.f, 0.f), 0.f);
+	// Pot gantung di dekat pintu
+	Put(TEXT("SM_PF_Hanging_Plant_Basket"), FVector(-(HX - 60.f), DoorY + 170.f, CeilZ - 320.f), 0.f);
+
+	// Luar gedung: kotak meteran PLN, tong air, pot tanaman, tempat sampah, AC luar dan motor (ruko ke atas)
+	const float Out = -(HX + 20.f);
+	Put(TEXT("SM_PF_Meter_Box"), FVector(Out - 14.f, DoorY - 210.f, 110.f), 180.f);
+	Put(TEXT("SM_PF_Plastic_Drum"), FVector(Out - 45.f, DoorY + 230.f, 0.f), 0.f);
+	Put(TEXT("SM_PF_Potted_Shrub"), FVector(Out - 50.f, DoorY - 140.f, 0.f), 0.f, 0.8f);
+	Put(TEXT("SM_PF_Potted_Shrub"), FVector(Out - 50.f, DoorY + 140.f, 0.f), 40.f, 0.8f);
+	Put(TEXT("SM_PF_Street_Bin"), FVector(Out - 60.f, DoorY - 330.f, 0.f), 180.f);
+	if (Era >= 2)
+	{
+		Put(TEXT("SM_PF_Air_Con_Unit"), FVector(Out - 24.f, -0.55f * HY, 40.f), 180.f);
+		Put(TEXT("SM_PF_Delivery_Moped"), FVector(Out - 330.f, DoorY + 420.f, 0.f), 90.f);
 	}
 }
 

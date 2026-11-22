@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 
@@ -13,7 +13,7 @@ public class JuraganRental : ModuleRules
 	
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "UMG", "Slate", "SlateCore" });
 
-		PrivateDependencyModuleNames.AddRange(new string[] { "ApplicationCore" });	// input device mapper (uji geser layar)
+		PrivateDependencyModuleNames.AddRange(new string[] { "ApplicationCore", "RHI" });	// RHI: hitung draw call untuk uji performa (-jrperf)	// input device mapper (uji geser layar)
 
 		// Uncomment if you are using Slate UI
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });

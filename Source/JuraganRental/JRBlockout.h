@@ -1,4 +1,4 @@
-// Helper untuk membangun geometri greybox dari bentuk dasar engine.
+﻿// Helper untuk membangun geometri greybox dari bentuk dasar engine.
 
 #pragma once
 
@@ -15,6 +15,8 @@ namespace JRBlockout
 
 	/** Warna dari kode hex sRGB, misalnya 0x6b4a2f. */
 	JURAGANRENTAL_API FLinearColor Hex(uint32 Rgb);
+	/** Material warna polos yang dipakai bersama (jangan diubah parameternya; untuk warna yang berubah pakai Paint). */
+	JURAGANRENTAL_API class UMaterialInterface* SharedColorMat(const FLinearColor& Color);
 
 	/** Tambah bagian berbentuk dasar saat runtime. Size dan Center dalam cm, relatif ke Parent. */
 	JURAGANRENTAL_API UStaticMeshComponent* AddPart(AActor* Owner, USceneComponent* Parent, EShape Shape,

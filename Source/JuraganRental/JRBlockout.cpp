@@ -1,4 +1,4 @@
-#include "JRBlockout.h"
+﻿#include "JRBlockout.h"
 
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
@@ -6,6 +6,10 @@
 #include "GameFramework/Actor.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "UObject/StrongObjectPtr.h"
+#include "UObject/Package.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
 namespace JRBlockout
 {
@@ -34,8 +38,21 @@ namespace JRBlockout
 		Part->SetCollisionProfileName(bCollide ? UCollisionProfile::BlockAll_ProfileName : UCollisionProfile::NoCollision_ProfileName);
 		Part->RegisterComponent();
 		Owner->AddInstanceComponent(Part);
-		Paint(Part, Color);
+		Part->SetMaterial(0, SharedColorMat(Color));	// material bersama per warna: engine bisa menggambar balok sewarna sekaligus
 		return Part;
+	}
+
+	UMaterialInterface* SharedColorMat(const FLinearColor& Color)
+	{
+		// Aset di variabel static wajib TStrongObjectPtr (aturan proyek: raw pointer bisa dihapus GC).
+		static const bool bNoShare = FParse::Param(FCommandLine::Get(), TEXT("jrnoshare"));	// uji performa: cara lama, satu material per balok
+		if (bNoShare) return MakeColorMat(GetTransientPackage(), Color);
+		static TMap<uint32, TStrongObjectPtr<UMaterialInstanceDynamic>> Cache;
+		const uint32 Key = Color.ToFColor(false).DWColor();
+		if (TStrongObjectPtr<UMaterialInstanceDynamic>* Hit = Cache.Find(Key)) return Hit->Get();
+		UMaterialInstanceDynamic* Mat = MakeColorMat(GetTransientPackage(), Color);
+		if (Mat) Cache.Add(Key, TStrongObjectPtr<UMaterialInstanceDynamic>(Mat));
+		return Mat;
 	}
 
 	UMaterialInstanceDynamic* MakeColorMat(UObject* Outer, const FLinearColor& Color)
@@ -61,7 +78,8 @@ namespace JRBlockout
 	UStaticMeshComponent* AddProp(AActor* Owner, USceneComponent* Parent, const TCHAR* Name,
 		const FVector& Loc, float FaceYaw, bool bCollide)
 	{
-		const FString Path = FString::Printf(TEXT("/Game/Props/%s.%s"), Name, Name);
+		// SM_PF_* = model Polyfork (polyfork.dev, gratis untuk komersial) di /Game/Polyfork
+		const FString Path = FString(Name).StartsWith(TEXT("SM_PF_")) ? FString::Printf(TEXT("/Game/Polyfork/%s.%s"), Name, Name) : FString::Printf(TEXT("/Game/Props/%s.%s"), Name, Name);
 		UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, *Path);
 		if (!Mesh)
 		{

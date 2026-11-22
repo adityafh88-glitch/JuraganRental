@@ -26,6 +26,13 @@
 #include "Kismet/GameplayStatics.h"
 #include "EngineUtils.h"
 #include "Misc/CoreDelegates.h"
+#include "RHI.h"
+#include "RHIStats.h"
+#include "Engine/DirectionalLight.h"
+#include "Engine/SkyLight.h"
+#include "Components/VolumetricCloudComponent.h"
+#include "Components/DirectionalLightComponent.h"
+#include "Components/SkyLightComponent.h"
 
 namespace JRLocal_GameMode
 {
@@ -1143,6 +1150,53 @@ FString AJRGameMode::SaveSummary()
 	return JRPrintf(JRT(TEXT("Hari %d  -  %s  -  %s")), S->Day, S->Era >= 3 ? JRT(TEXT("Game Center")) : S->Era == 2 ? JRT(TEXT("Ruko Kecil")) : JRT(TEXT("Garasi")), *JRFormatRp(S->Money));
 }
 
+void AJRGameMode::TickSky()
+{
+	if (!bSkyInit)
+	{
+		bSkyInit = true;
+		{ TActorIterator<ADirectionalLight> It(GetWorld()); if (It) SkySun = *It; }
+		{ TActorIterator<ASkyLight> It(GetWorld()); if (It) SkyFill = *It; }
+		if (ADirectionalLight* S = SkySun.Get())
+		{
+			S->GetRootComponent()->SetMobility(EComponentMobility::Movable);
+			SunBase = S->GetLightComponent()->Intensity;
+			SunYaw = S->GetActorRotation().Yaw;
+		}
+		if (ASkyLight* F = SkyFill.Get())
+		{
+			F->GetRootComponent()->SetMobility(EComponentMobility::Movable);
+			FillBase = F->GetLightComponent()->Intensity;
+		}
+		// HP: awan volumetrik sangat berat di GPU HP (ray-march per piksel); langit tetap biru dari SkyAtmosphere.
+		const bool bMobileGfx = PLATFORM_ANDROID || PLATFORM_IOS || FParse::Param(FCommandLine::Get(), TEXT("jrgfx"));
+		if (bMobileGfx)
+		{
+			for (TActorIterator<AVolumetricCloud> It(GetWorld()); It; ++It) { It->SetActorHiddenInGame(true); It->GetRootComponent()->SetVisibility(false, true); }
+		}
+		UE_LOG(LogTemp, Display, TEXT("JR_SKY sun=%d (%.1f) skylight=%d (%.2f realtime=%d)"), SkySun.IsValid() ? 1 : 0, SunBase,
+			SkyFill.IsValid() ? 1 : 0, FillBase, SkyFill.IsValid() && SkyFill->GetLightComponent()->bRealTimeCapture ? 1 : 0);
+	}
+	// Menu utama: sore yang hangat. Layar laporan (tutup jam 24.00): malam.
+	const float H = Phase == EJRGamePhase::Menu ? 16.5f : Hour;
+	if (FMath::Abs(H - LastSkyHour) < 0.04f) return;
+	LastSkyHour = H;
+	const float Elev = (H - 6.f) / 12.f * 180.f;	// 0 = terbit pukul 06.00, 180 = terbenam pukul 18.00
+	const float Lit = FMath::Clamp(FMath::Sin(FMath::DegreesToRadians(Elev)) * 3.f, 0.f, 1.f);
+	if (ADirectionalLight* S = SkySun.Get())
+	{
+		S->SetActorRotation(FRotator(-FMath::Clamp(Elev, 4.f, 176.f), SunYaw, 0.f));	// di bawah cakrawala cukup dimatikan
+		S->GetLightComponent()->SetIntensity(SunBase * Lit);
+	}
+	if (ASkyLight* F = SkyFill.Get())
+	{
+		USkyLightComponent* C = F->GetLightComponent();
+		C->SetIntensity(FillBase * FMath::Lerp(0.12f, 1.f, Lit));
+		// Tangkap ulang langit hanya saat terangnya berubah cukup jauh (mahal di HP)
+		if (!C->bRealTimeCapture && FMath::Abs(Lit - LastCaptureDay) > 0.2f) { C->RecaptureSky(); LastCaptureDay = Lit; }
+	}
+}
+
 bool AJRGameMode::SaveNow()
 {
 	// Hanya saat toko buka: di layar laporan simpanan akhir hari sudah ada, di menu/opening belum ada yang perlu disimpan.
@@ -2073,6 +2127,25 @@ void AJRGameMode::Tick(float DeltaSeconds)
 			UE_LOG(LogTemp, Display, TEXT("JR_DEVTEST era=%d vip=%d lv=%d->%d money=%.0f rep=%.0f layout=%s"), Era, Count(EJRUnitType::VIP), Lv, JuraganLevel(), Money, Rep, *Layout().Name); DevStep = 2; }
 	}
 
+	// -jrperf: catat draw call dan jumlah segitiga per frame (rata-rata 2 detik) untuk membandingkan optimasi.
+	if (FParse::Param(FCommandLine::Get(), TEXT("jrperf")))
+	{
+		static float PerfT = 0.f, PerfDraws = 0.f, PerfPrims = 0.f, PerfDt = 0.f;
+		static int32 PerfN = 0;
+		PerfT += DeltaSeconds;
+		if (PerfT > 8.f)
+		{
+			PerfDraws += GNumDrawCallsRHI[0]; PerfPrims += GNumPrimitivesDrawnRHI[0]; PerfDt += DeltaSeconds; ++PerfN;
+			if (PerfT > 10.f)
+			{
+				int32 Comps = 0;
+				for (TActorIterator<AActor> It(GetWorld()); It; ++It) { TInlineComponentArray<UPrimitiveComponent*> P(*It); Comps += P.Num(); }
+				UE_LOG(LogTemp, Display, TEXT("JR_PERF era=%d draws=%.0f tris=%.0f ms=%.1f primitif=%d"), Era, PerfDraws / PerfN, PerfPrims / PerfN, PerfDt / PerfN * 1000.f, Comps);
+				PerfT = 0.f; PerfDraws = PerfPrims = PerfDt = 0.f; PerfN = 0;
+			}
+		}
+	}
+
 	// -jrautotest -jrmidsave: simpan di tengah hari, ubah kas, muat lagi; kas, jam, dan catatan hari harus kembali.
 	if (bAutoTest && FParse::Param(FCommandLine::Get(), TEXT("jrmidsave")))
 	{
@@ -2188,23 +2261,7 @@ void AJRGameMode::Tick(float DeltaSeconds)
 		Room->SetLightsOn(FlickerTime <= 0.f || FMath::FRand() < 0.55f);
 	}
 
-	// Sembunyikan landscape bukit gurun bawaan level (diganti latar kampung). Dicek berkala karena
-	// potongan landscape World Partition bisa dimuat belakangan.
-	HideLandscapeTimer -= DeltaSeconds;
-	if (HideLandscapeTimer <= 0.f)
-	{
-		HideLandscapeTimer = 2.f;
-		for (TActorIterator<AActor> It(GetWorld()); It; ++It)
-		{
-			AActor* A = *It;
-			if (!A->IsHidden() && A->GetClass()->GetName().Contains(TEXT("Landscape")))
-			{
-				A->SetActorHiddenInGame(true);
-				A->SetActorEnableCollision(false);
-			}
-		}
-	}
-
+	TickSky();
 	if (!IsPlaying()) return;
 	if (bAutoTest) TickAutoTest(DeltaSeconds);
 	TickMystery(DeltaSeconds);

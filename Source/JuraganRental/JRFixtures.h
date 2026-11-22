@@ -25,6 +25,10 @@ private:
 	/** Tampak depan dari jalan: papan nama, kanopi, jendela, spanduk, lampu. */
 	void BuildFacade(const struct FJRLayout& L, int32 Era, float WallH);
 	class UTextRenderComponent* OutsideText(const FString& Text, const FVector& Loc, float Size, const FColor& Color);
+	/** Barang pengisi ruangan dan halaman depan (model Polyfork). */
+	void BuildClutter(const struct FJRLayout& L, int32 Era);
+	/** Koreksi arah hadap model Polyfork (glTF) terhadap konvensi AddProp. */
+	static constexpr float PfYaw = 0.f;
 
 public:
 
