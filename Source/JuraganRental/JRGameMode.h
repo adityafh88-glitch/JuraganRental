@@ -306,6 +306,12 @@ public:
 	static FString SaveSummary();
 	bool LoadProgress();
 	void BeginNewGame();		// dari menu utama: mulai hari pertama
+	/** Simpan progres hari yang sedang berjalan (jam, kas, statistik hari ini). Diabaikan bila toko tidak sedang buka,
+	 *  ada dialog pilihan yang menunggu, atau sesi tidak dimulai dari menu utama (uji otomatis/rekaman). */
+	void SaveMidDay(const TCHAR* Reason);
+	/** true setelah pemain menekan Lanjutkan/Main baru di menu utama: hanya sesi ini yang boleh menulis simpanan tengah hari. */
+	bool bPlayerSession = false;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	/* ---------- "Bang, nambah sejam!" dan momen hari ini ---------- */
 	void ExtendSession(AJRStation* Station);
@@ -510,6 +516,9 @@ private:
 	// Mode uji otomatis (-jrautotest, -jrera2): main sendiri, ambil screenshot, lalu keluar.
 	void TickAutoTest(float DeltaSeconds);
 	void SaveProgress();
+	bool WriteSave(bool bMidDay);
+	float MidSaveTimer = 0.f;		// jam game sejak simpanan tengah hari terakhir
+	FDelegateHandle BgSaveHandle, DeactivateSaveHandle, TerminateSaveHandle;
 	void TickMystery(float DeltaSeconds);
 	void TickStaff(float DeltaSeconds);
 	void TickTutorial(float DeltaSeconds);

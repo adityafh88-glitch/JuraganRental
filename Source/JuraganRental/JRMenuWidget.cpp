@@ -204,19 +204,19 @@ void UJRMenuWidget::ShowMain()
 	const FString Summary = AJRGameMode::SaveSummary();
 	AddButton(Summary.IsEmpty() ? FString(JRT(TEXT("Lanjutkan"))) : JRPrintf(JRT(TEXT("Lanjutkan\n%s")), *Summary), [this, GM]()
 	{
-		if (GM && GM->LoadProgress()) Close();
+		if (GM && GM->LoadProgress()) Close();	// LoadProgress menandai sesi pemain (boleh simpan tengah hari)
 	}, true, !Summary.IsEmpty());
 	AddButton(JRT(TEXT("Main baru")), [this, GM, Summary]()
 	{
 		if (Summary.IsEmpty())
 		{
-			if (GM) GM->BeginNewGame();
+			if (GM) { GM->bPlayerSession = true; GM->BeginNewGame(); }
 			Close();
 			return;
 		}
 		ShowConfirm(JRT(TEXT("Mulai dari awal?")),
-			JRPrintf(JRT(TEXT("Simpanan lama (%s) akan ditimpa saat hari pertama selesai.")), *Summary),
-			JRT(TEXT("Ya, mulai baru")), [this, GM]() { if (GM) GM->BeginNewGame(); Close(); });
+			JRPrintf(JRT(TEXT("Simpanan lama (%s) akan ditimpa begitu tutorial selesai.")), *Summary),
+			JRT(TEXT("Ya, mulai baru")), [this, GM]() { if (GM) { GM->bPlayerSession = true; GM->BeginNewGame(); } Close(); });
 	}, Summary.IsEmpty());
 	AddButton(JRT(TEXT("Pengaturan")), [this]() { ShowSettings(); });
 	if (!bMobile)
@@ -226,7 +226,7 @@ void UJRMenuWidget::ShowMain()
 			UKismetSystemLibrary::QuitGame(this, GetOwningPlayer(), EQuitPreference::Quit, false);
 		});
 	}
-	UTextBlock* Hint = MakeText(JRT(TEXT("Permainan tersimpan otomatis setiap toko tutup.")), 12, Muted);
+	UTextBlock* Hint = MakeText(JRT(TEXT("Permainan tersimpan otomatis selama bermain dan setiap toko tutup.")), 12, Muted);
 	Hint->SetJustification(ETextJustify::Center);
 	Content->AddChildToVerticalBox(Hint)->SetPadding(FMargin(0.f, 18.f, 0.f, 0.f));
 }
@@ -242,9 +242,14 @@ void UJRMenuWidget::ShowPause()
 	{
 		AddButton(JRT(TEXT("Lewati tutorial")), [this, GM]() { GM->SkipTutorial(); Close(); });
 	}
+	// Membuka menu jeda = titik simpan: banyak pemain HP langsung menutup aplikasi dari sini.
+	if (GM) GM->SaveMidDay(TEXT("pause"));
 	const bool bSaved = GM && GM->Phase == EJRGamePhase::Report;
+	const bool bMidSaved = GM && GM->bPlayerSession && GM->Phase == EJRGamePhase::Playing && !GM->IsTutorial();
 	const FString Warn = bSaved
 		? FString(JRT(TEXT("Progres sampai hari ini sudah tersimpan.")))
+		: bMidSaved
+		? FString(JRT(TEXT("Progres hari ini sudah tersimpan. Lanjutkan dari menu utama untuk kembali ke jam yang sama.")))
 		: FString(JRT(TEXT("Progres hari ini belum tersimpan. Game tersimpan otomatis setiap toko tutup (pukul 24.00).")));
 	AddButton(JRT(TEXT("Keluar ke menu utama")), [this, Warn]()
 	{
