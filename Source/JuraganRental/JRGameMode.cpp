@@ -2110,6 +2110,47 @@ void AJRGameMode::Tick(float DeltaSeconds)
 	Toasts.RemoveAll([](const FJRToast& T) { return T.TimeLeft <= 0.f; });
 	if (PromoId > 0) TickPromo(DeltaSeconds);
 
+	// Pengaman: pemain yang entah bagaimana jatuh menembus tanah dikembalikan ke dalam rental.
+	if (APlayerController* PC0 = GetWorld()->GetFirstPlayerController())
+	{
+		if (APawn* P0 = PC0->GetPawn())
+		{
+			if (P0->GetActorLocation().Z < -400.f)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("JR_FALL pemain jatuh di %s, dikembalikan"), *P0->GetActorLocation().ToString());
+				P0->SetActorLocation(Layout().PlayerStart(), false, nullptr, ETeleportType::TeleportPhysics);
+				if (ACharacter* Ch = Cast<ACharacter>(P0)) Ch->GetCharacterMovement()->Velocity = FVector::ZeroVector;
+			}
+			// Uji -jroutside: keluar pintu lalu berjalan ke jalan dan ke samping (dicatat dan dipotret).
+			static const bool bOutTest = FParse::Param(FCommandLine::Get(), TEXT("jroutside"));
+			if (bOutTest && Phase == EJRGamePhase::Menu) { BeginNewGame(); SkipOpening(); bNeedName = false; }
+			else if (bOutTest && Phase == EJRGamePhase::Intro) Confirm();
+			if (bOutTest && Phase == EJRGamePhase::Playing)
+			{
+				static float OutT = 0.f;
+				static int32 OutStep = 0;
+				OutT += DeltaSeconds;
+				const FJRLayout& L = Layout();
+				const FVector Spots[] = { FVector(-L.HalfX - 150.f, L.DoorY, 120.f), FVector(-L.HalfX - 700.f, L.DoorY, 120.f), FVector(-L.HalfX - 700.f, L.HalfY + 800.f, 120.f), FVector(-L.HalfX - 700.f, L.DoorY, 120.f) };	// titik terakhir: jalan kaki menjauh (uji pagar)
+				if (OutStep == UE_ARRAY_COUNT(Spots)) P0->AddMovementInput(FVector(-1.f, 0.f, 0.f), 1.f);	// berjalan ke arah kampung
+				if (OutStep < UE_ARRAY_COUNT(Spots) && OutT > 3.f + OutStep * 6.f)
+				{
+					if (OutStep > 0) UE_LOG(LogTemp, Display, TEXT("JR_OUTSIDE titik%d posisi=%s"), OutStep - 1, *P0->GetActorLocation().ToString());
+					if (OutStep > 0) FScreenshotRequest::RequestScreenshot(FPaths::ProjectSavedDir() / FString::Printf(TEXT("AutoTest/JR_Luar_%d.png"), OutStep - 1), false, false);
+					P0->SetActorLocation(Spots[OutStep], false, nullptr, ETeleportType::TeleportPhysics);
+					PC0->SetControlRotation(FRotator(-5.f, OutStep == 2 ? 90.f : 180.f, 0.f));
+					OutStep++;
+				}
+				else if (OutStep == UE_ARRAY_COUNT(Spots) && OutT > 3.f + OutStep * 6.f)
+				{
+					UE_LOG(LogTemp, Display, TEXT("JR_OUTSIDE titik%d posisi=%s"), OutStep - 1, *P0->GetActorLocation().ToString());
+					OutStep++;
+					FGenericPlatformMisc::RequestExit(false);
+				}
+			}
+		}
+	}
+
 	// Uji -jrexittest (simpanan asli!): main baru -> buka toko -> keluar ke menu lewat jalur tombol jeda -> cek Lanjutkan.
 	static const bool bExitTest = FParse::Param(FCommandLine::Get(), TEXT("jrexittest"));
 	if (bExitTest)

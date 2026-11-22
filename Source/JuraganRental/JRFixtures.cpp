@@ -4,6 +4,7 @@
 #include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
+#include "Engine/CollisionProfile.h"
 #include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/StaticMesh.h"
@@ -204,7 +205,8 @@ void AJRDecor::House(const FVector& F, float Width, float Height, const FLinearC
 {
 	// F = tengah sisi depan (menghadap +X, ke arah jalan), di lantai
 	const float Depth = 500.f;
-	Shape(Cube, F + FVector(-Depth / 2, 0, Height / 2), FVector(Depth / 100.f, Width / 100.f, Height / 100.f), Wall);
+	// Badan rumah padat: pemain tidak bisa menembus rumah tetangga
+	Shape(Cube, F + FVector(-Depth / 2, 0, Height / 2), FVector(Depth / 100.f, Width / 100.f, Height / 100.f), Wall)->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 	// Atap genteng: lempeng miring di depan + penutup atas
 	const FLinearColor Roof = Seed % 2 ? FLinearColor(0.55f, 0.2f, 0.12f) : FLinearColor(0.35f, 0.18f, 0.12f);
 	Shape(Cube, F + FVector(25, 0, Height + 18), FVector(1.4f, (Width + 60.f) / 100.f, 0.12f), Roof, 0.f, FRotator(-18.f, 0, 0));
@@ -310,8 +312,24 @@ void AJRDecor::BuildKampung(float HX, float HY)
 		FLinearColor(0.95f, 0.76f, 0.62f), FLinearColor(0.88f, 0.88f, 0.88f), FLinearColor(0.93f, 0.8f, 0.85f) };
 	const FLinearColor Grass(0.3f, 0.48f, 0.22f), Grass2(0.34f, 0.52f, 0.25f), Dirt(0.55f, 0.46f, 0.34f);
 
-	// Tanah berumput luas sampai cakrawala (di bawah semua lantai/jalan)
-	Shape(Cube, FVector(0, 0, -14.f), FVector(900.f, 900.f, 0.1f), Grass);
+	// Tanah berumput luas sampai cakrawala (di bawah semua lantai/jalan). Satu-satunya pijakan di luar gedung
+	// (level tidak punya landscape lagi), jadi wajib collision agar pemain yang keluar pintu tidak jatuh.
+	if (UStaticMeshComponent* Ground = Shape(Cube, FVector(0, 0, -14.f), FVector(900.f, 900.f, 0.1f), Grass))
+		Ground->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+	// Pagar tak terlihat: pemain boleh ke jalan depan dan gang samping, tetapi tidak berjalan jauh ke kampung.
+	{
+		const float X0 = -HX - 1150.f, X1 = HX + 900.f, Y1 = HY + 1100.f, H = 600.f;
+		const FVector Fence[][2] = {
+			{ FVector(X0, 0, H / 2), FVector(20.f, 2.f * Y1, H) }, { FVector(X1, 0, H / 2), FVector(20.f, 2.f * Y1, H) },
+			{ FVector((X0 + X1) / 2, -Y1, H / 2), FVector(X1 - X0, 20.f, H) }, { FVector((X0 + X1) / 2, Y1, H / 2), FVector(X1 - X0, 20.f, H) } };
+		for (const auto& W : Fence)
+		{
+			UStaticMeshComponent* C = Shape(Cube, W[0], W[1] / 100.f, Grass);
+			C->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+			C->SetHiddenInGame(true);
+			C->SetCastShadow(false);
+		}
+	}
 	// Halaman belakang dan samping (sedikit beda warna + jalan setapak tanah)
 	Shape(Cube, FVector(HX + 700.f, 0, -8.f), FVector(14.f, (2 * HY + 2400.f) / 100.f, 0.1f), Grass2);
 	Shape(Cube, FVector(HX + 320.f, 0, -6.f), FVector(1.2f, (2 * HY + 2000.f) / 100.f, 0.1f), Dirt);
