@@ -258,6 +258,19 @@ public:
 	int32 Xp = 0;
 	static constexpr int32 MaxJuraganLevel = 20;
 	static int32 XpForLevel(int32 Level);	// total XP untuk mencapai level ini
+	/* ---------- Lencana dan ending (JRBadges.cpp) ---------- */
+	static int32 NumBadges();
+	static int32 NumEndings();
+	static TArray<FString> BadgeLines();	// untuk HP > Info
+	bool RecordsProgress() const;			// uji otomatis/bot/promosi tidak menyimpan progres
+	void UnlockBadge(const TCHAR* Id);
+	void UnlockEnding(const TCHAR* Id, const FString& Story, TArray<FString> Labels = TArray<FString>(), TArray<TFunction<void()>> Actions = TArray<TFunction<void()>>());
+	void CountLife(EJRLife Kind);
+	void CheckBadges(bool bEndOfDay);
+	void CheckEndings();
+	int32 NegDays = 0;		// hari berturut-turut kas minus saat tutup
+	int32 SeenEndings = 0;	// bit ending yang sudah tampil di simpanan ini
+
 	/* ---------- Kabar pagi dan rencana hari ini (JRDaily.cpp) ---------- */
 	EJRNews News = EJRNews::None;
 	EJRPlan Plan = EJRPlan::None;

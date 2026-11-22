@@ -87,6 +87,8 @@ public:
 	UPROPERTY() TArray<int32> PostDay;
 
 	// Simpanan tengah hari: dimuat lagi pada jam yang sama (pelanggan yang sedang main tidak ikut).
+	UPROPERTY() int32 NegDays = 0;
+	UPROPERTY() int32 SeenEndings = 0;
 	UPROPERTY() bool bMidDay = false;
 	UPROPERTY() float Hour = 24.f;
 	UPROPERTY() int32 TutStep = -1;

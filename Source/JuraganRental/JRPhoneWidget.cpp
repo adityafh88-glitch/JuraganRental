@@ -559,6 +559,15 @@ void UJRPhoneWidget::FillHariIni(AJRGameMode* GM)
 			AddLine(T, i == 0 ? 0.f : (i == N - 1 ? 18.f : 8.f));
 			InfoLines.Add(T);
 		}
+		// Lencana dan ending (progres per pemain); dibangun sekali saat tab dibuka
+		const TArray<FString> Badge = AJRGameMode::BadgeLines();
+		for (int32 i = 0; i < Badge.Num(); ++i)
+		{
+			const bool bHead = Badge[i].StartsWith(TEXT("LENCANA")) || Badge[i].StartsWith(TEXT("ENDING")) || Badge[i].StartsWith(TEXT("BADGES")) || Badge[i].StartsWith(TEXT("ENDINGS"));
+			UTextBlock* T = MakeText(Badge[i], bHead ? 14 : 12, Badge[i].StartsWith(TEXT("[v]")) || bHead ? LcdInk : LcdInk.CopyWithNewOpacity(0.55f), bHead);
+			T->SetAutoWrapText(true);
+			AddLine(T, bHead ? 18.f : 4.f);
+		}
 		return;
 	}
 	for (int32 i = 0; i < N; ++i) InfoLines[i]->SetText(FText::FromString(Lines[i]));

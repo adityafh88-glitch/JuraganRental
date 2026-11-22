@@ -53,6 +53,15 @@ public:
 
 	UPROPERTY()
 	bool bShowFps = false;		// angka FPS di pojok layar (untuk penguji)
+
+	// Tujuan jangka panjang (JRBadges.cpp): lencana, ending, dan hitungan sepanjang permainan, per pemain.
+	UPROPERTY() TArray<FString> Badges;
+	UPROPERTY() TArray<FString> Endings;
+	UPROPERTY() int32 LifePaid = 0;
+	UPROPERTY() int32 LifeUpsell = 0;
+	UPROPERTY() int32 LifeMie = 0;
+	UPROPERTY() int32 LifeExact = 0;
+	UPROPERTY() int32 LifeTours = 0;
 };
 
 namespace JRSettings

@@ -241,6 +241,7 @@ void AJRGameMode::ChangeGame(AJRCustomer* C)
 			if (Given == Right)
 			{
 				Stats.ExactChange++;
+				CountLife(EJRLife::Exact);
 				X->SatAdj += 6.f;
 				AddXp(1);
 				if (FMath::FRand() < 0.3f)

@@ -77,6 +77,12 @@ enum class EJRStaff : uint8
 	Count
 };
 
+/** Hitungan sepanjang permainan untuk lencana (JRBadges.cpp). */
+enum class EJRLife : uint8
+{
+	Paid, Upsell, Mie, Exact, Tour
+};
+
 /** Kabar pagi: kejadian sehari yang mengubah pengunjung (lihat JRDaily.cpp). */
 enum class EJRNews : uint8
 {

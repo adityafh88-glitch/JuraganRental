@@ -21,6 +21,7 @@
 #include "JRStation.h"
 #include "JRVisitor.h"
 #include "JRSaveGame.h"
+#include "JRSettings.h"
 #include "JRMenuWidget.h"
 #include "JRPhoneWidget.h"
 #include "Kismet/GameplayStatics.h"
@@ -193,7 +194,12 @@ void AJRGameMode::BeginPlay()
 		bStaffTest = Era >= 2 && FParse::Param(FCommandLine::Get(), TEXT("jrstaff"));
 		if (bStaffTest) { for (bool& B : Staff) B = true; SpawnStaffActors(); }
 		if (FParse::Param(FCommandLine::Get(), TEXT("jrtuttest"))) TutStep = TutStart;
-		if (FParse::Param(FCommandLine::Get(), TEXT("jrdaily"))) { Day = 2; RollMorning(); }	// uji kabar pagi + kartu rencana (dialog dipotret, kartu pertama dipilih otomatis)
+		if (FParse::Param(FCommandLine::Get(), TEXT("jrdaily"))) { Day = 2; RollMorning(); }
+		if (FParse::Param(FCommandLine::Get(), TEXT("jrbadges")))
+		{
+			// Uji lencana/ending (tidak tersimpan ke disk): ending Raja Turnamen + Gulung Tikar saat tutup
+			JRSettings::Get()->LifeTours = 4; JRSettings::Get()->LifeMie = 49; NegDays = 2; Money = -1000000.f; Day = 7;
+		}	// uji kabar pagi + kartu rencana (dialog dipotret, kartu pertama dipilih otomatis)
 		bPaket1Test = Era >= 3 && FParse::Param(FCommandLine::Get(), TEXT("jrpaket1"));
 		if (bPaket1Test)
 		{
@@ -493,6 +499,7 @@ void AJRGameMode::TickTournament()
 void AJRGameMode::TournamentFinal()
 {
 	AddMoment(EJRMoment::Tour);
+	CountLife(EJRLife::Tour);
 	JRSound::Play2D(this, TEXT("SFX_TV_Gol"), 1.f);
 	TArray<FString> Labels = { JRPrintf(JRT(TEXT("Serahkan hadiah %s")), *JRFormatRp(TourPrize)) };
 	TArray<TFunction<void()>> Actions = { [this]()
@@ -898,6 +905,7 @@ void AJRGameMode::TickStaff(float DeltaSeconds)
 					C->Bill += MiePriceNow();
 					StaffDone[2]++;
 					Stats.MieSold++;
+					CountLife(EJRLife::Mie);
 					AddXp(1);
 					JRSound::PlayAt(this, TEXT("SFX_Notif"), O->GetActorLocation(), 0.7f);
 					AddToast(JRPrintf(JRT(TEXT("Koki mengantar mi ke %s. +%s masuk tagihan")), *O->DisplayName, *JRFormatRp(MiePriceNow())), Good);
@@ -1250,6 +1258,8 @@ void AJRGameMode::SaveProgress(bool bMidDay)
 	S->bKulkas = bKulkas; S->bKonter = bKonter; S->bPrinter = bPrinter;
 	S->Drinks = Drinks; S->Paper = Paper; S->Saldo = Saldo;
 	S->RentalName = RentalName;
+	S->NegDays = NegDays; S->SeenEndings = SeenEndings;
+	if (RecordsProgress()) JRSettings::Save();	// hitungan lencana ikut tersimpan
 	for (const FJRPost& P : Posts) { S->PostAuthor.Add(P.Author); S->PostText.Add(P.Text); S->PostLikes.Add(P.Likes); S->PostDay.Add(P.Day); }
 	if (bMidDay)
 	{
@@ -1317,6 +1327,7 @@ bool AJRGameMode::LoadProgress()
 	bKulkas = S->bKulkas; bKonter = S->bKonter; bPrinter = S->bPrinter;
 	Drinks = S->Drinks; Paper = S->Paper; Saldo = S->Saldo;
 	if (!S->RentalName.IsEmpty()) RentalName = S->RentalName;
+	NegDays = S->NegDays; SeenEndings = S->SeenEndings;
 	Posts.Reset();
 	for (int32 i = 0; i < S->PostText.Num(); ++i)
 	{
@@ -1392,6 +1403,7 @@ void AJRGameMode::ExtendSession(AJRStation* S)
 	C->Bill += Add;
 	C->SatAdj += 4.f;
 	Stats.Upsells++;
+	CountLife(EJRLife::Upsell);
 	if (bAutoTest) UE_LOG(LogTemp, Display, TEXT("JR_UPSELL ditambah %s total=%d"), *S->DisplayName, Stats.Upsells);
 	if (Stats.Upsells == 1) AddMoment(EJRMoment::Upsell);
 	AddXp(2);
@@ -2905,6 +2917,7 @@ void AJRGameMode::DeliverMie(AJRStation* S)
 	C->Bill += MiePriceNow();
 	TutorialAdvance(TutMie);
 	Stats.MieSold++;
+	CountLife(EJRLife::Mie);
 	AddXp(1);
 	JRSound::PlayAt(this, TEXT("SFX_Notif"), S->GetActorLocation(), 0.7f);
 	AddToast(JRPrintf(JRT(TEXT("Mi diantar ke %s. +%s masuk tagihan")), *S->DisplayName, *JRFormatRp(MiePriceNow())), Good);
@@ -3026,6 +3039,7 @@ void AJRGameMode::FinishPayment(AJRCustomer* C, float Paid)
 	if (Paid > 0.f)
 	{
 		SellDrink();	// kulkas minuman di Game Center
+		CountLife(EJRLife::Paid);
 		JRSound::PlayAt(this, TEXT("SFX_Kaching"), Layout().Kasir() + FVector(0, 0, 110));
 		if (FMath::FRand() < 0.5f) JRSound::Voice(this, VoiceCode[C->TypeIndex], TEXT("Bayar"), C->GetActorLocation());
 		AddToast(JRPrintf(JRT(TEXT("+%s dari %s")), *JRFormatRp(Paid), *C->DisplayName), Good);
@@ -3236,6 +3250,8 @@ void AJRGameMode::EndDay()
 			: JRPrintf(JRT(TEXT("Target Gerbang 2: Rp 3 juta, reputasi 60, 10 unit. Sekarang %s, reputasi %d, %d unit.")), *JRFormatRp(Money), FMath::RoundToInt(Rep), Units));
 	}
 	if (IsTutorial()) SkipTutorial();
+	CheckBadges(true);
+	CheckEndings();
 	SaveProgress();
 
 	CheckDemoOver();

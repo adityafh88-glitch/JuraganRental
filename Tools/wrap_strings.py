@@ -18,7 +18,7 @@ SKIP_EXACT = {
 SKIP_LINE = ("UE_LOG", "FParse", "RequestScreenshot", "LoadObject", "FObjectFinder", "GConfig",
              "CreateDefaultSubobject", "GetDefaultFontStyle", "SetVectorParameterValue", "SetMaterialByName",
              "JRSound::", "StartsWith(TEXT(\"VO_", "Voice(", "Bye(", "MakeLoop", "PlayAt(", "Play2D(", "PlayNear(",
-             "LaunchURL", "ReplaceInline", "TEXT(\"%s %d\")", "TEXT(\"SK_")
+             "LaunchURL", "ReplaceInline", "JRNOWRAP", "TEXT(\"%s %d\")", "TEXT(\"SK_")
 SKIP_FILES = {"JRLang.cpp", "JRSettings.cpp", "JRSaveGame.cpp", "JRBlockout.cpp"}
 
 
