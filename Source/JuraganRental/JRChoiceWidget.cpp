@@ -84,7 +84,7 @@ void UJRChoiceWidget::BuildTree()
 	Col->AddChildToVerticalBox(Buttons);
 }
 
-void UJRChoiceWidget::Show(const FString& Title, const FString& Body, const TArray<FString>& Labels)
+void UJRChoiceWidget::Show(const FString& Title, const FString& Body, const TArray<FString>& Labels, bool bNeutral)
 {
 	TakeWidget(); // pastikan pohon widget sudah dibangun
 	TitleText->SetText(FText::FromString(Title));
@@ -96,10 +96,11 @@ void UJRChoiceWidget::Show(const FString& Title, const FString& Body, const TArr
 		UTextBlock* T = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		T->SetText(FText::FromString(Labels[i]));
 		T->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 16));
-		T->SetColorAndOpacity(FSlateColor(i == 0 ? CrtInk : Ink));
+		T->SetColorAndOpacity(FSlateColor(i == 0 && !bNeutral ? CrtInk : Ink));
 		T->SetJustification(ETextJustify::Center);
+		T->SetAutoWrapText(true);	// label kartu rencana bisa panjang (terutama bahasa Inggris)
 		if (UButtonSlot* BSl = Cast<UButtonSlot>(B->SetContent(T))) BSl->SetPadding(FMargin(16.f, 11.f));
-		JRStyle::Apply(B, i == 0 ? JRStyle::EBtn::Primary : JRStyle::EBtn::Secondary);
+		JRStyle::Apply(B, i == 0 && !bNeutral ? JRStyle::EBtn::Primary : JRStyle::EBtn::Secondary);
 		B->Bind([this, i]() { if (OnPick) OnPick(i); });
 		UVerticalBoxSlot* BS = Buttons->AddChildToVerticalBox(B);
 		BS->SetPadding(FMargin(0.f, i == 0 ? 0.f : 8.f, 0.f, 0.f));

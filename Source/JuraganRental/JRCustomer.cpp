@@ -1,4 +1,4 @@
-#include "JRCustomer.h"
+﻿#include "JRCustomer.h"
 #include "JRLang.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -144,7 +144,7 @@ void AJRCustomer::Interact()
 {
 	if (State == EJRCustomerState::WaitPay)
 	{
-		if (AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>()) GM->CollectPayer(this);
+		if (AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>()) GM->CollectPayer(this, true);
 	}
 	else if (Station)
 	{

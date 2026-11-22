@@ -120,6 +120,7 @@ int32 AJRGameMode::JuraganLevel() const
 void AJRGameMode::AddXp(int32 Amount)
 {
 	if (Amount <= 0) return;
+	if (Plan == EJRPlan::Tutor) Amount = FMath::CeilToInt(Amount * 1.25f);	// rencana "Ajari bocil main"
 	const int32 Old = JuraganLevel();
 	Xp += Amount;
 	Stats.Xp += Amount;

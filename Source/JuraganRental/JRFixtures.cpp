@@ -860,7 +860,7 @@ void AJRKasir::Interact()
 {
 	if (AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>())
 	{
-		GM->CollectNextPayer();
+		GM->CollectNextPayer(true);
 	}
 }
 

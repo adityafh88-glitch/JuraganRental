@@ -250,7 +250,7 @@ FJRInteraction AJRStation::GetInteraction() const
 	{
 		Out.Kind = EJRInteractKind::Press;
 		Out.Prompt = JRPrintf(JRT(TEXT("%s mi ke %s  (+%s)")), Customer->bOrder ? JRT(TEXT("Antar")) : JRT(TEXT("Tawarkan")),
-			*Customer->DisplayName, *JRFormatRp(AJRGameMode::MiePrice));
+			*Customer->DisplayName, *JRFormatRp(GM->MiePriceNow()));
 	}
 	else if (Customer && Customer->State == EJRCustomerState::Playing && Customer->bOrder)
 	{

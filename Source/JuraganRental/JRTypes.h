@@ -53,6 +53,7 @@ enum class EJRMission : uint8
 	NoRun,		// tidak ada yang kabur (dinilai saat tutup)
 	Happy,		// kepuasan rata-rata minimal N (dinilai saat tutup)
 	Upsell,		// "Bang, nambah sejam!" dilayani N kali
+	ExactChange,	// mini-game kasir: kembalian pas N kali
 	Count
 };
 
@@ -74,6 +75,18 @@ enum class EJRStaff : uint8
 	Koki,
 	Cleaner,	// OB: memungut sampah
 	Count
+};
+
+/** Kabar pagi: kejadian sehari yang mengubah pengunjung (lihat JRDaily.cpp). */
+enum class EJRNews : uint8
+{
+	None, Gajian, LiburSekolah, Hujan, TanggalTua, BolaMalam
+};
+
+/** Rencana hari ini: satu dari tiga kartu yang dipilih tiap pagi, berlaku sehari. */
+enum class EJRPlan : uint8
+{
+	None, Brosur, Pelajar, MiPedas, Genset, StikBaru, Begadang, Bersih, Tutor
 };
 
 /** Kejadian penting hari ini: bahan Kartu Momen dan komentar warganet (Viralin). */
@@ -141,6 +154,7 @@ struct FJRChoice
 	TArray<FString> Labels;
 	TArray<TFunction<void()>> Actions;
 	int32 Serial = 0;	// nomor unik, agar HUD tahu dialog sudah berganti
+	bool bNeutral = false;	// semua tombol sama warnanya (kuis: tombol pertama bukan saran)
 };
 
 /** Format rupiah: 1500000 -> "Rp 1.500.000". */

@@ -140,7 +140,7 @@ void AJRHUD::SyncChoice()
 		ShownChoiceSerial = GM->Choices[0].Serial;
 		if (bPhoneOpen) SetPhoneOpen(false);
 		const FJRChoice& C = GM->Choices[0];
-		Choice->Show(C.Title, C.Body, C.Labels);
+		Choice->Show(C.Title, C.Body, C.Labels, C.bNeutral);
 		JRSound::Play2D(this, TEXT("SFX_Notif"), 0.8f);
 		Choice->SetVisibility(ESlateVisibility::Visible);
 		bChoiceShown = true;
@@ -660,6 +660,7 @@ void AJRHUD::DrawHUD()
 				case EJRMission::Start: Today = St.Started; break;
 				case EJRMission::Repair: Today = St.Repairs; break;
 				case EJRMission::Upsell: Today = St.Upsells; break;
+				case EJRMission::ExactChange: Today = St.ExactChange; break;
 				default: break;
 				}
 				const int32 Cur = M.bWeekly ? M.Progress + Today : Today;
@@ -667,6 +668,17 @@ void AJRHUD::DrawHUD()
 			}
 			const FString Line = FString::Printf(TEXT("%s%s  %s"), M.bWeekly ? JRT(TEXT("(Minggu) ")) : TEXT(""), *GM->MissionText(M), *Prog);
 			DrawText(Line, M.bDone ? Muted : Ink, PX + 12.f * MS, PY + 28.f * MS + i * LineH, Font, 0.95f * MS);
+		}
+		// Kabar pagi dan rencana hari ini, satu baris di bawah panel misi
+		if (GM->News != EJRNews::None || GM->Plan != EJRPlan::None)
+		{
+			FString Today = GM->News != EJRNews::None ? AJRGameMode::NewsTitle(GM->News) : FString();
+			if (GM->Plan != EJRPlan::None) Today += (Today.IsEmpty() ? FString() : FString(TEXT("  |  "))) + AJRGameMode::PlanTitle(GM->Plan);
+			const float TY = PY + (bCompact ? 30.f * MS : 30.f * MS + LineH * GM->Missions.Num()) + 4.f * MS;
+			float TW = 0.f, TH = 0.f;
+			GetTextSize(Today, TW, TH, Font, 0.9f * MS);
+			DrawRect(Panel, PX, TY, TW + 24.f * MS, TH + 8.f * MS);
+			DrawText(Today, Led, PX + 12.f * MS, TY + 4.f * MS, Font, 0.9f * MS);
 		}
 	}
 

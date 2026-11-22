@@ -46,6 +46,7 @@ struct FJRDayStats
 	bool bFridgeWarned = false;
 	int32 Xp = 0;		// XP yang didapat hari ini
 	int32 Upsells = 0;	// "Bang, nambah sejam!" dilayani
+	int32 ExactChange = 0;	// kembalian pas di kasir
 	TArray<EJRMoment> Moments;	// kejadian penting hari ini (urutan terjadi)
 };
 
@@ -178,7 +179,7 @@ public:
 
 	/* ---------- Kejadian dengan pilihan ---------- */
 	TArray<FJRChoice> Choices;
-	void PushChoice(const FString& Title, const FString& Body, TArray<FString> Labels, TArray<TFunction<void()>> Actions);
+	void PushChoice(const FString& Title, const FString& Body, TArray<FString> Labels, TArray<TFunction<void()>> Actions, bool bNeutral = false);
 	void ResolveChoice(int32 Index);
 
 	/* ---------- Buku utang ---------- */
@@ -257,6 +258,24 @@ public:
 	int32 Xp = 0;
 	static constexpr int32 MaxJuraganLevel = 20;
 	static int32 XpForLevel(int32 Level);	// total XP untuk mencapai level ini
+	/* ---------- Kabar pagi dan rencana hari ini (JRDaily.cpp) ---------- */
+	EJRNews News = EJRNews::None;
+	EJRPlan Plan = EJRPlan::None;
+	static FString NewsTitle(EJRNews N);
+	static FString NewsText(EJRNews N);
+	static FString PlanTitle(EJRPlan P);
+	static FString PlanEffect(EJRPlan P);
+	int32 PlanCost(EJRPlan P) const;
+	void RollMorning();
+	void ChoosePlan(EJRPlan P);
+	float DailySpawnMul(float H) const;
+	float DailyTypeMul(int32 TypeIndex, float H) const;
+	float DailyExtraHours(int32 TypeIndex) const;
+	float DailyMieMul() const;
+	int32 MiePriceNow() const;
+	float DailyBreakMul() const;
+	float DailySatBonus(const class AJRCustomer* C) const;
+
 	int32 JuraganLevel() const;
 	void AddXp(int32 Amount);
 	static int32 ItemMinLevel(FName Id);	// level juragan minimal untuk membeli barang (1 = bebas)
@@ -338,8 +357,10 @@ public:
 	/* ---------- Dipanggil pemain ---------- */
 	void Confirm();				// Enter: buka toko / mulai hari berikutnya
 	void StartSession(AJRStation* Station);
-	void CollectNextPayer();
-	void CollectPayer(AJRCustomer* C);
+	void CollectNextPayer(bool bByPlayer = false);
+	void CollectPayer(AJRCustomer* C, bool bByPlayer = false);
+	/** Mini-game kasir: pelanggan bayar pakai uang besar, pemain memilih kembalian yang pas (JRDaily.cpp). */
+	void ChangeGame(AJRCustomer* C);
 	void ResetMcb();
 	AJRCustomer* NextPayer() const;
 
