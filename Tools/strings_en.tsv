@@ -709,3 +709,9 @@ Reputasi + 20	Reputation + 20
 Level Juragan naik dari XP: pelanggan yang bayar, mi dan jasa sampingan, misi harian, misi mingguan, dan turnamen. Setiap level membuka barang baru di HP > Toko dan upgrade unit. Pantau XP-mu di HP > Unit.	Boss Level rises with XP: paying customers, noodles and side services, daily missions, weekly missions, and tournaments. Every level unlocks new items in Phone > Shop and unit upgrades. Track your XP in Phone > Units.
 Siap, Juragan!	Got it, Boss!
 Butuh Level Juragan %d (sekarang Level %d, XP %d/%d). Layani pelanggan sampai bayar, jual mi dan jasa, serta selesaikan misi untuk menambah XP.	Needs Boss Level %d (now Level %d, XP %d/%d). Serve customers until they pay, sell noodles and services, and finish missions to earn XP.
+Hari %d, %02d:%02d  -  %s  -  %s	Day %d, %02d:%02d  -  %s  -  %s
+Hari %d selesai  -  %s  -  %s	Day %d done  -  %s  -  %s
+Melanjutkan hari %d dari pukul %02d:%02d.	Resuming day %d from %02d:%02d.
+Simpanan lama (%s) akan ditimpa begitu tutorial selesai.	Your old save (%s) will be overwritten once the tutorial ends.
+Permainan tersimpan otomatis selama bermain dan setiap toko tutup.	The game saves automatically while you play and every time the shop closes.
+Progres hari ini sudah tersimpan. Lanjutkan dari menu utama untuk kembali ke jam yang sama.	Today's progress is saved. Choose Continue on the main menu to return to the same hour.

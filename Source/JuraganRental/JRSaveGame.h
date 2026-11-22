@@ -1,4 +1,6 @@
 ﻿// Simpanan permainan: disimpan otomatis setiap toko tutup (akhir hari), dimuat dari menu utama.
+// Sejak versi 2 juga ada simpanan tengah hari (bMidDay): tiap 2 jam game, saat dijeda, keluar ke menu,
+// atau saat aplikasi HP masuk latar belakang, agar progres hari berjalan tidak hilang.
 
 #pragma once
 
@@ -12,7 +14,7 @@ class JURAGANRENTAL_API UJRSaveGame : public USaveGame
 	GENERATED_BODY()
 
 public:
-	UPROPERTY() int32 Version = 1;
+	UPROPERTY() int32 Version = 2;
 	UPROPERTY() FDateTime SavedAt;
 
 	UPROPERTY() int32 Era = 1;
@@ -84,4 +86,31 @@ public:
 	UPROPERTY() TArray<FString> PostText;
 	UPROPERTY() TArray<int32> PostLikes;
 	UPROPERTY() TArray<int32> PostDay;
+
+	// Simpanan tengah hari (versi 2). false = disimpan saat toko tutup (dimuat ke layar laporan).
+	UPROPERTY() bool bMidDay = false;
+	UPROPERTY() float Hour = 24.f;
+	UPROPERTY() float StIncome = 0.f;
+	UPROPERTY() float StElec = 0.f;
+	UPROPERTY() float StKabur = 0.f;
+	UPROPERTY() float StStock = 0.f;
+	UPROPERTY() float StUtang = 0.f;
+	UPROPERTY() float StRepDelta = 0.f;
+	UPROPERTY() float StBonus = 0.f;
+	UPROPERTY() float StSide = 0.f;
+	UPROPERTY() TArray<int32> StSatisfaction;
+	// Hitungan harian, urutan: Customers, Paid, Ran, MieSold, Started, Repairs, Breaks, Trips,
+	// DrinksSold, TopUps, Prints, WalkInLost, Xp, Upsells, AngryQueue, AngryStart
+	UPROPERTY() TArray<int32> StCounts;
+	UPROPERTY() TArray<int32> StMoments;
+	UPROPERTY() bool bTourAccepted = false;
+	UPROPERTY() bool bTourRunning = false;
+	UPROPERTY() bool bTourDone = false;
+	UPROPERTY() int32 TourPlayers = 0;
+	UPROPERTY() FName LoakOffer;
+	UPROPERTY() float GuestAt = -1.f;
+	UPROPERTY() int32 GuestWhich = -1;
+	UPROPERTY() float RtAt = -1.f;
+	UPROPERTY() bool bQuiet = false;
+	UPROPERTY() bool bFightToday = false;
 };
