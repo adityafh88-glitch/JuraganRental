@@ -9,6 +9,7 @@ LIT = re.compile(r'(?<!JRT\()TEXT\("((?:[^"\\]|\\.)*)"\)')
 SKIP_PREFIX = re.compile(r'^(/|SFX_|VO_|MUS_|LOOP_|A_|SK_|SM_|M_|JR|jr|Engine)')
 # Kata yang dipakai sebagai nama file suara / kunci logika, jangan diterjemahkan
 SKIP_EXACT = {
+    "Juragan Rental", "Foto", "JuraganRental_%Y%m%d_%H%M%S.png",
     "Datang", "Bayar", "Rusak", "Pesan_Mi", "Marah_Pulang", "Ngutang", "Paket", "Rage", "Lemot", "Joki",
     "Ketahuan", "Jewer", "Pergi", "Kecil", "Kopi", "Abai", "Bocil", "SMA", "Mahasiswa", "Kantoran", "Gamer",
     "Bapak", "Emak", "PakRT", "Color", "Root", "Label", "Surface", "Landscape", "Juragan", "Berkah Jaya", "Sumber Rejeki", "Bang Jago", "Maju Mapan", "Music", "Body", "Cone", "Bold", "Regular",

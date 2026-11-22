@@ -34,6 +34,8 @@ public:
 	void Confirm();
 	void TogglePhone();
 	void TogglePause();
+	void TakePhoto();
+	void TogglePhotoMode();
 
 private:
 	void BuildInput();
@@ -73,6 +75,12 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UInputAction> PauseAction;
+
+	UPROPERTY()
+	TObjectPtr<UInputAction> PhotoAction;
+
+	UPROPERTY()
+	TObjectPtr<UInputAction> PhotoModeAction;
 
 	TWeakObjectPtr<AActor> TargetActor;
 	float TargetSeenAt = 0.f;	// terakhir sasaran benar-benar terbidik (target tidak hilang saat bidikan goyang sesaat)

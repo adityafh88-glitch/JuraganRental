@@ -25,6 +25,7 @@
 #include "JRPhoneWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "EngineUtils.h"
+#include "Misc/CoreDelegates.h"
 
 namespace JRLocal_GameMode
 {
@@ -156,6 +157,8 @@ void AJRGameMode::BeginPlay()
 		GConfig->GetBool(TEXT("JuraganRental"), TEXT("bDevMenu"), bDevMenu, GGameIni);
 	}
 	if (FParse::Param(FCommandLine::Get(), TEXT("jrdemo"))) bDemo = true;
+	AppBgHandle = FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddUObject(this, &AJRGameMode::OnAppBackground);
+	AppQuitHandle = FCoreDelegates::GetApplicationWillTerminateDelegate().AddUObject(this, &AJRGameMode::OnAppBackground);
 	bMenuTest = FParse::Param(FCommandLine::Get(), TEXT("jrmenutest"));
 	bBalance = FParse::Param(FCommandLine::Get(), TEXT("jrbalance"));
 	bMysteryTest = FParse::Param(FCommandLine::Get(), TEXT("jrmysterytest"));
@@ -1131,10 +1134,37 @@ FString AJRGameMode::SaveSummary()
 {
 	const UJRSaveGame* S = HasSave() ? Cast<UJRSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName(), 0)) : nullptr;
 	if (!S) return FString();
+	if (S->bMidDay)
+	{
+		const int32 H = FMath::FloorToInt(S->Hour), M = FMath::FloorToInt((S->Hour - H) * 60.f);
+		return JRPrintf(JRT(TEXT("Hari %d, %02d:%02d  -  %s  -  %s")), S->Day, H, M,
+			S->Era >= 3 ? JRT(TEXT("Game Center")) : S->Era == 2 ? JRT(TEXT("Ruko Kecil")) : JRT(TEXT("Garasi")), *JRFormatRp(S->Money));
+	}
 	return JRPrintf(JRT(TEXT("Hari %d  -  %s  -  %s")), S->Day, S->Era >= 3 ? JRT(TEXT("Game Center")) : S->Era == 2 ? JRT(TEXT("Ruko Kecil")) : JRT(TEXT("Garasi")), *JRFormatRp(S->Money));
 }
 
-void AJRGameMode::SaveProgress()
+bool AJRGameMode::SaveNow()
+{
+	// Hanya saat toko buka: di layar laporan simpanan akhir hari sudah ada, di menu/opening belum ada yang perlu disimpan.
+	if (Phase != EJRGamePhase::Playing || IsOpening() || PromoId > 0 || bBalance || bDemoOver) return false;
+	SaveProgress(true);
+	return true;
+}
+
+void AJRGameMode::OnAppBackground()
+{
+	// Android: HP dikunci, pindah aplikasi, atau aplikasi ditutup dari daftar aplikasi terbaru.
+	if (SaveNow()) UE_LOG(LogTemp, Display, TEXT("JR_AUTOSAVE latar belakang hari=%d jam=%.2f"), Day, Hour);
+}
+
+void AJRGameMode::EndPlay(const EEndPlayReason::Type Reason)
+{
+	FCoreDelegates::ApplicationWillEnterBackgroundDelegate.Remove(AppBgHandle);
+	FCoreDelegates::GetApplicationWillTerminateDelegate().Remove(AppQuitHandle);
+	Super::EndPlay(Reason);
+}
+
+void AJRGameMode::SaveProgress(bool bMidDay)
 {
 	if (PromoId > 0) return;	// rekaman promosi tidak boleh menimpa simpanan pemain
 	UJRSaveGame* S = Cast<UJRSaveGame>(UGameplayStatics::CreateSaveGameObject(UJRSaveGame::StaticClass()));
@@ -1166,9 +1196,27 @@ void AJRGameMode::SaveProgress()
 	S->Drinks = Drinks; S->Paper = Paper; S->Saldo = Saldo;
 	S->RentalName = RentalName;
 	for (const FJRPost& P : Posts) { S->PostAuthor.Add(P.Author); S->PostText.Add(P.Text); S->PostLikes.Add(P.Likes); S->PostDay.Add(P.Day); }
+	if (bMidDay)
+	{
+		// Tengah hari: simpan juga catatan hari ini agar laporan malam tetap lengkap setelah dimuat.
+		S->bMidDay = true;
+		S->Hour = Hour;
+		S->TutStep = TutStep;
+		if (!CarryBox.IsNone()) S->Boxes.Add(CarryBox);	// kardus yang sedang dibawa kembali ke depan pintu
+		const FJRDayStats& D = Stats;
+		S->DayFloats = { D.Income, D.Elec, D.Kabur, D.Stock, D.Utang, D.RepDelta, D.Bonus, D.Side };
+		S->DayInts = { D.Customers, D.AngryQueue, D.AngryStart, D.Ran, D.Breaks, D.Trips, D.Paid, D.MieSold, D.Started, D.Repairs,
+			D.DrinksSold, D.TopUps, D.Prints, D.WalkInLost, D.Xp, D.Upsells, TourPlayers };
+		S->DaySat = D.Satisfaction;
+		for (EJRMoment M : D.Moments) S->DayMoments.Add((int32)M);
+		S->LoakOffer = LoakOffer; S->GuestAt = GuestAt; S->GuestWhich = GuestWhich; S->RtAt = RtAt;
+		S->bQuiet = bQuiet; S->bFightToday = bFightToday; S->bTourAccepted = bTourAccepted; S->bTourDone = bTourDone;
+	}
 	if (UGameplayStatics::SaveGameToSlot(S, SlotName(), 0))
 	{
-		ReportLines.Add(JRT(TEXT("Permainan tersimpan otomatis.")));
+		if (!bMidDay) ReportLines.Add(JRT(TEXT("Permainan tersimpan otomatis.")));
+		SaveFlash = 2.5f;
+		UE_LOG(LogTemp, Display, TEXT("JR_AUTOSAVE ok tengah=%d hari=%d jam=%.2f kas=%.0f"), bMidDay ? 1 : 0, Day, Hour, Money);
 	}
 	else
 	{
@@ -1228,7 +1276,7 @@ bool AJRGameMode::LoadProgress()
 	bNeedName = false;
 	CarryBox = NAME_None; bCarryMie = false; StoveState = EJRStoveState::Idle; bMcbTripped = false; bNetSlow = false;
 	Choices.Reset();
-	Hour = 24.f;
+	Hour = S->bMidDay ? FMath::Clamp(S->Hour, 8.f, 23.9f) : 24.f;
 	BuildWorld();
 	for (const FName& Id : S->Boxes) SpawnDelivery(Id);
 	for (int32 i = 0; i < SavedTrash.Num(); ++i) SpawnTrash(SavedTrash[i], SavedTrashKind.IsValidIndex(i) ? SavedTrashKind[i] : 2);
@@ -1249,8 +1297,31 @@ bool AJRGameMode::LoadProgress()
 	TutStep = TutOff;
 	ReportLines = S->ReportLines;
 	ReportLines.Remove(JRT(TEXT("Permainan tersimpan otomatis.")));
-	ReportLines.Insert(JRPrintf(JRT(TEXT("Permainan dimuat (disimpan %s).")), *S->SavedAt.ToString(TEXT("%d/%m/%Y %H:%M"))), 0);
-	Phase = EJRGamePhase::Report;
+	if (S->bMidDay)
+	{
+		// Lanjut di tengah hari, pada jam yang sama. Laporan kemarin tetap tersimpan untuk HP > Info.
+		Stats = FJRDayStats();
+		auto F = [S](int32 i) { return S->DayFloats.IsValidIndex(i) ? S->DayFloats[i] : 0.f; };
+		auto I = [S](int32 i) { return S->DayInts.IsValidIndex(i) ? S->DayInts[i] : 0; };
+		Stats.Income = F(0); Stats.Elec = F(1); Stats.Kabur = F(2); Stats.Stock = F(3); Stats.Utang = F(4); Stats.RepDelta = F(5); Stats.Bonus = F(6); Stats.Side = F(7);
+		Stats.Customers = I(0); Stats.AngryQueue = I(1); Stats.AngryStart = I(2); Stats.Ran = I(3); Stats.Breaks = I(4); Stats.Trips = I(5);
+		Stats.Paid = I(6); Stats.MieSold = I(7); Stats.Started = I(8); Stats.Repairs = I(9); Stats.DrinksSold = I(10); Stats.TopUps = I(11);
+		Stats.Prints = I(12); Stats.WalkInLost = I(13); Stats.Xp = I(14); Stats.Upsells = I(15); TourPlayers = I(16);
+		Stats.Satisfaction = S->DaySat;
+		for (int32 M : S->DayMoments) Stats.Moments.Add((EJRMoment)M);
+		LoakOffer = S->LoakOffer; GuestAt = S->GuestAt; GuestWhich = S->GuestWhich; RtAt = S->RtAt;
+		bQuiet = S->bQuiet; bFightToday = S->bFightToday; bTourAccepted = S->bTourAccepted; bTourDone = S->bTourDone; bTourRunning = false;
+		TutStep = S->TutStep;
+		NextAutoSaveHour = (FMath::FloorToFloat(Hour / AutoSaveEveryHours) + 1.f) * AutoSaveEveryHours;
+		const int32 H = FMath::FloorToInt(Hour), Mn = FMath::FloorToInt((Hour - H) * 60.f);
+		AddToast(JRPrintf(JRT(TEXT("Permainan dimuat. Lanjut hari %d pukul %02d:%02d.")), Day, H, Mn), Good);
+		Phase = EJRGamePhase::Playing;
+	}
+	else
+	{
+		ReportLines.Insert(JRPrintf(JRT(TEXT("Permainan dimuat (disimpan %s).")), *S->SavedAt.ToString(TEXT("%d/%m/%Y %H:%M"))), 0);
+		Phase = EJRGamePhase::Report;
+	}
 	CheckDemoOver();	// demo yang sudah selesai tidak bisa dilanjutkan
 	return true;
 }
@@ -1949,6 +2020,7 @@ void AJRGameMode::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	SaveFlash = FMath::Max(0.f, SaveFlash - DeltaSeconds);
 	for (FJRToast& T : Toasts) T.TimeLeft -= DeltaSeconds;
 	Toasts.RemoveAll([](const FJRToast& T) { return T.TimeLeft <= 0.f; });
 	if (PromoId > 0) TickPromo(DeltaSeconds);
@@ -1999,6 +2071,38 @@ void AJRGameMode::Tick(float DeltaSeconds)
 		if (DevStep == 0 && DevT > 3.f) { DevJumpEra(2); DevStep = 1; }
 		else if (DevStep == 1 && DevT > 5.f) { DevJumpEra(3); const int32 Lv = JuraganLevel(); DevLevelUp(); DevAddMoney(5000000.f); DevAddRep(20.f);
 			UE_LOG(LogTemp, Display, TEXT("JR_DEVTEST era=%d vip=%d lv=%d->%d money=%.0f rep=%.0f layout=%s"), Era, Count(EJRUnitType::VIP), Lv, JuraganLevel(), Money, Rep, *Layout().Name); DevStep = 2; }
+	}
+
+	// -jrautotest -jrmidsave: simpan di tengah hari, ubah kas, muat lagi; kas, jam, dan catatan hari harus kembali.
+	if (bAutoTest && FParse::Param(FCommandLine::Get(), TEXT("jrmidsave")))
+	{
+		static float SaveT = 0.f;
+		static int32 SaveStep = 0;
+		static float WantMoney = 0.f, WantHour = 0.f, WantIncome = 0.f;
+		static int32 WantPaid = 0;
+		SaveT += DeltaSeconds;
+		if (SaveStep == 0 && SaveT > 12.f && Phase == EJRGamePhase::Playing)
+		{
+			const bool bOk = SaveNow();
+			WantMoney = Money; WantHour = Hour; WantIncome = Stats.Income; WantPaid = Stats.Paid;
+			Money += 777777.f; Hour = 20.f; Stats = FJRDayStats(); NextAutoSaveHour = 99.f;	// jangan sampai simpanan uji tertimpa
+			UE_LOG(LogTemp, Display, TEXT("JR_MIDSAVE simpan=%d summary=[%s]"), bOk ? 1 : 0, *SaveSummary());
+			SaveStep = 1;
+		}
+		else if (SaveStep == 1 && SaveT > 14.f)
+		{
+			const bool bLoad = LoadProgress();
+			const bool bMatch = FMath::IsNearlyEqual(Money, WantMoney, 1.f) && FMath::IsNearlyEqual(Hour, WantHour, 0.01f)
+				&& FMath::IsNearlyEqual(Stats.Income, WantIncome, 1.f) && Stats.Paid == WantPaid && Phase == EJRGamePhase::Playing;
+			UE_LOG(LogTemp, Display, TEXT("JR_MIDSAVE muat=%d cocok=%d kas=%.0f/%.0f jam=%.2f/%.2f paid=%d/%d phase=%d"),
+				bLoad ? 1 : 0, bMatch ? 1 : 0, Money, WantMoney, Hour, WantHour, Stats.Paid, WantPaid, (int32)Phase);
+			SaveStep = 2;
+		}
+		else if (SaveStep == 2 && SaveT > 20.f)
+		{
+			UE_LOG(LogTemp, Display, TEXT("JR_MIDSAVE lanjut phase=%d jam=%.2f pelanggan=%d"), (int32)Phase, Hour, Customers.Num());
+			FGenericPlatformMisc::RequestExit(false);
+		}
 	}
 
 	// -jrautotest -jrera2 -jrmovetest: penuhi Gerbang 2, tutup toko, pindah ke Era 3, simpan dan muat.
@@ -2112,6 +2216,12 @@ void AJRGameMode::Tick(float DeltaSeconds)
 	const float DtH = DeltaSeconds * HoursPerSecond();
 	Hour += DtH;
 	TickWalkIns(DeltaSeconds, DtH);
+	// Simpan otomatis tiap 2 jam dalam game (10.00, 12.00, ... 22.00); pukul 24.00 disimpan oleh EndDay.
+	if (Hour >= NextAutoSaveHour)
+	{
+		NextAutoSaveHour = (FMath::FloorToFloat(Hour / AutoSaveEveryHours) + 1.f) * AutoSaveEveryHours;
+		if (Hour < 23.5f) SaveNow();
+	}
 
 	if (PromoId == 0 && Hour < 23.f && FMath::FRand() < SpawnRate(Hour) * DtH)
 	{
@@ -2395,7 +2505,7 @@ void AJRGameMode::StartSession(AJRStation* S)
 	AddToast(JRPrintf(JRT(TEXT("%s menyala: %s main %s jam (%s)")), *S->DisplayName, *C->DisplayName,
 		*FString::SanitizeFloat(Hours), *JRFormatRp(C->Bill)));
 
-	if (Era >= 2 && S->Type == EJRUnitType::PC && Hour >= 19.f && FMath::FRand() < 0.15f) JokiEvent(C);
+	if (Era >= 2 && PromoId == 0 && S->Type == EJRUnitType::PC && Hour >= 19.f && FMath::FRand() < 0.15f) JokiEvent(C);	// rekaman promosi: tanpa kejadian acak
 }
 
 void AJRGameMode::TickPlaying(AJRCustomer* C, float DtH)
@@ -2463,7 +2573,7 @@ void AJRGameMode::TickPlaying(AJRCustomer* C, float DtH)
 		}
 	}
 	// Berantem: dua pemain PS bersebelahan (paling banyak sekali sehari)
-	if (!bFightToday && S->Type == EJRUnitType::PS && C->TypeIndex != Bocil && !bBalance && !bAutoTest && Choices.Num() == 0
+	if (!bFightToday && PromoId == 0 && S->Type == EJRUnitType::PS && C->TypeIndex != Bocil && !bBalance && !bAutoTest && Choices.Num() == 0
 		&& FMath::FRand() < 0.05f * DtH)
 	{
 		for (AJRStation* O : Stations)
@@ -3361,6 +3471,7 @@ void AJRGameMode::StartDay()
 	bShowMoment = false;
 	Day++;
 	Hour = 8.f;
+	NextAutoSaveHour = 8.f + AutoSaveEveryHours;
 	Stats = FJRDayStats();
 	bQuiet = false;
 	bFightToday = false;

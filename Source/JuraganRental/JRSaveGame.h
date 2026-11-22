@@ -1,4 +1,5 @@
-﻿// Simpanan permainan: disimpan otomatis setiap toko tutup (akhir hari), dimuat dari menu utama.
+﻿// Simpanan permainan: disimpan otomatis setiap toko tutup (akhir hari) dan di tengah hari
+// (tiap 2 jam dalam game, saat keluar, saat aplikasi ke latar belakang). Dimuat dari menu utama.
 
 #pragma once
 
@@ -84,4 +85,21 @@ public:
 	UPROPERTY() TArray<FString> PostText;
 	UPROPERTY() TArray<int32> PostLikes;
 	UPROPERTY() TArray<int32> PostDay;
+
+	// Simpanan tengah hari: dimuat lagi pada jam yang sama (pelanggan yang sedang main tidak ikut).
+	UPROPERTY() bool bMidDay = false;
+	UPROPERTY() float Hour = 24.f;
+	UPROPERTY() int32 TutStep = -1;
+	UPROPERTY() TArray<float> DayFloats;	// Income, Elec, Kabur, Stock, Utang, RepDelta, Bonus, Side
+	UPROPERTY() TArray<int32> DayInts;		// lihat AJRGameMode::SaveProgress
+	UPROPERTY() TArray<int32> DaySat;
+	UPROPERTY() TArray<int32> DayMoments;
+	UPROPERTY() FName LoakOffer;
+	UPROPERTY() float GuestAt = -1.f;
+	UPROPERTY() int32 GuestWhich = -1;
+	UPROPERTY() float RtAt = -1.f;
+	UPROPERTY() bool bQuiet = false;
+	UPROPERTY() bool bFightToday = false;
+	UPROPERTY() bool bTourAccepted = false;
+	UPROPERTY() bool bTourDone = false;
 };

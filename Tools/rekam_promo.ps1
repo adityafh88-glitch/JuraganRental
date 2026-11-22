@@ -1,5 +1,5 @@
 param(
-    # 1 = opening garasi; 2..5 = skenario di Source/JuraganRental/JRPromo.cpp
+    # 1 = opening garasi; 2..5, 7 (turnamen), 8 (Pak RT) = skenario video di Source/JuraganRental/JRPromo.cpp (6 = foto, lihat -jrpromo=6)
     [int]$Id = 2,
     [int]$Timeout = 900
 )

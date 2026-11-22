@@ -91,6 +91,7 @@ public:
 
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
+	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 	virtual APawn* SpawnDefaultPawnAtTransform_Implementation(AController* NewPlayer, const FTransform& SpawnTransform) override;
 
 	/* ---------- Tuning ---------- */
@@ -300,8 +301,14 @@ public:
 	int32 GuestsDone = 0;		// bit 0 streamer, 1 Pak Lurah, 2 juragan sebelah
 	int32 ViralDays = 0;		// rental viral: pengunjung melonjak
 
-	/* ---------- Simpan dan muat (otomatis tiap toko tutup) ---------- */
+	/* ---------- Simpan dan muat ---------- */
+	// Otomatis: tiap toko tutup, tiap 2 jam dalam game, saat keluar ke menu/keluar game,
+	// dan saat aplikasi Android ditinggal ke latar belakang (HP dikunci, pindah aplikasi).
 	static bool HasSave();
+	/** Simpan sekarang di tengah hari (bila sedang buka toko). True bila tersimpan. */
+	bool SaveNow();
+	float SaveFlash = 0.f;		// detik tanda "Tersimpan" masih tampil di HUD
+	static constexpr float AutoSaveEveryHours = 2.f;
 	/** Ringkasan simpanan untuk menu, mis. "Hari 4 - Garasi - Rp 350.000". Kosong jika tidak ada. */
 	static FString SaveSummary();
 	bool LoadProgress();
@@ -509,7 +516,10 @@ private:
 
 	// Mode uji otomatis (-jrautotest, -jrera2): main sendiri, ambil screenshot, lalu keluar.
 	void TickAutoTest(float DeltaSeconds);
-	void SaveProgress();
+	void SaveProgress(bool bMidDay = false);
+	float NextAutoSaveHour = 10.f;
+	FDelegateHandle AppBgHandle, AppQuitHandle;
+	void OnAppBackground();
 	void TickMystery(float DeltaSeconds);
 	void TickStaff(float DeltaSeconds);
 	void TickTutorial(float DeltaSeconds);

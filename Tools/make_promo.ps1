@@ -40,6 +40,12 @@ switch ($Id) {
                  @{T='ERA 2 - RUKO'; A=1.4; B=2.8; Size=70; Color='white'; Y='atas'},
                  @{T='ERA 3 - GAME CENTER'; A=2.8; B=4.4; Size=70; Color='0xFFD43B'; Y='atas'},
                  @{T='naik ke VIP Lounge...'; A=6.4; B=10.0; Size=60; Color='white'; Y='atas'}) }
+  7 { $texts = @(@{T='Turnamen PS akhir pekan'; A=0.2; B=4.0; Size=66; Color='white'; Y='atas'},
+                 @{T='GOOOL!'; A=7.0; B=8.0; Size=150; Color='0xFFD43B'; Y='tengah'},
+                 @{T='Final adu penalti, rental pecah'; A=8.3; B=99; Size=60; Color='white'; Y='atas'}) }
+  8 { $texts = @(@{T='Jam 10 malam, rental masih rame...'; A=0.2; B=3.4; Size=60; Color='white'; Y='atas'},
+                 @{T='...Pak RT datang.'; A=3.7; B=7.9; Size=74; Color='0xFFD43B'; Y='atas'},
+                 @{T='Solusi terbaik: kopi.'; A=8.2; B=99; Size=70; Color='white'; Y='atas'}) }
   5 { $zoom = 1.8; $endCard = @{Dur = 3.2; Text = 'Cari juragan pertama.'; Text2 = 'Komen JURAGAN.'}
       $extraCues = @(,@(0.15, 'SFX_Ding')) }
 }

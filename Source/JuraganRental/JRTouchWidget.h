@@ -122,6 +122,9 @@ private:
 	TObjectPtr<UButton> PauseButton;
 
 	UPROPERTY()
+	TObjectPtr<UButton> PhotoExit;	// mode foto: area transparan di pojok kiri atas untuk kembali
+
+	UPROPERTY()
 	TObjectPtr<UButton> PhoneButton;
 
 	UPROPERTY()

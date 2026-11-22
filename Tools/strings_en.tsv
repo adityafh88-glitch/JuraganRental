@@ -709,3 +709,18 @@ Reputasi + 20	Reputation + 20
 Level Juragan naik dari XP: pelanggan yang bayar, mi dan jasa sampingan, misi harian, misi mingguan, dan turnamen. Setiap level membuka barang baru di HP > Toko dan upgrade unit. Pantau XP-mu di HP > Unit.	Boss Level rises with XP: paying customers, noodles and side services, daily missions, weekly missions, and tournaments. Every level unlocks new items in Phone > Shop and unit upgrades. Track your XP in Phone > Units.
 Siap, Juragan!	Got it, Boss!
 Butuh Level Juragan %d (sekarang Level %d, XP %d/%d). Layani pelanggan sampai bayar, jual mi dan jasa, serta selesaikan misi untuk menambah XP.	Needs Boss Level %d (now Level %d, XP %d/%d). Serve customers until they pay, sell noodles and services, and finish missions to earn XP.
+Hari %d, %02d:%02d  -  %s  -  %s	Day %d, %02d:%02d  -  %s  -  %s
+Permainan dimuat. Lanjut hari %d pukul %02d:%02d.	Game loaded. Continuing day %d at %02d:%02d.
+Simpanan lama (%s) akan ditimpa begitu permainan baru tersimpan otomatis.	Your old save (%s) will be overwritten once the new game autosaves.
+Permainan tersimpan otomatis tiap 2 jam dalam game, saat toko tutup, dan saat keluar.	The game autosaves every 2 in-game hours, at closing time, and when you quit.
+Mode foto (sembunyikan HUD)	Photo mode (hide HUD)
+Permainan disimpan dulu, lalu kamu bisa lanjut dari jam yang sama lewat Lanjutkan.	The game will be saved first, so you can pick up at the same hour with Continue.
+Kalau game terasa patah-patah atau HP panas, pilih Hemat dan batas 30 FPS.	If the game stutters or your phone gets hot, pick Saver and a 30 FPS limit.
+Tampilkan FPS	Show FPS
+Hemat (paling lancar)	Saver (smoothest)
+Bagus (HP kencang)	High (fast phones)
+Seimbang	Balanced
+Foto tersimpan di Dokumen > Juragan Rental > Foto (%s)	Photo saved to Documents > Juragan Rental > Foto (%s)
+MODE FOTO: pakai screenshot / rekam layar HP. Ketuk pojok kiri atas untuk kembali.	PHOTO MODE: use your phone's screenshot / screen recorder. Tap the top-left corner to go back.
+MODE FOTO: F12 simpan foto, Win+Alt+R rekam video. Esc untuk kembali.	PHOTO MODE: F12 saves a photo, Win+Alt+R records video. Esc to go back.
+Tersimpan otomatis	Autosaved

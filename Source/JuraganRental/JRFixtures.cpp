@@ -271,6 +271,7 @@ void AJRDecor::BuildStreet(float HX, float HY, float DoorY, bool bRuko)
 	Lamp->SetIntensity(60.f);
 	Lamp->SetAttenuationRadius(900.f);
 	Lamp->SetLightColor(FLinearColor(1.f, 0.82f, 0.55f));
+	Lamp->SetCastShadows(false);	// lampu ruangan tanpa bayangan: jauh lebih ringan di HP
 	Lamp->RegisterComponent();
 
 	// Pohon di trotoar seberang
@@ -410,6 +411,7 @@ void AJRDecor::Setup(FName Id, float HX, float HY, float DoorY)
 		L->SetIntensity(18.f);
 		L->SetAttenuationRadius(700.f);
 		L->SetLightColor(FLinearColor(0.7f, 0.35f, 1.f));
+		L->SetCastShadows(false);	// lampu ruangan tanpa bayangan: jauh lebih ringan di HP
 		L->RegisterComponent();
 	}
 	else if (Id == TEXT("ac"))
@@ -513,6 +515,7 @@ void AJRRoom::BuildFacade(const FJRLayout& L, int32 Era, float WallH)
 	Spot->SetIntensity(25.f);
 	Spot->SetAttenuationRadius(500.f);
 	Spot->SetLightColor(FLinearColor(1.f, 0.9f, 0.75f));
+	Spot->SetCastShadows(false);	// lampu ruangan tanpa bayangan: jauh lebih ringan di HP
 	Spot->RegisterComponent();
 	AddInstanceComponent(Spot);
 }
@@ -636,6 +639,7 @@ void AJRRoom::Build(const FJRLayout& L, int32 Era)
 				Up->SetIntensity(45.f);
 				Up->SetAttenuationRadius(1200.f);
 				Up->SetLightColor(FLinearColor(1.f, 0.9f, 0.8f));
+				Up->SetCastShadows(false);	// lampu ruangan tanpa bayangan: jauh lebih ringan di HP
 				Up->RegisterComponent();
 				Lights.Add(Up);
 				AddInstanceComponent(Up);
@@ -699,6 +703,7 @@ void AJRRoom::Build(const FJRLayout& L, int32 Era)
 			Light->SetIntensity(bRuko ? 55.f : 45.f);
 			Light->SetAttenuationRadius(bRuko ? 1300.f : 1100.f);
 			Light->SetLightColor(FLinearColor(1.f, 0.97f, 0.9f));
+			Light->SetCastShadows(false);	// lampu ruangan tanpa bayangan: jauh lebih ringan di HP
 			Light->RegisterComponent();
 			Lights.Add(Light);
 			AddInstanceComponent(Light);

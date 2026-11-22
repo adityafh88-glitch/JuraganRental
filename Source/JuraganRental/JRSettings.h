@@ -44,6 +44,15 @@ public:
 
 	UPROPERTY()
 	int32 Language = 0;			// 0 otomatis (ikut Windows), 1 Indonesia, 2 English
+
+	UPROPERTY()
+	int32 GfxPreset = -1;		// HP: 0 Hemat, 1 Seimbang, 2 Bagus (-1 = belum dipilih, pakai Seimbang)
+
+	UPROPERTY()
+	int32 MaxFps = 60;			// HP: batas FPS 30 atau 60
+
+	UPROPERTY()
+	bool bShowFps = false;		// angka FPS di pojok layar (untuk penguji)
 };
 
 namespace JRSettings
@@ -59,4 +68,9 @@ namespace JRSettings
 	/** Ukuran joystick: Kecil 0,7 / Sedang 0,85 / Besar 1,0 / Sangat besar 1,15. */
 	JURAGANRENTAL_API float NextJoystickSize(float Current);
 	JURAGANRENTAL_API FString JoystickSizeName(float Size);
+
+	/** HP: terapkan kualitas grafis (skala resolusi 3D, bayangan, efek) dan batas FPS. Dipanggil saat game mulai dan saat diubah. */
+	JURAGANRENTAL_API void ApplyGraphics();
+	JURAGANRENTAL_API int32 GfxPreset();		// preset aktif (yang belum dipilih = Seimbang)
+	JURAGANRENTAL_API FString GfxPresetName(int32 Preset);
 }

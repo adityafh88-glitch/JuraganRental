@@ -33,6 +33,12 @@ public:
 	/** HP atau dialog kejadian sedang terbuka: pemain tidak bisa jalan/menoleh. */
 	bool IsUIOpen() const;
 	bool IsTouchMode() const { return bTouchMode; }
+
+	/** Mode foto: semua HUD dan tombol disembunyikan (tombol sentuh tetap berfungsi tapi tak terlihat). */
+	void SetPhotoMode(bool bOn);
+	bool IsPhotoMode() const { return bPhotoMode; }
+	/** PC (F12): simpan foto layar tanpa HUD ke Dokumen/Juragan Rental/Foto. */
+	void TakePhoto();
 	/** Pasang ulang joystick layar sesuai pengaturan (tetap/ikut jari). */
 	void ApplyTouchSettings();
 	/** Ukuran tampilan layar sentuh (HP dalam game, menu, dialog, dan teks HUD). PC selalu 1. */
@@ -70,6 +76,11 @@ private:
 	bool bChoiceShown = false;
 	int32 ShownChoiceSerial = 0;
 	bool bTouchMode = false;
+	bool bPhotoMode = false;
+	float PhotoHint = 0.f;		// detik petunjuk mode foto masih tampil
+	int32 PhotoHideFrames = 0;	// HUD disembunyikan beberapa frame saat F12 memotret
+	FString PendingPhoto;		// nama file foto yang menunggu konfirmasi
+	float FpsSmooth = 60.f;
 
 	UPROPERTY()
 	TObjectPtr<UJRTouchWidget> Touch;

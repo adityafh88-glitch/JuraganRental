@@ -28,6 +28,10 @@
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
+#include "UnrealClient.h"
+#include "HAL/FileManager.h"
+#include "HAL/PlatformProcess.h"
+#include "Misc/Paths.h"
 
 namespace JRLocal_HUD
 {
@@ -42,6 +46,7 @@ using namespace JRLocal_HUD;
 void AJRHUD::BeginPlay()
 {
 	Super::BeginPlay();
+	JRSettings::ApplyGraphics();
 	if (PlayerOwner)
 	{
 		Phone = CreateWidget<UJRPhoneWidget>(PlayerOwner, UJRPhoneWidget::StaticClass());
@@ -168,6 +173,7 @@ void AJRHUD::TogglePause()
 {
 	const AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
 	if (!Menu || !GM) return;
+	if (bPhotoMode) { SetPhotoMode(false); return; }	// Esc / tombol jeda = keluar mode foto
 	if (Menu->IsOpen()) { Menu->Back(); return; }
 	if (bBillingOpen) { SetBillingOpen(false); return; }
 	if (bPhoneOpen) { SetPhoneOpen(false); return; }
@@ -202,6 +208,7 @@ void AJRHUD::ApplyTouchSettings()
 	const bool bFixed = JRSettings::Get()->bJoystickFixed;
 	Sticks->bPreventRecenter = bFixed;			// tetap: joystick tidak pindah ke posisi jari
 	Sticks->InactiveOpacity = bFixed ? 0.35f : 0.f;	// tetap: selalu terlihat samar
+	if (bPhotoMode) { Sticks->ActiveOpacity = 0.f; Sticks->InactiveOpacity = 0.f; }	// mode foto: joystick tak terlihat
 	// Joystick kanan dibuang: menoleh dengan menggeser jari di sisi kanan layar (UJRLookPad).
 	Sticks->Controls.RemoveAll([](const FTouchInputControl& C) { return C.MainInputKey == EKeys::Gamepad_RightX; });
 	for (FTouchInputControl& C : Sticks->Controls)
@@ -212,6 +219,32 @@ void AJRHUD::ApplyTouchSettings()
 		Scale(C.VisualSize); Scale(C.ThumbSize); Scale(C.InteractionSize);
 	}
 	PlayerOwner->ActivateTouchInterface(Sticks);
+}
+
+void AJRHUD::SetPhotoMode(bool bOn)
+{
+	if (bPhotoMode == bOn) return;
+	if (bOn)
+	{
+		if (bPhoneOpen) SetPhoneOpen(false);
+		if (bBillingOpen) SetBillingOpen(false);
+	}
+	bPhotoMode = bOn;
+	PhotoHint = bOn ? 4.f : 0.f;
+	ApplyTouchSettings();
+	if (Touch) Touch->SyncVisibility();
+	UE_LOG(LogTemp, Display, TEXT("JR_FOTO mode=%d"), bOn ? 1 : 0);
+}
+
+void AJRHUD::TakePhoto()
+{
+	const FString Dir = FPaths::Combine(FPlatformProcess::UserDir(), TEXT("Juragan Rental"), TEXT("Foto"));
+	IFileManager::Get().MakeDirectory(*Dir, true);
+	const FString File = FPaths::Combine(Dir, FDateTime::Now().ToString(TEXT("JuraganRental_%Y%m%d_%H%M%S.png")));
+	FScreenshotRequest::RequestScreenshot(File, false, false);	// tanpa widget UMG
+	PhotoHideFrames = 3;	// HUD Canvas juga disembunyikan sampai foto diambil
+	PendingPhoto = File;
+	JRSound::Play2D(this, TEXT("SFX_HP_Tombol"), 0.6f);
 }
 
 void AJRHUD::ApplyUIScale()
@@ -424,6 +457,63 @@ void AJRHUD::DrawHUD()
 	// Mode sentuh: ikuti skala UMG (resolusi layar x ukuran tampilan) agar teks HUD sama besar dengan HP/menu.
 	UIS = bTouchMode ? FMath::Max(0.5f, GetDefault<UUserInterfaceSettings>()->GetDPIScaleBasedOnSize(FIntPoint(FMath::RoundToInt(W), FMath::RoundToInt(H)))) : 1.f;
 	const float S = UIS;
+	const float Dt = GetWorld()->GetDeltaSeconds();
+
+	// F12: HUD disembunyikan beberapa frame sampai foto selesai diambil, lalu beri tahu lokasinya.
+	if (PhotoHideFrames > 0)
+	{
+		if (--PhotoHideFrames == 0 && !PendingPhoto.IsEmpty())
+		{
+			if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>())
+				G->AddToast(JRPrintf(JRT(TEXT("Foto tersimpan di Dokumen > Juragan Rental > Foto (%s)")), *FPaths::GetCleanFilename(PendingPhoto)), FLinearColor(0.36f, 0.85f, 0.56f));
+			PendingPhoto.Reset();
+		}
+		return;
+	}
+	// Uji -jrfototest: masuk mode foto setelah 6 detik bermain (untuk dipotret).
+	static const bool bFotoTest = FParse::Param(FCommandLine::Get(), TEXT("jrfototest"));
+	if (bFotoTest && !bPhotoMode && GM->Phase == EJRGamePhase::Playing && GetWorld()->GetTimeSeconds() > 6.f) { static bool bOnce = false; if (!bOnce) { bOnce = true; SetPhotoMode(true); } }
+	// Mode foto: layar bersih untuk bahan postingan, hanya petunjuk singkat di awal.
+	if (bPhotoMode)
+	{
+		if (bChoiceShown || GM->Phase != EJRGamePhase::Playing) { SetPhotoMode(false); }
+		else
+		{
+			PhotoHint = FMath::Max(0.f, PhotoHint - Dt);
+			if (PhotoHint > 0.f)
+			{
+				const FString Hint = bTouchMode
+					? FString(JRT(TEXT("MODE FOTO: pakai screenshot / rekam layar HP. Ketuk pojok kiri atas untuk kembali.")))
+					: FString(JRT(TEXT("MODE FOTO: F12 simpan foto, Win+Alt+R rekam video. Esc untuk kembali.")));
+				float TW = 0.f, TH = 0.f;
+				GetTextSize(Hint, TW, TH, Font, 1.05f * S);
+				const float Fit = FMath::Min(1.05f * S, (W * 0.9f) / FMath::Max(1.f, TW / (1.05f * S)));
+				GetTextSize(Hint, TW, TH, Font, Fit);
+				const float A = FMath::Clamp(PhotoHint, 0.f, 1.f);
+				DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f * A), (W - TW) * 0.5f - 14.f * S, H * 0.42f - 8.f * S, TW + 28.f * S, TH + 16.f * S);
+				DrawText(Hint, FLinearColor(1.f, 1.f, 1.f, A), (W - TW) * 0.5f, H * 0.42f, Font, Fit);
+			}
+			return;
+		}
+	}
+	// Penguji: angka FPS di pojok kanan bawah (Pengaturan > Tampilkan FPS).
+	if (Dt > 0.f) FpsSmooth = FMath::Lerp(FpsSmooth, 1.f / Dt, 0.05f);
+	if (JRSettings::Get()->bShowFps)
+	{
+		const FString Fps = JRPrintf(JRT(TEXT("%d FPS")), FMath::RoundToInt(FpsSmooth));
+		const FLinearColor C = FpsSmooth >= 50.f ? FLinearColor(0.4f, 1.f, 0.5f) : FpsSmooth >= 28.f ? FLinearColor(1.f, 0.85f, 0.3f) : FLinearColor(1.f, 0.4f, 0.35f);
+		DrawText(Fps, C, W * 0.5f - 30.f * S, H - 28.f * S, Font, 1.f * S);
+	}
+	// Tanda kecil setiap kali permainan tersimpan otomatis.
+	if (GM->SaveFlash > 0.f && GM->Phase == EJRGamePhase::Playing)
+	{
+		const FString Saved = JRT(TEXT("Tersimpan otomatis"));
+		float TW = 0.f, TH = 0.f;
+		GetTextSize(Saved, TW, TH, Font, 0.95f * S);
+		const float A = FMath::Clamp(GM->SaveFlash, 0.f, 1.f);
+		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.45f * A), (W - TW) * 0.5f - 10.f * S, 46.f * S, TW + 20.f * S, TH + 8.f * S);
+		DrawText(Saved, FLinearColor(0.6f, 1.f, 0.7f, A), (W - TW) * 0.5f, 50.f * S, Font, 0.95f * S);
+	}
 
 	// Adegan pembuka: layar bergaris hitam ala film + teks narasi, tanpa HUD lain.
 	if (const AJROpening* Op = GM->GetOpening())
@@ -473,7 +563,7 @@ void AJRHUD::DrawHUD()
 
 	if (GM->Phase == EJRGamePhase::Intro)
 	{
-		DrawPanel(JRT(TEXT("Juragan Rental")), {
+		DrawPanel(TEXT("Juragan Rental"), {
 			JRT(TEXT("Kamu baru membuka rental PS di garasi rumah: dua TV tabung, satu PC warnet,")),
 			JRT(TEXT("dan MCB 1.300 VA yang gampang turun.")),
 			TEXT(""),

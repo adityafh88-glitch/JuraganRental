@@ -18,6 +18,7 @@
 #include "GameFramework/GameUserSettings.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Misc/CommandLine.h"
 #include "Styling/CoreStyle.h"
 #include "JRGameMode.h"
 #include "JRHUD.h"
@@ -215,7 +216,7 @@ void UJRMenuWidget::ShowMain()
 			return;
 		}
 		ShowConfirm(JRT(TEXT("Mulai dari awal?")),
-			JRPrintf(JRT(TEXT("Simpanan lama (%s) akan ditimpa saat hari pertama selesai.")), *Summary),
+			JRPrintf(JRT(TEXT("Simpanan lama (%s) akan ditimpa begitu permainan baru tersimpan otomatis.")), *Summary),
 			JRT(TEXT("Ya, mulai baru")), [this, GM]() { if (GM) GM->BeginNewGame(); Close(); });
 	}, Summary.IsEmpty());
 	AddButton(JRT(TEXT("Pengaturan")), [this]() { ShowSettings(); });
@@ -226,7 +227,7 @@ void UJRMenuWidget::ShowMain()
 			UKismetSystemLibrary::QuitGame(this, GetOwningPlayer(), EQuitPreference::Quit, false);
 		});
 	}
-	UTextBlock* Hint = MakeText(JRT(TEXT("Permainan tersimpan otomatis setiap toko tutup.")), 12, Muted);
+	UTextBlock* Hint = MakeText(JRT(TEXT("Permainan tersimpan otomatis tiap 2 jam dalam game, saat toko tutup, dan saat keluar.")), 12, Muted);
 	Hint->SetJustification(ETextJustify::Center);
 	Content->AddChildToVerticalBox(Hint)->SetPadding(FMargin(0.f, 18.f, 0.f, 0.f));
 }
@@ -242,24 +243,32 @@ void UJRMenuWidget::ShowPause()
 	{
 		AddButton(JRT(TEXT("Lewati tutorial")), [this, GM]() { GM->SkipTutorial(); Close(); });
 	}
-	const bool bSaved = GM && GM->Phase == EJRGamePhase::Report;
-	const FString Warn = bSaved
-		? FString(JRT(TEXT("Progres sampai hari ini sudah tersimpan.")))
-		: FString(JRT(TEXT("Progres hari ini belum tersimpan. Game tersimpan otomatis setiap toko tutup (pukul 24.00).")));
-	AddButton(JRT(TEXT("Keluar ke menu utama")), [this, Warn]()
+	if (GM && GM->Phase == EJRGamePhase::Playing)
 	{
-		ShowConfirm(JRT(TEXT("Keluar ke menu utama?")), Warn, JRT(TEXT("Ya, keluar")), [this]()
+		AddButton(JRT(TEXT("Mode foto (sembunyikan HUD)")), [this]()
 		{
+			AJRHUD* Hud = GetOwningPlayer() ? Cast<AJRHUD>(GetOwningPlayer()->GetHUD()) : nullptr;
+			Close();
+			if (Hud) Hud->SetPhotoMode(true);
+		});
+	}
+	const FString Warn = JRT(TEXT("Permainan disimpan dulu, lalu kamu bisa lanjut dari jam yang sama lewat Lanjutkan."));
+	AddButton(JRT(TEXT("Keluar ke menu utama")), [this, Warn, GM]()
+	{
+		ShowConfirm(JRT(TEXT("Keluar ke menu utama?")), Warn, JRT(TEXT("Ya, keluar")), [this, GM]()
+		{
+			if (GM) GM->SaveNow();
 			UGameplayStatics::SetGamePaused(this, false);
 			UGameplayStatics::OpenLevel(this, FName(*UGameplayStatics::GetCurrentLevelName(this)));
 		});
 	});
 	if (!bMobile)
 	{
-		AddButton(JRT(TEXT("Keluar dari game")), [this, Warn]()
+		AddButton(JRT(TEXT("Keluar dari game")), [this, Warn, GM]()
 		{
-			ShowConfirm(JRT(TEXT("Keluar dari game?")), Warn, JRT(TEXT("Ya, keluar")), [this]()
+			ShowConfirm(JRT(TEXT("Keluar dari game?")), Warn, JRT(TEXT("Ya, keluar")), [this, GM]()
 			{
+				if (GM) GM->SaveNow();
 				UKismetSystemLibrary::QuitGame(this, GetOwningPlayer(), EQuitPreference::Quit, false);
 			});
 		});
@@ -355,6 +364,26 @@ void UJRMenuWidget::ShowSettings()
 			});
 		}
 	}
+
+	if (bMobile || FParse::Param(FCommandLine::Get(), TEXT("jrgfx")))
+	{
+		AddSection(JRT(TEXT("GRAFIS")));
+		AddRow(JRT(TEXT("Kualitas grafis")), JRSettings::GfxPresetName(JRSettings::GfxPreset()), [S]()
+		{
+			S->GfxPreset = (JRSettings::GfxPreset() + 1) % 3;
+			JRSettings::Save();
+			JRSettings::ApplyGraphics();
+		});
+		AddRow(JRT(TEXT("Batas FPS")), S->MaxFps <= 30 ? FString(TEXT("30")) : FString(TEXT("60")), [S]()
+		{
+			S->MaxFps = S->MaxFps <= 30 ? 60 : 30;
+			JRSettings::Save();
+			JRSettings::ApplyGraphics();
+		});
+		UTextBlock* Note = MakeText(JRT(TEXT("Kalau game terasa patah-patah atau HP panas, pilih Hemat dan batas 30 FPS.")), 12, Muted);
+		Content->AddChildToVerticalBox(Note)->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
+	}
+	AddRow(JRT(TEXT("Tampilkan FPS")), OnOff(S->bShowFps), [S]() { S->bShowFps = !S->bShowFps; JRSettings::Save(); });
 
 	AddSection(JRT(TEXT("SUARA")));
 	AddRow(JRT(TEXT("Efek suara")), OnOff(S->bSfx), [S]() { S->bSfx = !S->bSfx; JRSettings::Save(); JRSound::ApplySettings(); });

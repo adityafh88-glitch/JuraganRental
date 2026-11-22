@@ -118,6 +118,10 @@ void AJRCharacter::BuildInput()
 	Mapping->MapKey(PhoneAction, EKeys::Tab);
 	Mapping->MapKey(PauseAction, EKeys::Escape);
 	Mapping->MapKey(PauseAction, EKeys::P);
+	PhotoAction = MakeAction(EInputActionValueType::Boolean);
+	PhotoModeAction = MakeAction(EInputActionValueType::Boolean);
+	Mapping->MapKey(PhotoAction, EKeys::F12);		// simpan foto tanpa HUD
+	Mapping->MapKey(PhotoModeAction, EKeys::F9);	// mode foto: sembunyikan HUD
 }
 
 void AJRCharacter::PawnClientRestart()
@@ -147,6 +151,22 @@ void AJRCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	EIC->BindAction(ConfirmAction, ETriggerEvent::Started, this, &AJRCharacter::Confirm);
 	EIC->BindAction(PhoneAction, ETriggerEvent::Started, this, &AJRCharacter::TogglePhone);
 	EIC->BindAction(PauseAction, ETriggerEvent::Started, this, &AJRCharacter::TogglePause);
+	EIC->BindAction(PhotoAction, ETriggerEvent::Started, this, &AJRCharacter::TakePhoto);
+	EIC->BindAction(PhotoModeAction, ETriggerEvent::Started, this, &AJRCharacter::TogglePhotoMode);
+}
+
+void AJRCharacter::TakePhoto()
+{
+	const APlayerController* PC = Cast<APlayerController>(Controller);
+	if (AJRHUD* Hud = PC ? Cast<AJRHUD>(PC->GetHUD()) : nullptr) Hud->TakePhoto();
+}
+
+void AJRCharacter::TogglePhotoMode()
+{
+	const APlayerController* PC = Cast<APlayerController>(Controller);
+	const AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
+	AJRHUD* Hud = PC ? Cast<AJRHUD>(PC->GetHUD()) : nullptr;
+	if (Hud && GM && (Hud->IsPhotoMode() || (GM->Phase == EJRGamePhase::Playing && !Hud->IsUIOpen()))) Hud->SetPhotoMode(!Hud->IsPhotoMode());
 }
 
 void AJRCharacter::Move(const FInputActionValue& Value)

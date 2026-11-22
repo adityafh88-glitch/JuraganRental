@@ -268,6 +268,18 @@ void UJRTouchWidget::BuildTree()
 		S->SetSize(FVector2D(280.f, 40.f));
 	}
 
+	// Mode foto: semua tombol disembunyikan; ketuk pojok kiri atas (tempat tombol jeda) untuk kembali.
+	PhotoExit = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+	{
+		PhotoExit->SetStyle(MissionToggle->GetStyle());	// transparan
+		PhotoExit->OnClicked.AddDynamic(this, &UJRTouchWidget::OnPause);
+		PhotoExit->SetVisibility(ESlateVisibility::Collapsed);
+		UCanvasPanelSlot* S = Canvas->AddChildToCanvas(PhotoExit);
+		S->SetAnchors(FAnchors(0.f, 0.f));
+		S->SetPosition(FVector2D(0.f, 0.f));
+		S->SetSize(FVector2D(150.f, 130.f));
+	}
+
 	UButton* Phone = MakePhoneButton();
 	PhoneButton = Phone;
 	Phone->OnClicked.AddDynamic(this, &UJRTouchWidget::OnPhone);
@@ -322,11 +334,14 @@ void UJRTouchWidget::SyncVisibility()
 	const AJRHUD* Hud = GetOwningPlayer() ? Cast<AJRHUD>(GetOwningPlayer()->GetHUD()) : nullptr;
 	// HP terbuka juga menyembunyikan tombol: HP menutupi sisi kanan layar dan punya tombol X sendiri.
 	const bool bHideAll = !GM || GM->Phase == EJRGamePhase::Menu || (Hud && Hud->IsUIOpen());
+	// Mode foto: tombol tak terlihat (joystick, geser layar, dan area AKSI tetap berfungsi untuk merekam).
+	const bool bPhoto = Hud && Hud->IsPhotoMode();
+	auto Vis = [bPhoto](ESlateVisibility V) { return bPhoto && V != ESlateVisibility::Collapsed ? ESlateVisibility::Hidden : V; };
 	const ESlateVisibility Root = bHideAll ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible;
 	if (bHideAll && LookPad) LookPad->ResetFinger();	// jari yang sedang menggeser dianggap terangkat
 	if (GetVisibility() != Root) SetVisibility(Root);
 	const bool bShowNext = GM && GM->Phase != EJRGamePhase::Playing;
-	const ESlateVisibility Want = bShowNext ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
+	const ESlateVisibility Want = Vis(bShowNext ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	if (NextButton && NextButton->GetVisibility() != Want) NextButton->SetVisibility(Want);
 	// Saat adegan pembuka, tombol LANJUT berfungsi sebagai LEWATI.
 	if (UTextBlock* NL = NextButton ? Cast<UTextBlock>(NextButton->GetContent()) : nullptr)
@@ -334,23 +349,26 @@ void UJRTouchWidget::SyncVisibility()
 		const FString Want2 = (GM && GM->IsOpening()) ? JRT(TEXT("Lewati")) : JRT(TEXT("Lanjut"));
 		if (NL->GetText().ToString() != Want2) NL->SetText(FText::FromString(Want2));
 	}
-	const ESlateVisibility WantMis = (GM && GM->Phase == EJRGamePhase::Playing && !GM->IsTutorial()) ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
+	const ESlateVisibility WantMis = Vis((GM && GM->Phase == EJRGamePhase::Playing && !GM->IsTutorial()) ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	if (MissionToggle && MissionToggle->GetVisibility() != WantMis) MissionToggle->SetVisibility(WantMis);
-	const ESlateVisibility WantToast = (GM && GM->Phase == EJRGamePhase::Playing) ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
+	const ESlateVisibility WantToast = Vis((GM && GM->Phase == EJRGamePhase::Playing) ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	if (ToastToggle && ToastToggle->GetVisibility() != WantToast) ToastToggle->SetVisibility(WantToast);
 	// Adegan pembuka: hanya tombol LEWATI yang tampil.
 	const bool bOpening = GM && GM->IsOpening();
 	for (UButton* B : { PauseButton.Get(), PhoneButton.Get() })
 	{
-		const ESlateVisibility V = bOpening ? ESlateVisibility::Collapsed : ESlateVisibility::Visible;
+		const ESlateVisibility V = Vis(bOpening ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 		if (B && B->GetVisibility() != V) B->SetVisibility(V);
 	}
-	const ESlateVisibility WantAction = bShowNext ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible;
+	const ESlateVisibility WantAction = Vis(bShowNext ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 	if (ActionButton && ActionButton->GetVisibility() != WantAction) ActionButton->SetVisibility(WantAction);
 	const ESlateVisibility WantPad = bShowNext ? ESlateVisibility::Collapsed : ESlateVisibility::Visible;
 	if (ActionPad && ActionPad->GetVisibility() != WantPad) ActionPad->SetVisibility(WantPad);
 	// Tombol AKSI disembunyikan (dialog, HP, ganti hari) saat ditekan: anggap jari terangkat.
 	if (ActionPad && ActionPad->IsDown() && (bHideAll || bShowNext)) ActionPad->ForceRelease();
+
+	const ESlateVisibility WantExit = bPhoto ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
+	if (PhotoExit && PhotoExit->GetVisibility() != WantExit) PhotoExit->SetVisibility(WantExit);
 }
 
 FVector2D UJRTouchWidget::ActionCenterAbs() const
