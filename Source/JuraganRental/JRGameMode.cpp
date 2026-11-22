@@ -66,7 +66,7 @@ namespace JRLocal_GameMode
 	FJRLayout MakeGarasi()
 	{
 		FJRLayout L;
-		L.Name = JRT(TEXT("GARASI"));
+		L.Name = TEXT("GARASI");	// JRNOWRAP diterjemahkan saat ditampilkan (tata letak disimpan statis)
 		L.HalfX = 700.f; L.HalfY = 1000.f; L.DoorY = 420.f;
 		L.PsY = { -800.f, -550.f, -300.f, -50.f };
 		L.PcX = { 500.f, 250.f, 0.f, -250.f };
@@ -77,7 +77,7 @@ namespace JRLocal_GameMode
 	FJRLayout MakeRuko()
 	{
 		FJRLayout L;
-		L.Name = JRT(TEXT("RUKO KECIL"));
+		L.Name = TEXT("RUKO KECIL");	// JRNOWRAP diterjemahkan saat ditampilkan (tata letak disimpan statis)
 		L.HalfX = 800.f; L.HalfY = 1200.f; L.DoorY = 540.f;
 		L.PsY = { -1000.f, -750.f, -500.f, -250.f, 0.f, 250.f };
 		L.PcX = { 600.f, 380.f, 160.f, -60.f, -280.f, -500.f };
@@ -92,7 +92,7 @@ namespace JRLocal_GameMode
 	FJRLayout MakeGameCenter()
 	{
 		FJRLayout L;
-		L.Name = JRT(TEXT("GAME CENTER"));
+		L.Name = TEXT("GAME CENTER");	// JRNOWRAP diterjemahkan saat ditampilkan (tata letak disimpan statis)
 		L.HalfX = 900.f; L.HalfY = 1300.f; L.DoorY = 650.f;
 		L.PsY = { -1000.f, -750.f, -500.f, -250.f, 0.f, 250.f, 500.f, 750.f };
 		L.PcX = { 700.f, 500.f, 300.f, 100.f, -100.f, -300.f, -500.f, -700.f };
@@ -393,28 +393,7 @@ bool AJRGameMode::Gate2Open() const
 	return Era == 2 && Money >= 3000000.f && Rep >= 60.f && TotalUnits() >= 10;
 }
 
-void AJRGameMode::MakePath(const FVector& From, const FVector& To, TArray<FVector>& Out) const
-{
-	Out.Reset();
-	const FJRLayout& L = Layout();
-	if (L.HasUpstairs())
-	{
-		const bool bFromUp = From.Z > L.FloorH * 0.5f, bToUp = To.Z > L.FloorH * 0.5f;
-		if (!bFromUp && bToUp) { Out.Add(L.StairBottom()); Out.Add(L.StairTop()); }
-		else if (bFromUp && !bToUp) { Out.Add(L.StairTop()); Out.Add(L.StairBottom()); }
-	}
-	Out.Add(To);
-}
-
-float AJRGameMode::PathLen(const FVector& From, const FVector& To) const
-{
-	TArray<FVector> Pts;
-	MakePath(From, To, Pts);
-	float Len = 0.f;
-	FVector P = From;
-	for (const FVector& X : Pts) { Len += FVector::Dist2D(P, X); P = X; }
-	return Len;
-}
+// MakePath dan PathLen ada di JRNav.cpp
 
 void AJRGameMode::ClearWorld()
 {
@@ -2989,7 +2968,7 @@ void AJRGameMode::CollectPayer(AJRCustomer* C, bool bByPlayer)
 	if (!C || C->State != EJRCustomerState::WaitPay) return;
 	if (C->TypeIndex != Bocil && !C->bFined && FMath::FRand() < 0.07f)
 	{
-		static const TCHAR* Excuses[] = { JRT(TEXT("Besok bayar, bang. Sumpah.")), JRT(TEXT("Gajian minggu depan, bang.")), JRT(TEXT("Dompet ketinggalan di motor, bang.")) };
+		const TCHAR* Excuses[] = { JRT(TEXT("Besok bayar, bang. Sumpah.")), JRT(TEXT("Gajian minggu depan, bang.")), JRT(TEXT("Dompet ketinggalan di motor, bang.")) };
 		TWeakObjectPtr<AJRCustomer> WC(C);
 		JRSound::Voice(this, VoiceCode[C->TypeIndex], TEXT("Ngutang"), C->GetActorLocation());
 		PushChoice(JRT(TEXT("Bang, ngutang dulu ya")),

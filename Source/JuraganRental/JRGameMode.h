@@ -170,6 +170,11 @@ public:
 	void MakePath(const FVector& From, const FVector& To, TArray<FVector>& Out) const;
 	/** Panjang jalan sebenarnya (lewat tangga bila beda lantai), untuk memilih tugas terdekat. */
 	float PathLen(const FVector& From, const FVector& To) const;
+	/** Grid lantai untuk jalur NPC (dibangun ulang otomatis; lihat JRNav.cpp). */
+	struct FJRNavGrid { FVector2D Origin = FVector2D::ZeroVector; int32 NX = 0, NY = 0, Era = -1; float BuiltAt = -100.f; TArray<uint8> Blocked[2]; };
+	mutable FJRNavGrid Nav;
+	void BuildNav() const;
+	bool NavRoute(const FVector& From, const FVector& To, int32 Floor, TArray<FVector>& Out) const;
 	static EJRUnitType TypeForItem(FName Id) { return Id == TEXT("vip") ? EJRUnitType::VIP : IsPCItem(Id) ? EJRUnitType::PC : EJRUnitType::PS; }
 	int32 MaxFor(EJRUnitType Type) const { return Type == EJRUnitType::VIP ? Layout().MaxVip() : Layout().MaxUnits(); }
 	int32 TotalUnits() const { return Stations.Num(); }
@@ -353,6 +358,8 @@ public:
 	FString RentalName = TEXT("Juragan");
 	bool bNeedName = false;		// Main baru: minta pemain menamai rental (setelah opening)
 	void SetRentalName(const FString& NewName);
+	/** Bahasa diganti: bangun ulang ruangan agar papan nama/tulisan di dinding ikut berganti. */
+	void OnLanguageChanged();
 	TArray<FJRPost> Posts;		// komentar warganet, terbaru di depan
 	bool bShowMoment = false;	// Kartu Momen tampil di layar laporan (hari yang baru selesai)
 	float LastNet = 0.f;		// untung bersih hari terakhir

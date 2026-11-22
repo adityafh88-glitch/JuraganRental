@@ -49,12 +49,6 @@ void AJRHUD::BeginPlay()
 	JRSettings::ApplyGraphics();
 	if (PlayerOwner)
 	{
-		Phone = CreateWidget<UJRPhoneWidget>(PlayerOwner, UJRPhoneWidget::StaticClass());
-		if (Phone)
-		{
-			Phone->AddToViewport(10);
-			Phone->SetVisibility(ESlateVisibility::Collapsed);
-		}
 		// Mode sentuh: otomatis di Android/iOS, atau paksa di PC dengan -jrtouch.
 		bTouchMode = PLATFORM_ANDROID || PLATFORM_IOS || FParse::Param(FCommandLine::Get(), TEXT("jrtouch"));
 		if (bTouchMode)
@@ -64,8 +58,6 @@ void AJRHUD::BeginPlay()
 			Settings->bUseMouseForTouch = !(PLATFORM_ANDROID || PLATFORM_IOS); // uji di PC pakai mouse
 			ApplyTouchSettings();
 			ApplyUIScale();
-			Touch = CreateWidget<UJRTouchWidget>(PlayerOwner, UJRTouchWidget::StaticClass());
-			if (Touch) Touch->AddToViewport(5);
 		}
 
 		Menu = CreateWidget<UJRMenuWidget>(PlayerOwner, UJRMenuWidget::StaticClass());
@@ -76,56 +68,89 @@ void AJRHUD::BeginPlay()
 			Menu->OnChanged = [this]() { OnMenuChanged(); };
 		}
 
-		Billing = CreateWidget<UJRBillingWidget>(PlayerOwner, UJRBillingWidget::StaticClass());
-		if (Billing)
-		{
-			Billing->AddToViewport(12);
-			Billing->SetVisibility(ESlateVisibility::Collapsed);
-			Billing->OnClose = [this]() { SetBillingOpen(false); };
-		}
-
-		NameWidget = CreateWidget<UJRNameWidget>(PlayerOwner, UJRNameWidget::StaticClass());
-		if (NameWidget)
-		{
-			NameWidget->AddToViewport(25);
-			NameWidget->SetVisibility(ESlateVisibility::Collapsed);
-			NameWidget->OnDone = [this](const FString& N)
-			{
-				if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>()) G->SetRentalName(N);
-				NameWidget->SetVisibility(ESlateVisibility::Collapsed);
-				bNameShown = false;
-				ApplyInputMode();
-			};
-		}
-		MomentCard = CreateWidget<UJRMomentCard>(PlayerOwner, UJRMomentCard::StaticClass());
-		if (MomentCard)
-		{
-			MomentCard->AddToViewport(22);
-			MomentCard->SetVisibility(ESlateVisibility::Collapsed);
-			MomentCard->OnReport = [this]()
-			{
-				if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>()) G->bShowMoment = false;
-			};
-			MomentCard->OnContinue = [this]()
-			{
-				if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>()) { G->bShowMoment = false; G->Confirm(); }
-			};
-		}
-
-		Choice = CreateWidget<UJRChoiceWidget>(PlayerOwner, UJRChoiceWidget::StaticClass());
-		if (Choice)
-		{
-			Choice->AddToViewport(20);
-			Choice->SetVisibility(ESlateVisibility::Collapsed);
-			Choice->OnPick = [this](int32 Index)
-			{
-				if (AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>()) GM->ResolveChoice(Index);
-				bChoiceShown = false;
-				Choice->SetVisibility(ESlateVisibility::Collapsed);
-				ApplyInputMode();
-			};
-		}
+		CreateGameWidgets();
 	}
+}
+
+void AJRHUD::CreateGameWidgets()
+{
+	Phone = CreateWidget<UJRPhoneWidget>(PlayerOwner, UJRPhoneWidget::StaticClass());
+	if (Phone)
+	{
+		Phone->AddToViewport(10);
+		Phone->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	if (bTouchMode)
+	{
+		Touch = CreateWidget<UJRTouchWidget>(PlayerOwner, UJRTouchWidget::StaticClass());
+		if (Touch) Touch->AddToViewport(5);
+	}
+	Billing = CreateWidget<UJRBillingWidget>(PlayerOwner, UJRBillingWidget::StaticClass());
+	if (Billing)
+	{
+		Billing->AddToViewport(12);
+		Billing->SetVisibility(ESlateVisibility::Collapsed);
+		Billing->OnClose = [this]() { SetBillingOpen(false); };
+	}
+
+	NameWidget = CreateWidget<UJRNameWidget>(PlayerOwner, UJRNameWidget::StaticClass());
+	if (NameWidget)
+	{
+		NameWidget->AddToViewport(25);
+		NameWidget->SetVisibility(ESlateVisibility::Collapsed);
+		NameWidget->OnDone = [this](const FString& N)
+		{
+			if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>()) G->SetRentalName(N);
+			NameWidget->SetVisibility(ESlateVisibility::Collapsed);
+			bNameShown = false;
+			ApplyInputMode();
+		};
+	}
+	MomentCard = CreateWidget<UJRMomentCard>(PlayerOwner, UJRMomentCard::StaticClass());
+	if (MomentCard)
+	{
+		MomentCard->AddToViewport(22);
+		MomentCard->SetVisibility(ESlateVisibility::Collapsed);
+		MomentCard->OnReport = [this]()
+		{
+			if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>()) G->bShowMoment = false;
+		};
+		MomentCard->OnContinue = [this]()
+		{
+			if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>()) { G->bShowMoment = false; G->Confirm(); }
+		};
+	}
+
+	Choice = CreateWidget<UJRChoiceWidget>(PlayerOwner, UJRChoiceWidget::StaticClass());
+	if (Choice)
+	{
+		Choice->AddToViewport(20);
+		Choice->SetVisibility(ESlateVisibility::Collapsed);
+		Choice->OnPick = [this](int32 Index)
+		{
+			if (AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>()) GM->ResolveChoice(Index);
+			bChoiceShown = false;
+			Choice->SetVisibility(ESlateVisibility::Collapsed);
+			ApplyInputMode();
+		};
+	}
+}
+
+void AJRHUD::OnLanguageChanged()
+{
+	// Teks UMG ditulis saat widget dibangun, jadi widget permainan dibuat ulang dengan bahasa baru.
+	// Menu (yang sedang terbuka) membangun ulang halamannya sendiri; teks Canvas dan label 3D dibaca tiap frame.
+	if (!PlayerOwner) return;
+	if (bPhoneOpen) SetPhoneOpen(false);
+	if (bBillingOpen) SetBillingOpen(false);
+	for (UUserWidget* W : TArray<UUserWidget*>{ Phone, Touch, Billing, NameWidget, MomentCard, Choice }) if (W) W->RemoveFromParent();
+	Phone = nullptr; Touch = nullptr; Billing = nullptr; NameWidget = nullptr; MomentCard = nullptr; Choice = nullptr;
+	bChoiceShown = false; bMomentShown = false; bNameShown = false;	// dimunculkan lagi otomatis bila masih perlu
+	CreateGameWidgets();
+	if (Touch) Touch->SyncVisibility();
+	if (AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>()) GM->OnLanguageChanged();
+	ApplyInputMode();
+	UE_LOG(LogTemp, Display, TEXT("JR_LANG ganti english=%d"), JRLang::IsEnglish() ? 1 : 0);
 }
 
 void AJRHUD::SyncChoice()
@@ -219,6 +244,7 @@ void AJRHUD::ApplyTouchSettings()
 		Scale(C.VisualSize); Scale(C.ThumbSize); Scale(C.InteractionSize);
 	}
 	PlayerOwner->ActivateTouchInterface(Sticks);
+	if (!bStickShown) PlayerOwner->SetVirtualJoystickVisibility(false);	// tetap tersembunyi di panel pembuka/laporan
 }
 
 void AJRHUD::SetPhotoMode(bool bOn)
@@ -299,6 +325,12 @@ void AJRHUD::DrawHUD()
 	const AJRGameMode* GM = GetWorld()->GetAuthGameMode<AJRGameMode>();
 	if (!GM || !Canvas) return;
 	if (Touch) Touch->SyncVisibility();	// juga memunculkan lagi tombol sentuh setelah menu utama ditutup
+	if (bTouchMode && PlayerOwner)
+	{
+		// Joystick tidak menutupi panel pembuka/laporan harian (di fase itu pemain tidak berjalan).
+		const bool bStick = GM->Phase == EJRGamePhase::Playing && !GM->IsOpening();
+		if (bStick != bStickShown) { bStickShown = bStick; PlayerOwner->SetVirtualJoystickVisibility(bStick); }
+	}
 
 	// -jrtouchflow: ulangi alur di HP (menu utama -> Main baru) lalu catat apakah tombol sentuh muncul.
 	static const bool bTouchFlow = FParse::Param(FCommandLine::Get(), TEXT("jrtouchflow"));
@@ -470,6 +502,22 @@ void AJRHUD::DrawHUD()
 		}
 		return;
 	}
+	// Uji -jrlangtest: ganti bahasa ke Inggris di tengah permainan (tanpa menyimpan pengaturan ke disk).
+	static const bool bLangTest = FParse::Param(FCommandLine::Get(), TEXT("jrlangtest"));
+	if (bLangTest && GetWorld()->GetTimeSeconds() > 4.f)
+	{
+		static bool bOnce = false;
+		if (!bOnce)
+		{
+			bOnce = true;
+			const FString Before = JRT(TEXT("Pengaturan"));
+			JRSettings::Get()->Language = JRLang::IsEnglish() ? 1 : 2;	// balik dari bahasa yang sedang aktif
+			JRLang::Reset();
+			OnLanguageChanged();
+			UE_LOG(LogTemp, Display, TEXT("JR_LANGTEST sebelum=%s sesudah=%s phone=%d"), *Before, JRT(TEXT("Pengaturan")), Phone ? 1 : 0);
+			return;	// widget baru, gambar di frame berikutnya
+		}
+	}
 	// Uji -jrfototest: masuk mode foto setelah 6 detik bermain (untuk dipotret).
 	static const bool bFotoTest = FParse::Param(FCommandLine::Get(), TEXT("jrfototest"));
 	if (bFotoTest && !bPhotoMode && GM->Phase == EJRGamePhase::Playing && GetWorld()->GetTimeSeconds() > 6.f) { static bool bOnce = false; if (!bOnce) { bOnce = true; SetPhotoMode(true); } }
@@ -550,7 +598,7 @@ void AJRHUD::DrawHUD()
 	const int32 Mn = FMath::FloorToInt((GM->Hour - Hr) * 60.f);
 	const FString Power = GM->bMcbTripped ? FString(JRT(TEXT("MCB TURUN"))) : JRPrintf(JRT(TEXT("%d/%d VA")), GM->PowerVA, GM->CapVA);
 	const FString Top = JRPrintf(JRT(TEXT("%s  Hari %d   %02d:%02d   Kas %s   Reputasi %d   Daya %s")),
-		*GM->Layout().Name, GM->Day, Hr, Mn, *JRFormatRp(GM->Money), FMath::RoundToInt(GM->Rep), *Power)
+		JRT(*GM->Layout().Name), GM->Day, Hr, Mn, *JRFormatRp(GM->Money), FMath::RoundToInt(GM->Rep), *Power)
 		+ JRPrintf(JRT(TEXT("   Lv %d")), GM->JuraganLevel());
 	{
 		// Bar atas: perkecil teks bila layar sempit agar tidak terpotong
@@ -772,33 +820,63 @@ void AJRHUD::DrawPanel(const FString& Title, const TArray<FString>& Lines, const
 {
 	UFont* Font = GEngine->GetMediumFont();
 	const float W = Canvas->ClipX, H = Canvas->ClipY;
-	// Laporan harian bisa panjang (Era 3): kecilkan baris bila tidak muat tinggi layar,
-	// dan di mode sentuh sisakan ruang kanan untuk tombol LANJUT.
+	// Mode sentuh: panel memakai hampir seluruh lebar layar (kiri: tombol jeda/HP, kanan: tombol LANJUT),
+	// baris panjang dibungkus, bukan diperkecil, agar tetap terbaca di HP.
+	const float Left = bTouchMode ? 110.f * UIS : 20.f;
+	const float Right = bTouchMode ? 175.f * UIS : 20.f;
+	const float MaxPW = W - Left - Right;
 	float S = UIS;
+	TArray<FString> Wrapped;
+	auto Wrap = [&](float Scale)
+	{
+		Wrapped.Reset();
+		const float Max = MaxPW - 48.f * Scale;
+		for (const FString& L : Lines)
+		{
+			float TW = 0.f, TH = 0.f;
+			GetTextSize(L, TW, TH, Font, 1.15f * Scale);
+			if (TW <= Max) { Wrapped.Add(L); continue; }
+			TArray<FString> Words;
+			L.ParseIntoArray(Words, TEXT(" "), false);	// false: spasi ganda antar petunjuk tetap terjaga
+			FString Cur;
+			for (const FString& Wd : Words)
+			{
+				const FString Try = Cur.IsEmpty() ? Wd : Cur + TEXT(" ") + Wd;
+				GetTextSize(Try, TW, TH, Font, 1.15f * Scale);
+				if (TW > Max && !Cur.IsEmpty()) { Wrapped.Add(Cur); Cur = Wd; } else Cur = Try;
+			}
+			if (!Cur.IsEmpty()) Wrapped.Add(Cur);
+		}
+	};
+	// Laporan harian bisa panjang (Era 3): kecilkan hanya bila tidak muat tinggi layar.
 	const float Avail = H - 60.f * UIS;
-	S = FMath::Min(S, Avail / (110.f + Lines.Num() * 26.f));
+	for (int32 Pass = 0; Pass < 3; ++Pass)
+	{
+		Wrap(S);
+		const float Need = (110.f + Wrapped.Num() * 26.f) * S;
+		if (Need <= Avail) break;
+		S *= FMath::Max(0.6f, Avail / Need);
+	}
 	float Widest = 0.f;
-	for (const FString& L : Lines)
+	for (const FString& L : Wrapped)
 	{
 		float TW = 0.f, TH = 0.f;
-		GetTextSize(L, TW, TH, Font, 1.15f);
+		GetTextSize(L, TW, TH, Font, 1.15f * S);
 		Widest = FMath::Max(Widest, TW);
 	}
-	const float MaxPW = bTouchMode ? W * 0.745f - 180.f * UIS : W - 40.f;	// sentuh: sisakan tempat tombol HP dan LANJUT di kanan
-	S = FMath::Min(S, MaxPW / (Widest + 48.f));
-	const float PW = FMath::Min(FMath::Max(900.f, Widest + 48.f) * S, MaxPW);
+	const float PW = bTouchMode ? MaxPW : FMath::Min(FMath::Max(900.f * S, Widest + 48.f * S), MaxPW);
 	const float LineH = 26.f * S;
-	const float PH = 110.f * S + Lines.Num() * LineH;
-	const float X = bTouchMode ? FMath::Max(20.f * UIS, (W * 0.745f - 160.f * UIS - PW) * 0.5f) : (W - PW) * 0.5f;
+	const float PH = 110.f * S + Wrapped.Num() * LineH;
+	const float X = bTouchMode ? Left : (W - PW) * 0.5f;
 	const float Y = FMath::Max(50.f * UIS, (H - PH) * 0.5f);
 
 	DrawRect(FLinearColor(0, 0, 0, 0.55f), 0.f, 40.f * UIS, W, H - 40.f * UIS);
 	DrawRect(Panel, X, Y, PW, PH);
 	DrawText(Title, Led, X + 24.f * S, Y + 14.f * S, Font, 1.6f * S);
-	for (int32 i = 0; i < Lines.Num(); ++i)
+	for (int32 i = 0; i < Wrapped.Num(); ++i)
 	{
-		const bool bHeader = Lines[i].StartsWith(JRT(TEXT("Tekan TAB"))) || Lines[i].StartsWith(JRT(TEXT("Ketuk tombol HP")));
-		DrawText(Lines[i], bHeader ? Led : Ink, X + 24.f * S, Y + 60.f * S + i * LineH, Font, 1.15f * S);
+		const bool bHeader = Wrapped[i].StartsWith(JRT(TEXT("Tekan TAB"))) || Wrapped[i].StartsWith(JRT(TEXT("Ketuk tombol HP")));
+		DrawText(Wrapped[i], bHeader ? Led : Ink, X + 24.f * S, Y + 60.f * S + i * LineH, Font, 1.15f * S);
 	}
 	DrawText(Footer, Crt, X + 24.f * S, Y + PH - 36.f * S, Font, 1.2f * S);
 }

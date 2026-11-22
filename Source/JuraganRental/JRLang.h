@@ -1,5 +1,5 @@
-// Terjemahan sederhana: teks Indonesia di kode adalah kunci; versi Inggris diambil dari JRLangTable.inc.
-// Bahasa dipilih di Pengaturan (berlaku setelah game dimulai ulang); awalnya mengikuti bahasa Windows.
+﻿// Terjemahan sederhana: teks Indonesia di kode adalah kunci; versi Inggris diambil dari JRLangTable.inc.
+// Bahasa dipilih di Pengaturan dan langsung berlaku (JRLang::Reset + HUD membangun ulang widget); awalnya mengikuti bahasa perangkat.
 
 #pragma once
 
@@ -9,6 +9,8 @@ namespace JRLang
 {
 	/** true jika bahasa aktif adalah Inggris. */
 	JURAGANRENTAL_API bool IsEnglish();
+	/** Baca ulang pilihan bahasa (dipanggil setelah pemain mengganti bahasa). */
+	JURAGANRENTAL_API void Reset();
 }
 
 /** Terjemahkan teks Indonesia ke bahasa aktif (kembali ke teks asli jika belum ada terjemahannya). */

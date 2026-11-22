@@ -347,7 +347,7 @@ void UJRMenuWidget::ShowSettings()
 				ApplyGfx();
 			});
 
-			static const TCHAR* Levels[] = { JRT(TEXT("Rendah")), JRT(TEXT("Sedang")), JRT(TEXT("Tinggi")), JRT(TEXT("Ultra")) };
+			const TCHAR* Levels[] = { JRT(TEXT("Rendah")), JRT(TEXT("Sedang")), JRT(TEXT("Tinggi")), JRT(TEXT("Ultra")) };
 			const int32 Q = G->GetOverallScalabilityLevel();
 			AddRow(JRT(TEXT("Kualitas grafis")), Q >= 0 && Q <= 3 ? Levels[Q] : JRT(TEXT("Kustom")), [G, Q]()
 			{
@@ -422,10 +422,14 @@ void UJRMenuWidget::ShowSettings()
 	// Sengaja dua bahasa agar mudah ditemukan apa pun bahasa yang aktif.
 	AddSection(JRT(TEXT("BAHASA / LANGUAGE")));
 	{
-		static const TCHAR* Names[] = { JRT(TEXT("Otomatis / Auto")), JRT(TEXT("Indonesia")), JRT(TEXT("English")) };
-		AddRow(JRT(TEXT("Bahasa / Language")), Names[FMath::Clamp(S->Language, 0, 2)], [S]() { S->Language = (S->Language + 1) % 3; JRSettings::Save(); });
-		UTextBlock* Note = MakeText(JRT(TEXT("Berlaku setelah game dimulai ulang / Applies after restarting the game")), 12, Muted);
-		Content->AddChildToVerticalBox(Note)->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
+		const TCHAR* Names[] = { JRT(TEXT("Otomatis / Auto")), JRT(TEXT("Indonesia")), JRT(TEXT("English")) };
+		AddRow(JRT(TEXT("Bahasa / Language")), Names[FMath::Clamp(S->Language, 0, 2)], [S, Hud]()
+		{
+			S->Language = (S->Language + 1) % 3;
+			JRSettings::Save();
+			JRLang::Reset();	// langsung berlaku: halaman ini dibangun ulang setelah aksi, HUD membangun ulang widget lain
+			if (Hud) Hud->OnLanguageChanged();
+		});
 	}
 
 	UJRPhoneButton* B = WidgetTree->ConstructWidget<UJRPhoneButton>(UJRPhoneButton::StaticClass());

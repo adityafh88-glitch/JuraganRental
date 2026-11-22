@@ -43,6 +43,8 @@ public:
 	void ApplyTouchSettings();
 	/** Ukuran tampilan layar sentuh (HP dalam game, menu, dialog, dan teks HUD). PC selalu 1. */
 	void ApplyUIScale();
+	/** Bahasa diganti di Pengaturan: bangun ulang widget agar teksnya langsung berganti. */
+	void OnLanguageChanged();
 	/** Buka dialog "Beri nama rentalmu" (dari HP > Atur). */
 	void OpenNameDialog();
 
@@ -65,6 +67,9 @@ private:
 	void DrawPanel(const FString& Title, const TArray<FString>& Lines, const FString& Footer);
 
 	void SyncChoice();
+	/** HP, tombol sentuh, billing, dialog nama, kartu momen, dan dialog pilihan. */
+	void CreateGameWidgets();
+	bool bStickShown = true;
 	void ApplyInputMode();
 
 	UPROPERTY()

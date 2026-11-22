@@ -30,9 +30,12 @@ namespace
 
 namespace JRLang
 {
+	static int32 Cached = -1;	// dibaca sekali; dibaca ulang lewat Reset() saat pemain mengganti bahasa
+
+	void Reset() { Cached = -1; }
+
 	bool IsEnglish()
 	{
-		static int32 Cached = -1;	// bahasa dibaca sekali per sesi
 		if (Cached < 0)
 		{
 			// Terlalu dini (inisialisasi statis sebelum engine siap): jangan sentuh UObject, jangan simpan.

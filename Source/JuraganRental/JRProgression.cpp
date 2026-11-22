@@ -54,6 +54,18 @@ void AJRGameMode::SetRentalName(const FString& NewName)
 	AddToast(JRPrintf(JRT(TEXT("Papan nama baru terpasang: %s")), *RentalName), Good);
 }
 
+void AJRGameMode::OnLanguageChanged()
+{
+	if (Room)
+	{
+		Room->Destroy();
+		FActorSpawnParameters SP;
+		SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		Room = GetWorld()->SpawnActor<AJRRoom>(FVector::ZeroVector, FRotator::ZeroRotator, SP);
+		Room->Build(Layout(), Era);
+	}
+}
+
 /* ---------- Viralin: komentar warganet setiap tutup hari ---------- */
 
 void AJRGameMode::MakeNetizenPosts(float AvgSat)
