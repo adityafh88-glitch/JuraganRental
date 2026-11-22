@@ -20,6 +20,7 @@ class JURAGANRENTAL_API AJRHUD : public AHUD
 public:
 	virtual void BeginPlay() override;
 	virtual void DrawHUD() override;
+	virtual void PostRender() override;
 
 	void TogglePhone();
 	void SetBillingOpen(bool bOpen);

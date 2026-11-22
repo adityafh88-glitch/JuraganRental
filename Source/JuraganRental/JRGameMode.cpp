@@ -7,6 +7,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
+#include "Misc/FileHelper.h"
 #include "UnrealClient.h"
 #include "JRBlockout.h"
 #include "JRCharacter.h"
@@ -1120,14 +1121,39 @@ const TCHAR* AJRGameMode::SlotName()
 	return FParse::Param(FCommandLine::Get(), TEXT("jrautotest")) || FParse::Param(FCommandLine::Get(), TEXT("jrbalance")) ? TEXT("JRSave_Test") : TEXT("JRSave");
 }
 
+namespace JRLocal_Save
+{
+	FString Note;	// alasan simpan terakhir (bertahan saat level dimuat ulang), ditampilkan di menu utama bila menu developer aktif
+}
+
+FString AJRGameMode::BackupPath()
+{
+	// Salinan kedua di folder lain: jaga-jaga bila slot SaveGame bawaan gagal ditulis/dibaca di HP tertentu.
+	return FPaths::Combine(FPaths::ProjectPersistentDownloadDir(), FString(SlotName()) + TEXT("_cadangan.sav"));
+}
+
+const FString& AJRGameMode::SaveNote() { return JRLocal_Save::Note; }
+
 bool AJRGameMode::HasSave()
 {
-	return UGameplayStatics::DoesSaveGameExist(SlotName(), 0);
+	return UGameplayStatics::DoesSaveGameExist(SlotName(), 0) || FPaths::FileExists(BackupPath());
+}
+
+UJRSaveGame* AJRGameMode::LoadSaveObject()
+{
+	UJRSaveGame* Slot = UGameplayStatics::DoesSaveGameExist(SlotName(), 0) ? Cast<UJRSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName(), 0)) : nullptr;
+	UJRSaveGame* Backup = nullptr;
+	TArray<uint8> Bytes;
+	if (FPaths::FileExists(BackupPath()) && FFileHelper::LoadFileToArray(Bytes, *BackupPath()) && Bytes.Num() > 0)
+		Backup = Cast<UJRSaveGame>(UGameplayStatics::LoadGameFromMemory(Bytes));
+	// Pakai yang paling baru (slot bisa tertinggal bila penulisan terakhirnya gagal).
+	if (Slot && Backup) return Backup->SavedAt > Slot->SavedAt ? Backup : Slot;
+	return Slot ? Slot : Backup;
 }
 
 FString AJRGameMode::SaveSummary()
 {
-	const UJRSaveGame* S = HasSave() ? Cast<UJRSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName(), 0)) : nullptr;
+	const UJRSaveGame* S = LoadSaveObject();
 	if (!S) return FString();
 	if (S->bMidDay)
 	{
@@ -1188,7 +1214,11 @@ void AJRGameMode::TickSky()
 bool AJRGameMode::SaveNow()
 {
 	// Hanya saat toko buka: di layar laporan simpanan akhir hari sudah ada, di menu/opening belum ada yang perlu disimpan.
-	if (Phase != EJRGamePhase::Playing || IsOpening() || PromoId > 0 || bBalance || bDemoOver) return false;
+	if (Phase != EJRGamePhase::Playing || IsOpening() || PromoId > 0 || bBalance || bDemoOver)
+	{
+		JRLocal_Save::Note = FString::Printf(TEXT("Tidak disimpan: fase=%d pembuka=%d demo=%d"), (int32)Phase, IsOpening() ? 1 : 0, bDemoOver ? 1 : 0);	// JRNOWRAP
+		return false;
+	}
 	SaveProgress(true);
 	return true;
 }
@@ -1256,7 +1286,12 @@ void AJRGameMode::SaveProgress(bool bMidDay)
 		S->LoakOffer = LoakOffer; S->GuestAt = GuestAt; S->GuestWhich = GuestWhich; S->RtAt = RtAt;
 		S->bQuiet = bQuiet; S->bFightToday = bFightToday; S->bTourAccepted = bTourAccepted; S->bTourDone = bTourDone;
 	}
-	if (UGameplayStatics::SaveGameToSlot(S, SlotName(), 0))
+	const bool bSlot = UGameplayStatics::SaveGameToSlot(S, SlotName(), 0);
+	TArray<uint8> Bytes;
+	const bool bBackup = UGameplayStatics::SaveGameToMemory(S, Bytes) && FFileHelper::SaveArrayToFile(Bytes, *BackupPath());
+	JRLocal_Save::Note = FString::Printf(TEXT("Simpan hari %d jam %.2f: slot=%d cadangan=%d ada=%d"), Day, Hour, bSlot ? 1 : 0, bBackup ? 1 : 0, HasSave() ? 1 : 0);	// JRNOWRAP
+	UE_LOG(LogTemp, Display, TEXT("JR_SAVE %s (%s)"), *JRLocal_Save::Note, *BackupPath());
+	if (bSlot || bBackup)
 	{
 		if (!bMidDay) ReportLines.Add(JRT(TEXT("Permainan tersimpan otomatis.")));
 		SaveFlash = 2.5f;
@@ -1270,7 +1305,7 @@ void AJRGameMode::SaveProgress(bool bMidDay)
 
 bool AJRGameMode::LoadProgress()
 {
-	const UJRSaveGame* S = HasSave() ? Cast<UJRSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName(), 0)) : nullptr;
+	const UJRSaveGame* S = LoadSaveObject();
 	if (!S) return false;
 	ClearWorld();
 	Era = S->Era; Day = S->Day; Money = S->Money; Rep = S->Rep; CapVA = S->CapVA;
@@ -2074,6 +2109,33 @@ void AJRGameMode::Tick(float DeltaSeconds)
 	for (FJRToast& T : Toasts) T.TimeLeft -= DeltaSeconds;
 	Toasts.RemoveAll([](const FJRToast& T) { return T.TimeLeft <= 0.f; });
 	if (PromoId > 0) TickPromo(DeltaSeconds);
+
+	// Uji -jrexittest (simpanan asli!): main baru -> buka toko -> keluar ke menu lewat jalur tombol jeda -> cek Lanjutkan.
+	static const bool bExitTest = FParse::Param(FCommandLine::Get(), TEXT("jrexittest"));
+	if (bExitTest)
+	{
+		static int32 ExitStep = 0;	// statis: bertahan setelah level dimuat ulang
+		static double ExitT = FPlatformTime::Seconds();
+		const double Now = FPlatformTime::Seconds();
+		if (ExitStep == 0 && Phase == EJRGamePhase::Menu && Now - ExitT > 3.0) { BeginNewGame(); SkipOpening(); bNeedName = false; ExitStep = 1; ExitT = Now; }
+		else if (ExitStep == 1 && Now - ExitT > 2.0) { Confirm(); ExitStep = 2; ExitT = Now; UE_LOG(LogTemp, Display, TEXT("JR_EXITTEST buka phase=%d tut=%d"), (int32)Phase, TutStep); }
+		else if (ExitStep == 2 && Now - ExitT > 3.0)
+		{
+			const bool bOk = SaveNow();
+			UE_LOG(LogTemp, Display, TEXT("JR_EXITTEST simpan=%d phase=%d opening=%d jam=%.2f ada=%d"), bOk ? 1 : 0, (int32)Phase, IsOpening() ? 1 : 0, Hour, HasSave() ? 1 : 0);
+			ExitStep = 3; ExitT = Now;
+			UGameplayStatics::OpenLevel(this, FName(*UGameplayStatics::GetCurrentLevelName(this)));
+		}
+		else if (ExitStep == 3 && Now - ExitT > 3.0)
+		{
+			UE_LOG(LogTemp, Display, TEXT("JR_EXITTEST menu ada=%d ringkasan=[%s] catatan=[%s]"), HasSave() ? 1 : 0, *SaveSummary(), *SaveNote());
+			// Slot bawaan dihapus: Lanjutkan harus tetap bisa dari salinan cadangan.
+			UGameplayStatics::DeleteGameInSlot(SlotName(), 0);
+			UE_LOG(LogTemp, Display, TEXT("JR_EXITTEST tanpaslot ada=%d ringkasan=[%s] muat=%d"), HasSave() ? 1 : 0, *SaveSummary(), LoadProgress() ? 1 : 0);
+			ExitStep = 4;
+			FGenericPlatformMisc::RequestExit(false);
+		}
+	}
 
 	// Mode uji: potret dialog pertama lalu pilih opsi pertama.
 	if ((bAutoTest || bBalance || bMysteryTest) && Choices.Num() > 0)

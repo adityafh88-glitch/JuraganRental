@@ -230,6 +230,13 @@ void UJRMenuWidget::ShowMain()
 	UTextBlock* Hint = MakeText(JRT(TEXT("Permainan tersimpan otomatis tiap 2 jam dalam game, saat toko tutup, dan saat keluar.")), 12, Muted);
 	Hint->SetJustification(ETextJustify::Center);
 	Content->AddChildToVerticalBox(Hint)->SetPadding(FMargin(0.f, 18.f, 0.f, 0.f));
+	// Penguji: alasan simpanan terakhir (mis. kenapa Lanjutkan mati), hanya bila menu developer aktif.
+	if (GM && GM->bDevMenu && !AJRGameMode::SaveNote().IsEmpty())
+	{
+		UTextBlock* Note = MakeText(AJRGameMode::SaveNote(), 11, Muted);
+		Note->SetJustification(ETextJustify::Center);
+		Content->AddChildToVerticalBox(Note)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
+	}
 }
 
 void UJRMenuWidget::ShowPause()

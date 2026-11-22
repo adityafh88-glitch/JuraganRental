@@ -319,6 +319,15 @@ void AJRHUD::SetPhoneOpen(bool bOpen)
 	ApplyInputMode();
 }
 
+void AJRHUD::PostRender()
+{
+	// Engine mengecilkan kanvas HUD ke area aman layar (poni/kamera HP), sehingga bar atas dan panel
+	// tidak sampai tepi kiri. HUD ini menggambar sampai tepi layar; tombol sentuh UMG tetap pada tempatnya.
+	if (Canvas) Canvas->PopSafeZoneTransform();
+	Super::PostRender();
+	if (Canvas) Canvas->ApplySafeZoneTransform();	// dikembalikan agar Pop milik engine tetap seimbang
+}
+
 void AJRHUD::DrawHUD()
 {
 	Super::DrawHUD();
@@ -822,7 +831,8 @@ void AJRHUD::DrawPanel(const FString& Title, const TArray<FString>& Lines, const
 	const float W = Canvas->ClipX, H = Canvas->ClipY;
 	// Mode sentuh: panel memakai hampir seluruh lebar layar (kiri: tombol jeda/HP, kanan: tombol LANJUT),
 	// baris panjang dibungkus, bukan diperkecil, agar tetap terbaca di HP.
-	const float Left = bTouchMode ? 110.f * UIS : 20.f;
+	const float Left = bTouchMode ? 16.f * UIS : 20.f;	// sentuh: mulai di bawah tombol jeda/HP, jadi bisa mentok kiri
+	const float Top = bTouchMode ? 150.f * UIS : 50.f * UIS;
 	const float Right = bTouchMode ? 175.f * UIS : 20.f;
 	const float MaxPW = W - Left - Right;
 	float S = UIS;
@@ -849,7 +859,7 @@ void AJRHUD::DrawPanel(const FString& Title, const TArray<FString>& Lines, const
 		}
 	};
 	// Laporan harian bisa panjang (Era 3): kecilkan hanya bila tidak muat tinggi layar.
-	const float Avail = H - 60.f * UIS;
+	const float Avail = H - Top - 16.f * UIS;
 	for (int32 Pass = 0; Pass < 3; ++Pass)
 	{
 		Wrap(S);
@@ -868,7 +878,7 @@ void AJRHUD::DrawPanel(const FString& Title, const TArray<FString>& Lines, const
 	const float LineH = 26.f * S;
 	const float PH = 110.f * S + Wrapped.Num() * LineH;
 	const float X = bTouchMode ? Left : (W - PW) * 0.5f;
-	const float Y = FMath::Max(50.f * UIS, (H - PH) * 0.5f);
+	const float Y = FMath::Max(Top, (H - PH) * 0.5f);
 
 	DrawRect(FLinearColor(0, 0, 0, 0.55f), 0.f, 40.f * UIS, W, H - 40.f * UIS);
 	DrawRect(Panel, X, Y, PW, PH);

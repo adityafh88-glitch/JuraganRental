@@ -592,6 +592,14 @@ private:
 	class AJRVisitor* SpawnMysteryVisitor(const TCHAR* Mesh, const FVector& Where);
 	void ClearWorld();
 	static const TCHAR* SlotName();
+	/** Salinan simpanan kedua (lihat SaveProgress) dan pemuat yang memilih salinan terbaru. */
+	static FString BackupPath();
+	static class UJRSaveGame* LoadSaveObject();
+public:
+	/** Catatan hasil simpan terakhir, untuk penguji (menu utama, menu developer aktif). */
+	static const FString& SaveNote();
+	bool IsDevMenu() const { return bDevMenu; }
+private:
 	bool bMenuTest = false;		// -jrmenutest: potret menu utama dan pengaturan
 	TWeakObjectPtr<class AJROpening> Opening;
 
