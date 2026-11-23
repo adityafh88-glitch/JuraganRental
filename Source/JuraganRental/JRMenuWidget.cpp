@@ -33,8 +33,8 @@ namespace JRMenuStyle
 	const FLinearColor Ink(0.95f, 0.93f, 0.89f);
 	const FLinearColor Muted(0.62f, 0.65f, 0.70f);
 	const FLinearColor Led(1.f, 0.76f, 0.29f);
-	const FLinearColor Crt(0.37f, 0.70f, 1.f);
-	const FLinearColor CrtInk(0.03f, 0.07f, 0.12f);
+	const FLinearColor Crt(1.f, 0.58f, 0.10f);			// tombol utama oranye (JRStyle::Primary)
+	const FLinearColor CrtInk(0.14f, 0.06f, 0.f);
 	const FLinearColor Alt(0.18f, 0.21f, 0.26f);
 	const FLinearColor Off(0.13f, 0.14f, 0.17f);
 

@@ -75,8 +75,14 @@ public:
 	bool bAskedExtend = false;	// sudah pernah minta (sekali per sesi)
 	float ExtendLeft = 0.f;		// sisa waktu menunggu (jam game)
 	FString Mood;
+	/** Balon emosi singkat di atas kepala ("Mantap!", "Yah, rusak!"), menimpa teks biasa selama beberapa detik. */
+	void Emote(const FString& Text, const FColor& Color = FColor(255, 194, 75), float Seconds = 2.5f);
 
 private:
+	FString EmoteText;
+	FColor EmoteColor = FColor(255, 194, 75);
+	float EmoteLeft = 0.f;
+	float NextChatter = 0.f;	// detik sampai celetukan acak berikutnya saat main
 	bool MoveStep(float DeltaSeconds);
 	void Arrive(AJRGameMode* GM);
 	void UpdateAnimation();

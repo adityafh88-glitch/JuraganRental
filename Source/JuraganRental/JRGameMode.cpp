@@ -883,6 +883,7 @@ void AJRGameMode::TickStaff(float DeltaSeconds)
 					C->bOrder = false;
 					C->bAte = true;
 					C->Bill += MiePriceNow();
+					C->Emote(JRT(TEXT("Mantap!")), FColor(120, 230, 150));
 					StaffDone[2]++;
 					Stats.MieSold++;
 					CountLife(EJRLife::Mie);
@@ -1197,15 +1198,19 @@ void AJRGameMode::TickSky()
 	LastSkyHour = H;
 	const float Elev = (H - 6.f) / 12.f * 180.f;	// 0 = terbit pukul 06.00, 180 = terbenam pukul 18.00
 	const float Lit = FMath::Clamp(FMath::Sin(FMath::DegreesToRadians(Elev)) * 3.f, 0.f, 1.f);
+	// Jam emas: sinar matahari menguning-jingga menjelang sore (15.00-18.30), sedikit hangat juga di pagi hari.
+	const float Golden = FMath::Max(FMath::Clamp((H - 14.5f) / 2.5f, 0.f, 1.f) * FMath::Clamp((18.6f - H) / 0.8f, 0.f, 1.f), FMath::Clamp((8.5f - H) / 2.f, 0.f, 1.f) * 0.5f);
 	if (ADirectionalLight* S = SkySun.Get())
 	{
 		S->SetActorRotation(FRotator(-FMath::Clamp(Elev, 4.f, 176.f), SunYaw, 0.f));	// di bawah cakrawala cukup dimatikan
 		S->GetLightComponent()->SetIntensity(SunBase * Lit);
+		S->GetLightComponent()->SetLightColor(FMath::Lerp(FLinearColor::White, FLinearColor(1.f, 0.6f, 0.32f), Golden * 0.85f));
 	}
 	if (ASkyLight* F = SkyFill.Get())
 	{
 		USkyLightComponent* C = F->GetLightComponent();
 		C->SetIntensity(FillBase * FMath::Lerp(0.12f, 1.f, Lit));
+		C->SetLightColor(FMath::Lerp(FLinearColor::White, FLinearColor(1.f, 0.82f, 0.64f), Golden * 0.6f));
 		// Tangkap ulang langit hanya saat terangnya berubah cukup jauh (mahal di HP)
 		if (!C->bRealTimeCapture && FMath::Abs(Lit - LastCaptureDay) > 0.2f) { C->RecaptureSky(); LastCaptureDay = Lit; }
 	}
@@ -1268,6 +1273,9 @@ void AJRGameMode::SaveProgress(bool bMidDay)
 	S->Drinks = Drinks; S->Paper = Paper; S->Saldo = Saldo;
 	S->RentalName = RentalName;
 	S->NegDays = NegDays; S->SeenEndings = SeenEndings;
+	S->FamilyMood = FamilyMood; S->DreamsDone = DreamsDone; S->LastFamily = LastFamily;
+	S->FamilyAt = bMidDay ? FamilyAt : -1.f; S->FamilyWhich = bMidDay ? FamilyWhich : -1;
+	S->bBerkah = bMidDay && bBerkah; S->bRentOut = bRentOut;
 	if (RecordsProgress()) JRSettings::Save();	// hitungan lencana ikut tersimpan
 	for (const FJRPost& P : Posts) { S->PostAuthor.Add(P.Author); S->PostText.Add(P.Text); S->PostLikes.Add(P.Likes); S->PostDay.Add(P.Day); }
 	if (bMidDay)
@@ -1342,6 +1350,9 @@ bool AJRGameMode::LoadProgress()
 	Drinks = S->Drinks; Paper = S->Paper; Saldo = S->Saldo;
 	if (!S->RentalName.IsEmpty()) RentalName = S->RentalName;
 	NegDays = S->NegDays; SeenEndings = S->SeenEndings;
+	FamilyMood = S->FamilyMood; DreamsDone = S->DreamsDone; LastFamily = S->LastFamily;
+	FamilyAt = S->bMidDay ? S->FamilyAt : -1.f; FamilyWhich = S->bMidDay ? S->FamilyWhich : -1;
+	bBerkah = S->bMidDay && S->bBerkah; bRentOut = S->bRentOut;
 	Posts.Reset();
 	for (int32 i = 0; i < S->PostText.Num(); ++i)
 	{
@@ -2151,6 +2162,95 @@ void AJRGameMode::Tick(float DeltaSeconds)
 		}
 	}
 
+	// Uji -jrautotest -jrfamily: putar ke-12 kejadian keluarga berurutan. -jrdream: wujudkan semua impian.
+	if (bAutoTest && Phase == EJRGamePhase::Playing && Choices.Num() == 0)
+	{
+		static float LifeT = 0.f;
+		LifeT += DeltaSeconds;
+		static const bool bFam = FParse::Param(FCommandLine::Get(), TEXT("jrfamily"));
+		static const bool bDream = FParse::Param(FCommandLine::Get(), TEXT("jrdream"));
+		if (bFam && FamilyTestNext < 13 && LifeT > 0.3f)
+		{
+			LifeT = 0.f;
+			FamilyEvent(FamilyTestNext++);
+			if (FamilyTestNext == 13) UE_LOG(LogTemp, Display, TEXT("JR_FAMILY_DONE mood=%d kas=%.0f utang=%d ps=%d pesanan=%d"), FamilyMood, Money, Debts.Num(), Count(EJRUnitType::PS), PendingOrders.Num());
+		}
+		// -jrberkah: tawaran Jumat Berkah di awal uji; -jrcdjam: CD macet di TV pertama yang sedang dipakai.
+		static bool bBerkahOffered = false;
+		if (!bBerkahOffered && FParse::Param(FCommandLine::Get(), TEXT("jrberkah"))) { bBerkahOffered = true; OfferBerkah(); }
+		static int32 CdJams = 0;
+		if (CdJams < 3 && LifeT > 4.f && FParse::Param(FCommandLine::Get(), TEXT("jrcdjam")))
+		{
+			for (AJRStation* S : Stations)
+			{
+				if (S && S->Type == EJRUnitType::PS && S->Customer && !S->bBroken)
+				{
+					S->bBroken = true;
+					CdJamEvent(S);
+					LifeT = 0.f;
+					CdJams++;
+					UE_LOG(LogTemp, Display, TEXT("JR_CDJAM %d di %s"), CdJams, *S->DisplayName);
+					break;
+				}
+			}
+		}
+		// -jrsteam: jam 17.00, kompor memasak, kamera di depan kompor (uap + cahaya sore dipotret)
+		static int32 SteamStep = 0;
+		if (SteamStep < 2 && FParse::Param(FCommandLine::Get(), TEXT("jrsteam")) && LifeT > 2.f)
+		{
+			APlayerController* PCs = GetWorld()->GetFirstPlayerController();
+			APawn* Ps = PCs ? PCs->GetPawn() : nullptr;
+			if (SteamStep == 0 && Ps && Stove)
+			{
+				Hour = 17.f;
+				StoveState = EJRStoveState::Cooking;
+				CookProgress = 0.f;
+				const FVector St = Stove->GetActorLocation();
+				Ps->SetActorLocation(St + FVector(230.f, 60.f, 110.f), false, nullptr, ETeleportType::TeleportPhysics);
+				PCs->SetControlRotation((St + FVector(0, 30.f, 110.f) - (Ps->GetActorLocation() + FVector(0, 0, 64.f))).Rotation());
+				SteamStep = 1; LifeT = 0.f;
+			}
+			else if (SteamStep == 1)
+			{
+				FScreenshotRequest::RequestScreenshot(FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / TEXT("AutoTest/JR_Steam.png")), false, false);
+				SteamStep = 2;
+			}
+		}
+		static bool bEmoteShot = false;
+		if (CdJams == 1 && !bEmoteShot && LifeT > 0.6f)
+		{
+			// Arahkan kamera ke TV pertama lalu potret balon emosi pelanggan
+			bEmoteShot = true;
+			APlayerController* PCx = GetWorld()->GetFirstPlayerController();
+			APawn* Px = PCx ? PCx->GetPawn() : nullptr;
+			for (AJRStation* S : Stations)
+			{
+				if (!S || S->Type != EJRUnitType::PS || !Px) continue;
+				Px->SetActorLocation(S->GetActorLocation() + FVector(-520.f, 160.f, 110.f), false, nullptr, ETeleportType::TeleportPhysics);
+				UE_LOG(LogTemp, Display, TEXT("JR_EMOTE pelanggan=%d"), S->Customer ? (int32)S->Customer->State : -1);
+				PCx->SetControlRotation((S->GetActorLocation() + FVector(-150.f, 0, 90.f) - (Px->GetActorLocation() + FVector(0, 0, 64.f))).Rotation());
+				break;
+			}
+			FScreenshotRequest::RequestScreenshot(FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / TEXT("AutoTest/JR_Emote.png")), true, false);
+		}
+		static int32 DreamNext = 0;
+		if (bDream && DreamNext < 5 && LifeT > 0.3f)
+		{
+			LifeT = 0.f;
+			FName Id; FString Name, Desc; int32 Cost = 0, NeedEra = 1;
+			DreamInfo(DreamNext, Id, Name, Desc, Cost, NeedEra);
+			Money += Cost;
+			const bool bOk = BuyItem(Id);
+			UE_LOG(LogTemp, Display, TEXT("JR_DREAMTEST %d beli=%d mimpi=%d mood=%d"), DreamNext, bOk ? 1 : 0, DreamsDone, FamilyMood);
+			DreamNext++;
+			if (DreamNext == 5)
+			{
+				const bool bBox = BuyItem(TEXT("stik"));
+				UE_LOG(LogTemp, Display, TEXT("JR_DREAMTEST motor stik=%d kardus=%d pesanan=%d"), bBox ? 1 : 0, Boxes.Num(), PendingOrders.Num());
+			}
+		}
+	}
+
 	// Uji -jrexittest (simpanan asli!): main baru -> buka toko -> keluar ke menu lewat jalur tombol jeda -> cek Lanjutkan.
 	static const bool bExitTest = FParse::Param(FCommandLine::Get(), TEXT("jrexittest"));
 	if (bExitTest)
@@ -2186,7 +2286,7 @@ void AJRGameMode::Tick(float DeltaSeconds)
 		{
 			FScreenshotRequest::RequestScreenshot(FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / FString::Printf(TEXT("AutoTest/JR_Misteri_%d.png"), MysteryStep)), true, false);
 		}
-		if (bAutoTest && (FParse::Param(FCommandLine::Get(), TEXT("jrguests")) || FParse::Param(FCommandLine::Get(), TEXT("jrchange"))) && AutoChoiceTimer > 0.6f && AutoChoiceTimer - DeltaSeconds <= 0.6f)
+		if (bAutoTest && (FParse::Param(FCommandLine::Get(), TEXT("jrguests")) || FParse::Param(FCommandLine::Get(), TEXT("jrchange")) || FParse::Param(FCommandLine::Get(), TEXT("jrfamily")) || FParse::Param(FCommandLine::Get(), TEXT("jrdream")) || FParse::Param(FCommandLine::Get(), TEXT("jrcdjam")) || FParse::Param(FCommandLine::Get(), TEXT("jrberkah"))) && AutoChoiceTimer > 0.6f && AutoChoiceTimer - DeltaSeconds <= 0.6f)
 		{
 			FScreenshotRequest::RequestScreenshot(FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / FString::Printf(TEXT("AutoTest/JR_Event_%d.png"), AutoTestEvents)), true, false);
 		}
@@ -2197,8 +2297,10 @@ void AJRGameMode::Tick(float DeltaSeconds)
 		if (AutoChoiceTimer > 1.5f)
 		{
 			AutoTestEvents++; AutoChoiceTimer = 0.f;
-			// Bot keseimbangan memilih acak seperti pemain sungguhan; uji otomatis selalu opsi pertama.
-			ResolveChoice(bBalance && Choices.Num() > 0 ? FMath::RandRange(0, Choices[0].Labels.Num() - 1) : 0);
+			// Bot keseimbangan memilih acak seperti pemain sungguhan; uji otomatis selalu opsi pertama
+			// (-jrfamily2: opsi kedua, untuk menguji jalur menolak/menunda di kejadian keluarga).
+			const bool bSecond = FParse::Param(FCommandLine::Get(), TEXT("jrfamily2")) && Choices.Num() > 0 && Choices[0].Labels.Num() > 1;
+			ResolveChoice(bBalance && Choices.Num() > 0 ? FMath::RandRange(0, Choices[0].Labels.Num() - 1) : bSecond ? 1 : 0);
 		}
 		AutoTestTime += DeltaSeconds;
 	}
@@ -2396,7 +2498,7 @@ void AJRGameMode::Tick(float DeltaSeconds)
 
 	if (StoveState == EJRStoveState::Cooking && !bMcbTripped)
 	{
-		CookProgress += DeltaSeconds;
+		CookProgress += DeltaSeconds * (HasDream(1) ? 1.3f : 1.f);	// impian dapur baru: mi lebih cepat matang
 		if (CookProgress >= CookSeconds)
 		{
 			StoveState = EJRStoveState::Ready;
@@ -2418,6 +2520,7 @@ void AJRGameMode::Tick(float DeltaSeconds)
 		AddToast(JRT(TEXT("Internet lemot! Gamer mulai ngomel. Tahan E di router (dinding belakang) untuk restart.")), Bad);
 	}
 	TickGuests();
+	TickFamily();
 	TickTournament();
 	if (RtAt >= 0.f && Hour >= RtAt)
 	{
@@ -2708,6 +2811,10 @@ void AJRGameMode::TickPlaying(AJRCustomer* C, float DtH)
 			JRSound::PlayAt(this, TEXT("SFX_Error_PC"), S->GetActorLocation() + FVector(0, 0, 100));
 			AddToast(JRPrintf(JRT(TEXT("%s kena virus! Tahan E lebih lama di sana untuk install ulang.")), *S->DisplayName), Bad);
 		}
+		else if (S->Type == EJRUnitType::PS && Choices.Num() == 0 && !bBalance && FMath::FRand() < 0.5f)
+		{
+			CdJamEvent(S);	// CD macet: trik legendaris PS1 (JRLife.cpp)
+		}
 		else
 		{
 			JRSound::PlayAt(this, S->Type != EJRUnitType::PC ? TEXT("SFX_Stik_Rusak") : TEXT("SFX_Error_PC"), S->GetActorLocation() + FVector(0, 0, 100));
@@ -2997,6 +3104,7 @@ void AJRGameMode::DeliverMie(AJRStation* S)
 	C->bOrder = false;
 	C->bAte = true;
 	C->Bill += MiePriceNow();
+	C->Emote(JRT(TEXT("Mantap!")), FColor(120, 230, 150));
 	TutorialAdvance(TutMie);
 	Stats.MieSold++;
 	CountLife(EJRLife::Mie);
@@ -3331,6 +3439,16 @@ void AJRGameMode::EndDay()
 			? FString(JRT(TEXT("Gerbang 2 terbuka! Buka HP > Toko untuk pindah ke Game Center 2 lantai.")))
 			: JRPrintf(JRT(TEXT("Target Gerbang 2: Rp 3 juta, reputasi 60, 10 unit. Sekarang %s, reputasi %d, %d unit.")), *JRFormatRp(Money), FMath::RoundToInt(Rep), Units));
 	}
+	if (bBerkah)
+	{
+		Rep = FMath::Min(100.f, Rep + 3.f);
+		ReportLines.Add(JRT(TEXT("Jumat Berkah: warga mendoakan rentalmu. Reputasi +3")));
+	}
+	ReportLines.Add(JRPrintf(JRT(TEXT("Suasana rumah: %s (%d/100)")), *MoodName(), FamilyMood));
+	{
+		const FString Dream = NextDreamLine();
+		if (!Dream.IsEmpty()) ReportLines.Add(JRPrintf(JRT(TEXT("Impian berikutnya: %s")), *Dream));
+	}
 	if (IsTutorial()) SkipTutorial();
 	CheckBadges(true);
 	CheckEndings();
@@ -3448,6 +3566,7 @@ TArray<FJRShopItem> AJRGameMode::GetShopItems() const
 			Out.Add({ TEXT("hype"), JRPrintf(JRT(TEXT("Install %s di semua PC")), *HypeName), JRT(TEXT("Gamer online datang lebih banyak selama game ini hype.")), 60000, Done(bHypeInstalled) });
 		}
 	}
+	AddDreamItems(Out);	// impian juragan (JRLife.cpp)
 	// Level Juragan: barang yang belum dimiliki baru bisa dibeli setelah levelnya cukup.
 	const int32 Lv = JuraganLevel();
 	for (FJRShopItem& It : Out)
@@ -3483,6 +3602,7 @@ bool AJRGameMode::BuyItem(FName Id)
 		if (It.Id != Id) continue;
 		if (!It.Lock.IsEmpty() || Money < It.Cost) return false;
 		Money -= It.Cost;
+		if (Id.ToString().StartsWith(TEXT("impian"))) return BuyDream(Id);
 		// Layanan langsung berlaku; barang fisik diantar kurir besok pagi.
 		if (Id == TEXT("move")) { MoveToEra2(); return true; }
 		if (Id == TEXT("move3")) { MoveToEra(3); return true; }
@@ -3528,6 +3648,13 @@ bool AJRGameMode::BuyItem(FName Id)
 		else
 		{
 			if (IsUsedItem(Id)) LoakOffer = NAME_None;
+			if (HasDream(2) && Phase == EJRGamePhase::Playing)
+			{
+				// Impian motor: juragan mengambil sendiri, kardus langsung ada di depan pintu.
+				SpawnDelivery(Id);
+				AddToast(JRPrintf(JRT(TEXT("Diambil naik motor: %s (%s). Kardusnya sudah di depan pintu.")), *It.Name, *JRFormatRp(It.Cost)), Good);
+				return true;
+			}
 			PendingOrders.Add(Id);
 			AddToast(JRPrintf(JRT(TEXT("Dipesan: %s (%s). Kurir datang besok pagi.")), *It.Name, *JRFormatRp(It.Cost)), Good);
 			return true;
@@ -3689,6 +3816,9 @@ void AJRGameMode::StartDay()
 	RtAt = (Era >= 2 && FMath::FRand() < 0.5f) ? FMath::FRandRange(22.f, 23.5f) : -1.f;
 	Phase = EJRGamePhase::Playing;
 	RollMorning();	// kabar pagi + pilih rencana hari ini
+	OfferBerkah();		// Jumat: tawaran harga sedekah
+	ReturnRentOut();	// PS yang disewa bawa pulang kembali
+	ScheduleFamily();	// kejadian keluarga/kampung hari ini (setelah kabar pagi: hujan = atap bocor lebih sering)
 
 	// Kurir datang
 	if (PendingOrders.Num() > 0)

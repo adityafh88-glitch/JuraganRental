@@ -217,6 +217,11 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<class UAudioComponent> Sizzle;
+
+	/** Gumpalan uap kartun yang naik dari panci saat memasak / mi matang. */
+	UPROPERTY()
+	TArray<TObjectPtr<UStaticMeshComponent>> Puffs;
+	float SteamTime = 0.f;
 };
 
 /** Router internet di dinding belakang ruko. Saat internet lemot: tahan E untuk restart. */

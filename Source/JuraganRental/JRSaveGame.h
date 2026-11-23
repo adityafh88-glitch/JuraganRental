@@ -89,6 +89,13 @@ public:
 	// Simpanan tengah hari: dimuat lagi pada jam yang sama (pelanggan yang sedang main tidak ikut).
 	UPROPERTY() int32 NegDays = 0;
 	UPROPERTY() int32 SeenEndings = 0;
+	UPROPERTY() int32 FamilyMood = 60;		// hidup juragan: suasana rumah
+	UPROPERTY() int32 DreamsDone = 0;
+	UPROPERTY() int32 LastFamily = -1;
+	UPROPERTY() float FamilyAt = -1.f;
+	UPROPERTY() int32 FamilyWhich = -1;
+	UPROPERTY() bool bBerkah = false;
+	UPROPERTY() bool bRentOut = false;
 	UPROPERTY() bool bMidDay = false;
 	UPROPERTY() float Hour = 24.f;
 	UPROPERTY() int32 TutStep = -1;

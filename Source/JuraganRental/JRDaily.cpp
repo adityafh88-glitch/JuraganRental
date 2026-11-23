@@ -158,6 +158,8 @@ float AJRGameMode::DailySpawnMul(float H) const
 	default: break;
 	}
 	if (Plan == EJRPlan::Brosur) M *= 1.25f;
+	M *= MoodSpawnMul();	// suasana rumah (JRLife.cpp)
+	if (bBerkah) M *= 1.5f;	// Jumat Berkah
 	if (Plan == EJRPlan::Begadang && H >= 21.f) M *= 1.6f;
 	return M;
 }
@@ -202,6 +204,7 @@ float AJRGameMode::DailySatBonus(const AJRCustomer* C) const
 {
 	float B = 0.f;
 	if (Plan == EJRPlan::StikBaru) B += 4.f;
+	if (bBerkah) B += 8.f;
 	if (Plan == EJRPlan::Pelajar && C && (C->TypeIndex == Bocil || C->TypeIndex == Sma)) B += 6.f;
 	return B;
 }
@@ -243,6 +246,7 @@ void AJRGameMode::ChangeGame(AJRCustomer* C)
 				Stats.ExactChange++;
 				CountLife(EJRLife::Exact);
 				X->SatAdj += 6.f;
+				X->Emote(JRT(TEXT("Pas, Bang!")), FColor(120, 230, 150));
 				AddXp(1);
 				if (FMath::FRand() < 0.3f)
 				{
@@ -256,6 +260,7 @@ void AJRGameMode::ChangeGame(AJRCustomer* C)
 			else if (Given < Right)
 			{
 				X->SatAdj -= 12.f;
+				X->Emote(JRT(TEXT("Kurang, Bang!")), FColor(255, 110, 95));
 				Stats.RepDelta -= 0.25f;
 				AddToast(JRPrintf(JRT(TEXT("Kembalian kurang! %s protes, \"Bang, kurang %s!\"")), *X->DisplayName, *JRFormatRp(Right - Given)), FLinearColor(0.94f, 0.42f, 0.36f));
 			}

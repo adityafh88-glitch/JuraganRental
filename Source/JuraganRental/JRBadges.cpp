@@ -30,12 +30,14 @@ namespace JRLocal_Badges
 		{ TEXT("emas"), TEXT("Kaset emas"), TEXT("Tamatkan misteri TV 1") },	// JRNOWRAP
 		{ TEXT("naga"), TEXT("Server Naga"), TEXT("Tamatkan misteri Naga Online") },	// JRNOWRAP
 		{ TEXT("turnamen"), TEXT("Tuan rumah turnamen"), TEXT("Gelar turnamen sampai final") },	// JRNOWRAP
+		{ TEXT("impian"), TEXT("Mimpi jadi nyata"), TEXT("Wujudkan impian juragan pertama") },	// JRNOWRAP
 	};
 	const FBadgeDef Endings[] = {
 		{ TEXT("sejati"), TEXT("Juragan Sejati"), TEXT("Game Center Rp 10 juta dan reputasi 85") },	// JRNOWRAP
 		{ TEXT("legenda"), TEXT("Legenda Kampung"), TEXT("Reputasi 98 saat tutup toko") },	// JRNOWRAP
 		{ TEXT("raja"), TEXT("Raja Turnamen"), TEXT("Gelar 4 turnamen sampai final") },	// JRNOWRAP
 		{ TEXT("tikar"), TEXT("Gulung Tikar"), TEXT("Kas minus 3 hari berturut-turut") },	// JRNOWRAP
+		{ TEXT("berbakti"), TEXT("Anak Berbakti"), TEXT("Umrahkan Emak dari hasil rental") },	// JRNOWRAP
 	};
 }
 using namespace JRLocal_Badges;
@@ -96,6 +98,7 @@ void AJRGameMode::UnlockEnding(const TCHAR* Id, const FString& Story, TArray<FSt
 	{
 		if (FCString::Strcmp(E.Id, Id) != 0) continue;
 		UE_LOG(LogTemp, Display, TEXT("JR_ENDING %s baru=%d (%d/%d)"), Id, bNew ? 1 : 0, S->Endings.Num(), NumEndings());
+		Celebrate();
 		if (Labels.Num() == 0) { Labels.Add(JRT(TEXT("Lanjut main"))); Actions.Add([]() {}); }
 		const FString Body = Story + TEXT("\n\n") + JRPrintf(JRT(TEXT("Ending terbuka: %d dari %d. Lihat semuanya di HP > Info.")), S->Endings.Num(), NumEndings());
 		PushChoice(JRPrintf(JRT(TEXT("ENDING: %s")), JRT(E.Title)), Body, MoveTemp(Labels), MoveTemp(Actions));

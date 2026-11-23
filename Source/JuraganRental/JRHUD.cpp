@@ -38,8 +38,8 @@ namespace JRLocal_HUD
 	const FLinearColor Led(1.f, 0.76f, 0.29f);
 	const FLinearColor Ink(0.95f, 0.93f, 0.89f);
 	const FLinearColor Muted(0.64f, 0.66f, 0.70f);
-	const FLinearColor Panel(0.07f, 0.08f, 0.10f, 0.85f);
-	const FLinearColor Crt(0.37f, 0.70f, 1.f);
+	const FLinearColor Panel(0.075f, 0.05f, 0.033f, 0.88f);	// cokelat hangat, senada logo
+	const FLinearColor Crt(0.42f, 0.90f, 0.80f);			// tosca untuk ajakan "Ketuk LANJUT"
 }
 using namespace JRLocal_HUD;
 
@@ -551,6 +551,30 @@ void AJRHUD::DrawHUD()
 				DrawText(Hint, FLinearColor(1.f, 1.f, 1.f, A), (W - TW) * 0.5f, H * 0.42f, Font, Fit);
 			}
 			return;
+		}
+	}
+	// Konfeti: naik level, impian terwujud, ending
+	{
+		const float T = GetWorld()->GetTimeSeconds() - GM->CelebrateAt;
+		if (T >= 0.f && T < 2.8f)
+		{
+			static const FLinearColor Cols[] = { FLinearColor(1.f, 0.58f, 0.1f), FLinearColor(1.f, 0.85f, 0.2f), FLinearColor(0.2f, 0.75f, 0.65f), FLinearColor(0.95f, 0.3f, 0.3f), FLinearColor(0.35f, 0.55f, 1.f), FLinearColor(0.97f, 0.95f, 0.9f) };
+			const float A = FMath::Clamp((2.8f - T) / 0.6f, 0.f, 1.f);
+			const int32 Seed = FMath::RoundToInt(GM->CelebrateAt * 100.f);
+			for (int32 i = 0; i < 90; ++i)
+			{
+				FRandomStream R(Seed + i * 7919);
+				const float X0 = R.FRandRange(0.f, W), Speed = R.FRandRange(0.35f, 0.75f) * H, Delay = R.FRandRange(0.f, 0.6f);
+				const float Tt = T - Delay;
+				if (Tt < 0.f) continue;
+				const float Y = -20.f * S + Tt * Speed;
+				if (Y > H) continue;
+				const float X = X0 + FMath::Sin(Tt * R.FRandRange(3.f, 7.f) + i) * 30.f * S;
+				const float Flip = FMath::Abs(FMath::Sin(Tt * R.FRandRange(6.f, 12.f) + i));	// berputar: lebar berubah-ubah
+				FLinearColor C = Cols[i % UE_ARRAY_COUNT(Cols)];
+				C.A = A;
+				DrawRect(C, X, Y, (3.f + 7.f * Flip) * S, 12.f * S);
+			}
 		}
 	}
 	// Penguji: angka FPS di pojok kanan bawah (Pengaturan > Tampilkan FPS).

@@ -153,6 +153,7 @@ void AJRGameMode::AddXp(int32 Amount)
 	}
 	JRSound::Play2D(this, TEXT("SFX_Ding"), 0.8f);
 	AddMoment(EJRMoment::LevelUp);
+	Celebrate();
 	// Penjelasan sekali saat pertama kali naik level (dari Level 1).
 	if (Old <= 1 && !bBalance && (!bAutoTest || FParse::Param(FCommandLine::Get(), TEXT("jrlvtip"))))
 	{

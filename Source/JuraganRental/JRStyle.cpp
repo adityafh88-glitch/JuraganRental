@@ -1,10 +1,11 @@
-#include "JRStyle.h"
+﻿#include "JRStyle.h"
 
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 
-// Bentuk widget rapi (sudut bulat, garis tepi, tab pil, efek tekan) dengan WARNA KHAS JURAGAN RENTAL:
-// panel gelap, tombol utama biru, aksen kuning-emas; tema LCD hijau untuk HP jadul.
+// Bentuk widget rapi (sudut bulat, garis tepi, tab pil, efek tekan) dengan WARNA KHAS JURAGAN RENTAL
+// yang senada dengan logo papan nama: panel cokelat hangat bergaris emas, tombol utama oranye-kuning,
+// tab aktif tosca (warna dinding garasi); tema LCD hijau untuk HP jadul.
 namespace JRStyle
 {
 	FLinearColor FromHex(uint32 Rgb, float Alpha)
@@ -14,11 +15,11 @@ namespace JRStyle
 		return C;
 	}
 
-	FLinearColor Cream() { return FLinearColor(0.10f, 0.12f, 0.15f, 0.97f); }	// panel gelap
-	FLinearColor CreamDeep() { return FLinearColor(0.18f, 0.21f, 0.26f); }
-	FLinearColor Brown() { return FLinearColor(0.30f, 0.34f, 0.40f); }			// garis tepi panel
-	FLinearColor Ink() { return FLinearColor(0.95f, 0.93f, 0.89f); }			// teks terang
-	FLinearColor Muted() { return FLinearColor(0.62f, 0.65f, 0.70f); }
+	FLinearColor Cream() { return FLinearColor(0.085f, 0.058f, 0.04f, 0.97f); }	// panel cokelat tua hangat
+	FLinearColor CreamDeep() { return FLinearColor(0.17f, 0.115f, 0.075f); }
+	FLinearColor Brown() { return FLinearColor(0.62f, 0.40f, 0.12f); }			// garis tepi emas
+	FLinearColor Ink() { return FLinearColor(0.97f, 0.93f, 0.86f); }			// teks krem terang
+	FLinearColor Muted() { return FLinearColor(0.70f, 0.63f, 0.54f); }
 	FLinearColor Accent() { return FLinearColor(1.f, 0.76f, 0.29f); }			// kuning-emas
 	FLinearColor Good() { return FLinearColor(0.36f, 0.79f, 0.54f); }
 
@@ -41,11 +42,11 @@ namespace JRStyle
 			}
 			switch (K)
 			{
-			case EBtn::Primary:   return { FLinearColor(0.37f, 0.70f, 1.f), FLinearColor(0.45f, 0.76f, 1.f), FLinearColor(0.25f, 0.55f, 0.85f), FLinearColor(0.14f, 0.36f, 0.62f), FLinearColor(0.03f, 0.07f, 0.12f), false };
-			case EBtn::TabActive: return { FLinearColor(1.f, 0.76f, 0.29f), FLinearColor(1.f, 0.82f, 0.4f), FLinearColor(0.85f, 0.62f, 0.2f), FLinearColor(0.62f, 0.42f, 0.1f), FLinearColor(0.12f, 0.08f, 0.f), false };
+			case EBtn::Primary:   return { FLinearColor(1.f, 0.58f, 0.10f), FLinearColor(1.f, 0.66f, 0.18f), FLinearColor(0.86f, 0.46f, 0.06f), FLinearColor(0.45f, 0.20f, 0.03f), FLinearColor(0.14f, 0.06f, 0.f), false };
+			case EBtn::TabActive: return { FLinearColor(0.20f, 0.70f, 0.62f), FLinearColor(0.26f, 0.78f, 0.70f), FLinearColor(0.14f, 0.56f, 0.50f), FLinearColor(0.06f, 0.30f, 0.26f), FLinearColor(0.02f, 0.08f, 0.07f), false };
 			case EBtn::Danger:    return { FLinearColor(0.75f, 0.2f, 0.17f), FLinearColor(0.82f, 0.25f, 0.2f), FLinearColor(0.6f, 0.15f, 0.12f), FLinearColor(0.45f, 0.1f, 0.08f), FLinearColor::White, true };
-			case EBtn::Disabled:  return { FLinearColor(0.13f, 0.14f, 0.17f), FLinearColor(0.13f, 0.14f, 0.17f), FLinearColor(0.13f, 0.14f, 0.17f), FLinearColor(0.2f, 0.22f, 0.26f), FLinearColor(0.45f, 0.48f, 0.53f), false };
-			default:              return { FLinearColor(0.18f, 0.21f, 0.26f), FLinearColor(0.23f, 0.27f, 0.33f), FLinearColor(0.13f, 0.15f, 0.19f), FLinearColor(0.32f, 0.36f, 0.43f), FLinearColor(0.95f, 0.93f, 0.89f), true };	// Secondary, Tab
+			case EBtn::Disabled:  return { FLinearColor(0.10f, 0.075f, 0.055f), FLinearColor(0.10f, 0.075f, 0.055f), FLinearColor(0.10f, 0.075f, 0.055f), FLinearColor(0.17f, 0.13f, 0.09f), FLinearColor(0.42f, 0.37f, 0.31f), false };
+			default:              return { FLinearColor(0.20f, 0.13f, 0.085f), FLinearColor(0.26f, 0.17f, 0.11f), FLinearColor(0.14f, 0.09f, 0.06f), FLinearColor(0.42f, 0.27f, 0.13f), FLinearColor(0.97f, 0.93f, 0.86f), true };	// Secondary, Tab
 			}
 		}
 

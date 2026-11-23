@@ -163,7 +163,7 @@ public:
 	/** Waktu berjalan hanya jika toko buka dan tidak ada kejadian yang menunggu pilihan. */
 	bool IsPlaying() const { return Phase == EJRGamePhase::Playing && Choices.Num() == 0; }
 	int32 PriceVIP = 8000;
-	int32 PriceFor(EJRUnitType Type) const { return Type == EJRUnitType::PS ? PricePS : Type == EJRUnitType::VIP ? PriceVIP : PricePC; }
+	int32 PriceFor(EJRUnitType Type) const { const int32 P = Type == EJRUnitType::PS ? PricePS : Type == EJRUnitType::VIP ? PriceVIP : PricePC; return bBerkah ? P / 2 : P; }
 	int32 FairFor(EJRUnitType Type) const { return Type == EJRUnitType::PS ? (bPS2 ? 3000 : 2000) : Type == EJRUnitType::VIP ? 8000 : (bFastPC ? 4000 : 3000); }
 	bool Gate2Open() const;
 	/** Jalur jalan pelanggan (lewat tangga jika berpindah lantai). */
@@ -358,6 +358,26 @@ public:
 	FString RentalName = TEXT("Juragan");
 	bool bNeedName = false;		// Main baru: minta pemain menamai rental (setelah opening)
 	void SetRentalName(const FString& NewName);
+
+	/* ---------- Hidup juragan (JRLife.cpp) ---------- */
+	int32 FamilyMood = 60;			// suasana rumah 0-100
+	int32 DreamsDone = 0;			// bit per impian yang sudah terwujud
+	FString MoodName() const;
+	void AddMood(int32 Delta);
+	float MoodSpawnMul() const;
+	bool HasDream(int32 i) const;
+	static void DreamInfo(int32 i, FName& OutId, FString& OutName, FString& OutDesc, int32& OutCost, int32& OutEra);
+	void AddDreamItems(TArray<FJRShopItem>& Out) const;
+	bool BuyDream(FName Id);
+	FString NextDreamLine() const;
+	void FamilyEvent(int32 Which);
+	void CdJamEvent(class AJRStation* S);
+	void OfferBerkah();
+	void ReturnRentOut();
+	bool bBerkah = false;		// Jumat Berkah: tarif setengah hari ini
+	float CelebrateAt = -100.f;	// waktu dunia saat konfeti terakhir dimulai (naik level, impian, ending)
+	void Celebrate() { CelebrateAt = GetWorld()->GetTimeSeconds(); }
+	bool bRentOut = false;		// satu PS sedang disewa bawa pulang (kembali besok pagi)
 	/** Bahasa diganti: bangun ulang ruangan agar papan nama/tulisan di dinding ikut berganti. */
 	void OnLanguageChanged();
 	TArray<FJRPost> Posts;		// komentar warganet, terbaru di depan
@@ -576,6 +596,12 @@ private:
 	TObjectPtr<class AJRTutorialArrow> TutArrow;
 	void FightEvent(AJRCustomer* A, AJRCustomer* B);
 	void TickGuests();
+	void ScheduleFamily();
+	void TickFamily();
+	float FamilyAt = -1.f;		// jam kejadian keluarga hari ini (-1 = tidak ada)
+	int32 FamilyWhich = -1;
+	int32 LastFamily = -1;		// jangan mengulang kejadian yang sama dua kali berturut-turut
+	int32 FamilyTestNext = 0;	// -jrfamily: putar semua kejadian berurutan
 	void GuestEvent(int32 Which);
 	bool bFightToday = false;
 	float GuestAt = -1.f;		// jam tamu spesial datang hari ini (-1 = tidak)

@@ -968,6 +968,13 @@ void AJRStove::BeginPlay()
 	AddProp(this, Root, TEXT("SM_Mangkuk_Mi"), FVector(6, -45, 90), 0.f, false);
 	AddProp(this, Root, TEXT("SM_Gelas_EsTeh"), FVector(-19, -15, 90), 0.f, false);
 	AddProp(this, Root, TEXT("SM_Kardus_Mi"), FVector(-9, 110, 0), 0.f);
+	for (int32 i = 0; i < 4; ++i)
+	{
+		UStaticMeshComponent* P = AddPart(this, Root, EShape::Sphere, FVector(10.f), FVector(2, 30, 112), FLinearColor(0.92f, 0.92f, 0.95f), false);
+		P->SetCastShadow(false);
+		P->SetVisibility(false);
+		Puffs.Add(P);
+	}
 }
 
 void AJRStove::Tick(float DeltaSeconds)
@@ -988,6 +995,22 @@ void AJRStove::Tick(float DeltaSeconds)
 	}
 	Label->SetText(FText::FromString(Text));
 	Label->SetTextRenderColor(Color);
+	{
+		// Uap: tiap gumpal naik 45 cm sambil membesar lalu mengecil, bergiliran (saat matang lebih pelan)
+		const bool bSteam = (GM->StoveState == EJRStoveState::Cooking && !GM->bMcbTripped) || GM->StoveState == EJRStoveState::Ready;
+		SteamTime += DeltaSeconds * (GM->StoveState == EJRStoveState::Ready ? 0.45f : 0.8f);
+		for (int32 i = 0; i < Puffs.Num(); ++i)
+		{
+			UStaticMeshComponent* P = Puffs[i];
+			if (!P) continue;
+			if (P->IsVisible() != bSteam) P->SetVisibility(bSteam);
+			if (!bSteam) continue;
+			const float T = FMath::Frac(SteamTime + i / (float)Puffs.Num());
+			const float Wob = FMath::Sin((SteamTime + i * 1.7f) * 4.f) * (4.f + T * 10.f);	// makin tinggi makin melebar
+			P->SetRelativeLocation(FVector(2.f + Wob, 30.f + Wob * 0.5f, 108.f + T * 45.f));
+			P->SetRelativeScale3D(FVector(FMath::Sin(T * PI) * 0.085f + 0.01f));
+		}
+	}
 	if (Sizzle)
 	{
 		const bool bCook = GM->StoveState == EJRStoveState::Cooking && !GM->bMcbTripped;

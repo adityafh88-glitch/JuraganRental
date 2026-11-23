@@ -183,6 +183,13 @@ void AJRCustomer::UpdateAnimation()
 	}
 }
 
+void AJRCustomer::Emote(const FString& Text, const FColor& Color, float Seconds)
+{
+	EmoteText = Text;
+	EmoteColor = Color;
+	EmoteLeft = Seconds;
+}
+
 void AJRCustomer::WalkTo(const FVector& Loc, EJRCustomerState Next)
 {
 	Path.Reset();
@@ -318,12 +325,38 @@ void AJRCustomer::Tick(float DeltaSeconds)
 	}
 	UpdateAnimation();
 
+	// Celetukan acak saat main (sesekali, supaya rental terasa hidup)
+	if (State == EJRCustomerState::Playing && EmoteLeft <= 0.f)
+	{
+		NextChatter -= DeltaSeconds;
+		if (NextChatter <= 0.f)
+		{
+			if (NextChatter > -1000.f && Station && !Station->bBroken && FMath::FRand() < 0.5f)
+			{
+				const bool bPC = Station->Type == EJRUnitType::PC;
+				const TCHAR* PS[] = { JRT(TEXT("GOOOL!")), JRT(TEXT("Yes!")), JRT(TEXT("Aduh!")), JRT(TEXT("Wkwk")), JRT(TEXT("Curang!")) };
+				const TCHAR* PC[] = { JRT(TEXT("GG!")), JRT(TEXT("Lag!")), JRT(TEXT("Mantul")), JRT(TEXT("Wkwk")), JRT(TEXT("Noob!")) };
+				const int32 K = FMath::RandRange(0, 4);
+				Emote(bPC ? PC[K] : PS[K], FColor(255, 240, 220), 1.8f);
+			}
+			NextChatter = FMath::FRandRange(12.f, 30.f);
+		}
+	}
+	EmoteLeft -= DeltaSeconds;
+
 	FString Text;
-	if (State == EJRCustomerState::Playing && bOrder) Text = JRT(TEXT("Pesan mi!"));
+	FColor Color(255, 194, 75);
+	const FColor Red(255, 110, 95);
+	if (EmoteLeft > 0.f) { Text = EmoteText; Color = EmoteColor; }
+	else if (State == EJRCustomerState::Playing && bAskExtend) Text = JRT(TEXT("Bang, nambah!"));
+	else if (State == EJRCustomerState::Playing && Station && Station->bBroken) { Text = JRT(TEXT("Yah, rusak!")); Color = Red; }
+	else if (State == EJRCustomerState::Playing && bOrder) Text = JRT(TEXT("Pesan mi!"));
+	else if (State == EJRCustomerState::WaitStart && WaitMinutes > 15.f) { Text = JRT(TEXT("Nyalain, Bang!")); Color = Red; }
 	else if (State == EJRCustomerState::Queue) Text = TEXT("...");
 	else if (State == EJRCustomerState::WaitPay) Text = JRFormatRp(Bill);
 	else if (State == EJRCustomerState::Walk && NextState == EJRCustomerState::Gone) Text = Mood;
 	Bubble->SetText(FText::FromString(Text));
+	Bubble->SetTextRenderColor(Color);
 
 	if (APlayerCameraManager* Cam = UGameplayStatics::GetPlayerCameraManager(this, 0))
 	{
