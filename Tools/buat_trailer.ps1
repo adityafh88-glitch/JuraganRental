@@ -28,7 +28,7 @@ foreach ($c in $cuts) {
 }
 # Kartu penutup 3,5 detik: feature graphic + ajakan
 $args += @('-loop', '1', '-t', '3.5', '-i', "$Store\feature_1024x500.png", '-f', 'lavfi', '-t', '3.5', '-i', 'anullsrc=r=48000:cl=stereo')
-$filter += "[$($i):v]scale=1920:-2,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=0x3a2414,setsar=1,fps=30,format=yuv420p,drawtext=fontfile='C\:/Windows/Fonts/seguibl.ttf':text='Main sekarang di Google Play':fontcolor=0xFFC73A:fontsize=64:x=(w-tw)/2:y=h-170[v$i];[$($i + 1):a]anull[a$i];"
+$filter += "[$($i):v]scale=1640:-2,pad=1920:1080:(ow-iw)/2:40:color=0x3a2414,setsar=1,fps=30,format=yuv420p,drawtext=fontfile='C\:/Windows/Fonts/seguibl.ttf':text='Main sekarang di Google Play':fontcolor=0xFFC73A:fontsize=60:x=(w-tw)/2:y=h-150[v$i];[$($i + 1):a]anull[a$i];"
 $n = $i + 1
 for ($k = 0; $k -lt $n; $k++) { $filter += "[v$k][a$k]" }
 $filter += "concat=n=$($n):v=1:a=1[v][a]"
