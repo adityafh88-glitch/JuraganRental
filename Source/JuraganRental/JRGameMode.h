@@ -375,6 +375,9 @@ public:
 	void OfferBerkah();
 	void ReturnRentOut();
 	bool bBerkah = false;		// Jumat Berkah: tarif setengah hari ini
+	/** Kabar pagi "Hujan seharian": langit mendung dan hujan terlihat di luar gedung. */
+	bool IsRaining() const { return News == EJRNews::Hujan && Phase != EJRGamePhase::Menu && PromoId == 0; }
+	bool bSkyRain = false;
 	float CelebrateAt = -100.f;	// waktu dunia saat konfeti terakhir dimulai (naik level, impian, ending)
 	void Celebrate() { CelebrateAt = GetWorld()->GetTimeSeconds(); }
 	bool bRentOut = false;		// satu PS sedang disewa bawa pulang (kembali besok pagi)

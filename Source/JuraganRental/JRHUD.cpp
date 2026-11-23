@@ -553,6 +553,27 @@ void AJRHUD::DrawHUD()
 			return;
 		}
 	}
+	// Hujan: garis-garis air saat kamera di luar gedung (kabar pagi "Hujan seharian")
+	if (GM->IsRaining() && PlayerOwner && PlayerOwner->PlayerCameraManager)
+	{
+		const FVector Cam = PlayerOwner->PlayerCameraManager->GetCameraLocation();
+		const FJRLayout& L = GM->Layout();
+		const bool bOutside = Cam.X < -L.HalfX - 15.f || Cam.X > L.HalfX + 15.f || FMath::Abs(Cam.Y) > L.HalfY + 15.f;
+		if (bOutside)
+		{
+			DrawRect(FLinearColor(0.35f, 0.42f, 0.52f, 0.18f), 0.f, 0.f, W, H);	// suasana kelabu
+			const float Now = GetWorld()->GetRealTimeSeconds();
+			for (int32 i = 0; i < 70; ++i)
+			{
+				FRandomStream R(i * 3571);
+				const float Speed = R.FRandRange(1.4f, 2.2f) * H;
+				const float Len = R.FRandRange(22.f, 40.f) * S;
+				const float X = R.FRandRange(0.f, W);
+				const float Y = FMath::Fmod(R.FRandRange(0.f, H) + Now * Speed, H + Len) - Len;
+				DrawLine(X, Y, X - Len * 0.18f, Y + Len, FLinearColor(0.82f, 0.88f, 0.95f, 0.45f), 1.5f * S);
+			}
+		}
+	}
 	// Konfeti: naik level, impian terwujud, ending
 	{
 		const float T = GetWorld()->GetTimeSeconds() - GM->CelebrateAt;

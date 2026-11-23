@@ -1194,6 +1194,8 @@ void AJRGameMode::TickSky()
 	}
 	// Menu utama: sore yang hangat. Layar laporan (tutup jam 24.00): malam.
 	const float H = Phase == EJRGamePhase::Menu ? 16.5f : Hour;
+	const bool bRain = IsRaining();
+	if (bRain != bSkyRain) { bSkyRain = bRain; LastSkyHour = -100.f; LastCaptureDay = -1.f; }	// cuaca berganti: hitung ulang langit
 	if (FMath::Abs(H - LastSkyHour) < 0.04f) return;
 	LastSkyHour = H;
 	const float Elev = (H - 6.f) / 12.f * 180.f;	// 0 = terbit pukul 06.00, 180 = terbenam pukul 18.00
@@ -1203,14 +1205,15 @@ void AJRGameMode::TickSky()
 	if (ADirectionalLight* S = SkySun.Get())
 	{
 		S->SetActorRotation(FRotator(-FMath::Clamp(Elev, 4.f, 176.f), SunYaw, 0.f));	// di bawah cakrawala cukup dimatikan
-		S->GetLightComponent()->SetIntensity(SunBase * Lit);
-		S->GetLightComponent()->SetLightColor(FMath::Lerp(FLinearColor::White, FLinearColor(1.f, 0.6f, 0.32f), Golden * 0.85f));
+		// Hujan: matahari tertutup awan (redup, kelabu, tanpa jam emas)
+		S->GetLightComponent()->SetIntensity(SunBase * Lit * (bRain ? 0.18f : 1.f));
+		S->GetLightComponent()->SetLightColor(bRain ? FLinearColor(0.78f, 0.82f, 0.9f) : FMath::Lerp(FLinearColor::White, FLinearColor(1.f, 0.6f, 0.32f), Golden * 0.85f));
 	}
 	if (ASkyLight* F = SkyFill.Get())
 	{
 		USkyLightComponent* C = F->GetLightComponent();
-		C->SetIntensity(FillBase * FMath::Lerp(0.12f, 1.f, Lit));
-		C->SetLightColor(FMath::Lerp(FLinearColor::White, FLinearColor(1.f, 0.82f, 0.64f), Golden * 0.6f));
+		C->SetIntensity(FillBase * FMath::Lerp(0.12f, 1.f, Lit) * (bRain ? 0.6f : 1.f));
+		C->SetLightColor(bRain ? FLinearColor(0.72f, 0.78f, 0.88f) : FMath::Lerp(FLinearColor::White, FLinearColor(1.f, 0.82f, 0.64f), Golden * 0.6f));
 		// Tangkap ulang langit hanya saat terangnya berubah cukup jauh (mahal di HP)
 		if (!C->bRealTimeCapture && FMath::Abs(Lit - LastCaptureDay) > 0.2f) { C->RecaptureSky(); LastCaptureDay = Lit; }
 	}
@@ -1793,6 +1796,24 @@ void AJRGameMode::TickAutoTest(float DeltaSeconds)
 		if (AutoTestTime > 12.f && AutoTestTime - DeltaSeconds <= 12.f)
 			FScreenshotRequest::RequestScreenshot(FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / TEXT("AutoTest/JR_Tour.png")), true, false);
 		if (AutoTestTime > 16.f && AutoTestTime - DeltaSeconds <= 16.f) { UE_LOG(LogTemp, Display, TEXT("JR_TOUR players=%d running=%d"), TourPlayers, bTourRunning ? 1 : 0); Hour = 20.01f; }
+	}
+	// -jrrain: paksa kabar "Hujan seharian" (uji langit mendung + hujan di luar)
+	if (FParse::Param(FCommandLine::Get(), TEXT("jrrain"))) News = EJRNews::Hujan;
+	// -jrrak: potret pojok rak kawat berisi kardus (cek barang melayang)
+	if (FParse::Param(FCommandLine::Get(), TEXT("jrrak")) && AutoTestTime < 4.f)
+	{
+		APlayerController* RPC = GetWorld()->GetFirstPlayerController();
+		if (ACharacter* Pw = RPC ? Cast<ACharacter>(RPC->GetPawn()) : nullptr)
+		{
+			const FJRLayout& RL = Layout();
+			const FVector Rack(-(RL.HalfX - 32.f), RL.HalfY - 120.f, 0.f);
+			Pw->GetCharacterMovement()->DisableMovement();
+			Pw->SetActorEnableCollision(false);
+			Pw->SetActorLocation(Rack + FVector(260.f, -200.f, 100.f));
+			RPC->SetControlRotation((Rack + FVector(0, 0, 110.f) - (Pw->GetActorLocation() + FVector(0, 0, 64.f))).Rotation());
+		}
+		if (AutoTestTime > 2.f && AutoTestTime - DeltaSeconds <= 2.f)
+			FScreenshotRequest::RequestScreenshot(FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / FString::Printf(TEXT("AutoTest/JR_Rak_Era%d.png"), Era)), false, false);
 	}
 	// -jrfasad: potret tampak depan gedung dari seberang jalan
 	if (FParse::Param(FCommandLine::Get(), TEXT("jrfasad")) && AutoTestTime < 4.f)

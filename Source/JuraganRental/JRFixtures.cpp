@@ -262,7 +262,7 @@ void AJRDecor::BuildStreet(float HX, float HY, float DoorY, bool bRuko)
 	if (bRuko) Motor(FVector(X0 - 140.f, DoorY + 390.f, 0), FLinearColor(0.1f, 0.1f, 0.1f));
 
 	// Tiang lampu jalan
-	const FVector Pole(X0 - 250.f, DoorY - 380.f, 0);
+	const FVector Pole(X0 - 250.f, DoorY - 380.f - FMath::Min(260.f, HY - 1000.f + 260.f), 0);	// di samping papan nama, tidak menghalangi tulisan dari seberang jalan
 	Shape(Cylinder, Pole + FVector(0, 0, 230), FVector(0.12f, 0.12f, 4.6f), FLinearColor(0.3f, 0.32f, 0.35f));
 	Shape(Cube, Pole + FVector(-70, 0, 455), FVector(1.4f, 0.08f, 0.08f), FLinearColor(0.3f, 0.32f, 0.35f));
 	Shape(Cube, Pole + FVector(-135, 0, 445), FVector(0.4f, 0.22f, 0.1f), FLinearColor(1.f, 0.92f, 0.7f));
@@ -486,9 +486,11 @@ void AJRRoom::BuildFacade(const FJRLayout& L, int32 Era, float WallH)
 	for (int32 i = 0; i < Stripes; ++i)
 	{
 		const float Y = DoorY - CanW / 2 + (i + 0.5f) * StripeW;
-		if (UStaticMeshComponent* S = AddPart(this, Root, EShape::Cube, FVector(110, StripeW, 4), FVector(Face - 50.f, Y, 228.f), i % 2 ? Hex(0xf2f2ee) : Hex(0xc9302c), false))
+		// Di bawah papan nama (tepi bawah papan = SignZ - 41): sisi dinding tinggi, ujung jalan turun
+		const float CanZ = SignZ - 41.f - 16.f;
+		if (UStaticMeshComponent* S = AddPart(this, Root, EShape::Cube, FVector(110, StripeW, 4), FVector(Face - 52.f, Y, CanZ - 13.f), i % 2 ? Hex(0xf2f2ee) : Hex(0xc9302c), false))
 		{
-			S->SetRelativeRotation(FRotator(-14.f, 0.f, 0.f));	// miring ke arah jalan
+			S->SetRelativeRotation(FRotator(14.f, 0.f, 0.f));	// +X (dinding) naik, -X (jalan) turun
 		}
 	}
 
@@ -528,10 +530,10 @@ void AJRRoom::BuildFacade(const FJRLayout& L, int32 Era, float WallH)
 	// Lampu sorot papan nama (menerangi tampak depan saat malam)
 	UPointLightComponent* Spot = NewObject<UPointLightComponent>(this);
 	Spot->SetupAttachment(Root);
-	Spot->SetRelativeLocation(FVector(Face - 90.f, DoorY, SignZ + 20.f));
+	Spot->SetRelativeLocation(FVector(Face - 170.f, DoorY, SignZ + 90.f));	// jauh dan tinggi: sinar merata, tulisan tidak silau
 	Spot->SetIntensityUnits(ELightUnits::Candelas);
-	Spot->SetIntensity(25.f);
-	Spot->SetAttenuationRadius(500.f);
+	Spot->SetIntensity(9.f);
+	Spot->SetAttenuationRadius(650.f);
 	Spot->SetLightColor(FLinearColor(1.f, 0.9f, 0.75f));
 	Spot->SetCastShadows(false);	// lampu ruangan tanpa bayangan: jauh lebih ringan di HP
 	Spot->RegisterComponent();
@@ -732,7 +734,7 @@ void AJRRoom::Build(const FJRLayout& L, int32 Era)
 
 	// Bangku antre, rak kaset, poster
 	AddProp(this, Root, TEXT("SM_Bangku_Panjang"), FVector(-(HX - 50), 30, 0));
-	AddProp(this, Root, TEXT("SM_Rak_Kaset"), FVector(HX - 10, 0.25f * HY, 100), 180.f, false);
+	AddProp(this, Root, TEXT("SM_Rak_Kaset"), FVector(HX - 10, 0.25f * HY, 0), 180.f, false);
 	AddProp(this, Root, TEXT("SM_Poster"), FVector(-0.64f * HX, -(HY - 2), 140), 90.f, false);
 	if (!bUp) AddProp(this, Root, TEXT("SM_Poster"), FVector(0.74f * HX, -(HY - 2), 150), 90.f, false);	// di Era 3 dinding ini tertutup tangga
 	if (bRuko)
@@ -798,8 +800,8 @@ void AJRRoom::BuildClutter(const FJRLayout& L, int32 Era)
 	{
 		const FVector Rack(-(HX - 32.f), HY - 120.f, 0.f);
 		Put(TEXT("SM_PF_Wire_Shelving_Rack"), Rack, 0.f);
-		Put(TEXT("SM_PF_Cardboard_Delivery_Box"), Rack + FVector(0.f, -20.f, 104.f), 0.f, 0.85f);
-		Put(TEXT("SM_PF_Cardboard_Delivery_Box"), Rack + FVector(0.f, 25.f, 141.f), 10.f, 0.7f);
+		Put(TEXT("SM_PF_Cardboard_Delivery_Box"), Rack + FVector(0.f, -28.f, 175.f), 0.f, 0.8f);
+		Put(TEXT("SM_PF_Cardboard_Delivery_Box"), Rack + FVector(0.f, 30.f, 175.f), 8.f, 0.7f);
 		Put(TEXT("SM_PF_Beverage_Crate"), FVector(-(HX - 30.f), HY - 220.f, 0.f), 0.f);
 		Put(TEXT("SM_PF_Beverage_Crate"), FVector(-(HX - 30.f), HY - 220.f, 41.f), 15.f);
 	}
@@ -812,7 +814,10 @@ void AJRRoom::BuildClutter(const FJRLayout& L, int32 Era)
 
 	// Luar gedung: kotak meteran PLN, tong air, pot tanaman, tempat sampah, AC luar dan motor (ruko ke atas)
 	const float Out = -(HX + 20.f);
-	Put(TEXT("SM_PF_Meter_Box"), FVector(Out - 14.f, DoorY - 210.f, 110.f), 180.f);
+	{
+		const float MeterY = DoorY - 430.f > -HY + 60.f ? DoorY - 430.f : DoorY + 430.f;	// di luar kedua jendela
+		Put(TEXT("SM_PF_Meter_Box"), FVector(Out - 14.f, MeterY, 110.f), 180.f);
+	}
 	Put(TEXT("SM_PF_Plastic_Drum"), FVector(Out - 45.f, DoorY + 230.f, 0.f), 0.f);
 	Put(TEXT("SM_PF_Potted_Shrub"), FVector(Out - 50.f, DoorY - 140.f, 0.f), 0.f, 0.8f);
 	Put(TEXT("SM_PF_Potted_Shrub"), FVector(Out - 50.f, DoorY + 140.f, 0.f), 40.f, 0.8f);
