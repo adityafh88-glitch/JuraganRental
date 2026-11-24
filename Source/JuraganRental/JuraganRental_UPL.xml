@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Iklan berhadiah (rewarded) Google AdMob + formulir persetujuan UMP untuk Android.
+  App ID dibaca dari Config/DefaultGame.ini [JuraganRental] AdMobAppID (default: App ID UJI resmi Google).
+  Unit iklan dikirim dari C++ (JRAds.cpp) saat game mulai.
+-->
+<root xmlns:android="http://schemas.android.com/apk/res/android">
+	<init>
+		<setStringFromProperty result="AdMobAppID" ini="Game" section="JuraganRental" property="AdMobAppID" default="ca-app-pub-3940256099942544~3347511713"/>
+		<log text="JuraganRental UPL: AdMob App ID = $S(AdMobAppID)"/>
+	</init>
+
+	<androidManifestUpdates>
+		<setElement result="AdMobMeta" value="meta-data"/>
+		<addAttribute tag="$AdMobMeta" name="android:name" value="com.google.android.gms.ads.APPLICATION_ID"/>
+		<addAttribute tag="$AdMobMeta" name="android:value" value="$S(AdMobAppID)"/>
+		<addElement tag="application" name="AdMobMeta"/>
+		<addPermission android:name="com.google.android.gms.permission.AD_ID"/>
+		<!-- Game tanpa pembelian dalam aplikasi: izin billing bawaan engine dibuang -->
+		<removePermission android:name="com.android.vending.BILLING"/>
+	</androidManifestUpdates>
+
+	<buildGradleAdditions>
+		<insert>
+dependencies {
+	implementation 'com.google.android.gms:play-services-ads:23.6.0'
+	implementation 'com.google.android.ump:user-messaging-platform:3.1.0'
+}
+		</insert>
+	</buildGradleAdditions>
+
+	<gameActivityImportAdditions>
+		<insert>
+import com.google.android.gms.ads.AdError;
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.FullScreenContentCallback;
+import com.google.android.gms.ads.LoadAdError;
+import com.google.android.gms.ads.MobileAds;
+import com.google.android.gms.ads.OnUserEarnedRewardListener;
+import com.google.android.gms.ads.initialization.InitializationStatus;
+import com.google.android.gms.ads.initialization.OnInitializationCompleteListener;
+import com.google.android.gms.ads.rewarded.RewardItem;
+import com.google.android.gms.ads.rewarded.RewardedAd;
+import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback;
+import com.google.android.ump.ConsentForm;
+import com.google.android.ump.ConsentInformation;
+import com.google.android.ump.ConsentRequestParameters;
+import com.google.android.ump.FormError;
+import com.google.android.ump.UserMessagingPlatform;
+		</insert>
+	</gameActivityImportAdditions>
+
+	<gameActivityClassAdditions>
+		<insert>
+	// ---------- Juragan Rental: iklan berhadiah ----------
+	private RewardedAd jrRewarded = null;
+	private boolean jrLoading = false;
+	private boolean jrEarned = false;
+	private boolean jrAdsStarted = false;
+	private String jrUnitId = "";
+	public native void nativeJRAdClosed(boolean bEarned);
+
+	private void jrLoadRewarded()
+	{
+		if (jrLoading || jrRewarded != null || jrUnitId.isEmpty()) return;
+		jrLoading = true;
+		RewardedAd.load(this, jrUnitId, new AdRequest.Builder().build(), new RewardedAdLoadCallback()
+		{
+			@Override public void onAdLoaded(RewardedAd ad) { jrRewarded = ad; jrLoading = false; Log.debug("JR_ADS siap"); }
+			@Override public void onAdFailedToLoad(LoadAdError err) { jrRewarded = null; jrLoading = false; Log.debug("JR_ADS gagal muat: " + err.getMessage()); }
+		});
+	}
+
+	private void jrStartAds()
+	{
+		if (jrAdsStarted) return;
+		jrAdsStarted = true;
+		MobileAds.initialize(this, new OnInitializationCompleteListener()
+		{
+			@Override public void onInitializationComplete(InitializationStatus status) { jrLoadRewarded(); }
+		});
+	}
+
+	public void AndroidThunkJava_JRAdsInit(final String unitId)
+	{
+		final GameActivity act = this;
+		runOnUiThread(new Runnable() { @Override public void run()
+		{
+			jrUnitId = unitId;
+			// Persetujuan iklan (wajib untuk pemain Eropa/Inggris; di negara lain formulir tidak muncul)
+			final ConsentInformation ci = UserMessagingPlatform.getConsentInformation(act);
+			ci.requestConsentInfoUpdate(act, new ConsentRequestParameters.Builder().build(),
+				new ConsentInformation.OnConsentInfoUpdateSuccessListener() { @Override public void onConsentInfoUpdateSuccess()
+				{
+					UserMessagingPlatform.loadAndShowConsentFormIfRequired(act, new ConsentForm.OnConsentFormDismissedListener()
+					{
+						@Override public void onConsentFormDismissed(FormError e) { if (ci.canRequestAds()) jrStartAds(); }
+					});
+				}},
+				new ConsentInformation.OnConsentInfoUpdateFailureListener() { @Override public void onConsentInfoUpdateFailure(FormError e)
+				{
+					Log.debug("JR_ADS persetujuan gagal: " + e.getMessage());
+					if (ci.canRequestAds()) jrStartAds();
+				}});
+			if (ci.canRequestAds()) jrStartAds();
+		}});
+	}
+
+	public boolean AndroidThunkJava_JRAdsReady()
+	{
+		return jrRewarded != null;
+	}
+
+	public void AndroidThunkJava_JRAdsShow()
+	{
+		final GameActivity act = this;
+		runOnUiThread(new Runnable() { @Override public void run()
+		{
+			if (jrRewarded == null) { nativeJRAdClosed(false); jrLoadRewarded(); return; }
+			jrEarned = false;
+			jrRewarded.setFullScreenContentCallback(new FullScreenContentCallback()
+			{
+				@Override public void onAdDismissedFullScreenContent() { jrRewarded = null; nativeJRAdClosed(jrEarned); jrLoadRewarded(); }
+				@Override public void onAdFailedToShowFullScreenContent(AdError err) { jrRewarded = null; nativeJRAdClosed(false); jrLoadRewarded(); }
+			});
+			jrRewarded.show(act, new OnUserEarnedRewardListener()
+			{
+				@Override public void onUserEarnedReward(RewardItem item) { jrEarned = true; }
+			});
+		}});
+	}
+		</insert>
+	</gameActivityClassAdditions>
+</root>

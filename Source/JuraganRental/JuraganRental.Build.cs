@@ -13,7 +13,15 @@ public class JuraganRental : ModuleRules
 	
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "UMG", "Slate", "SlateCore" });
 
-		PrivateDependencyModuleNames.AddRange(new string[] { "ApplicationCore", "RHI" });	// RHI: hitung draw call untuk uji performa (-jrperf)	// input device mapper (uji geser layar)
+		PrivateDependencyModuleNames.AddRange(new string[] { "ApplicationCore", "RHI" });
+
+		// Android: iklan berhadiah AdMob (Java lewat UPL) + JNI dari JRAds.cpp
+		if (Target.Platform == UnrealTargetPlatform.Android)
+		{
+			PrivateDependencyModuleNames.Add("Launch");
+			string Upl = System.IO.Path.Combine(ModuleDirectory, "JuraganRental_UPL.xml");
+			AdditionalPropertiesForReceipt.Add("AndroidPlugin", Upl);
+		}	// RHI: hitung draw call untuk uji performa (-jrperf)	// input device mapper (uji geser layar)
 
 		// Uncomment if you are using Slate UI
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });

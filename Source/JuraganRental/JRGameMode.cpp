@@ -22,6 +22,7 @@
 #include "JRStation.h"
 #include "JRVisitor.h"
 #include "JRSaveGame.h"
+#include "JRAds.h"
 #include "JRSettings.h"
 #include "JRMenuWidget.h"
 #include "JRPhoneWidget.h"
@@ -156,8 +157,24 @@ void AJRGameMode::BeginPlay()
 	{
 		OwnedPS = 3; OwnedPC = 2; CapVA = 2200; // supaya kompor bisa jalan bersama 5 unit
 	}
+	if (FParse::Param(FCommandLine::Get(), TEXT("jrfull")))
+	{
+		// Bahan postingan: era ini dengan SEMUA barang yang bisa dibeli (unit penuh, dekor, daya, karyawan, bisnis sampingan)
+		const FJRLayout& FL = Layout();
+		OwnedPS = FL.MaxUnits(); OwnedPC = FL.MaxUnits(); OwnedVIP = FL.MaxVip();
+		bStikOri = true; bAntivirus = Era >= 2; bPS2 = Era >= 2; bFastPC = Era >= 2;
+		SeatTier = Era >= 2 ? 2 : 1;
+		Decor = { TEXT("poster"), TEXT("tanaman"), TEXT("kipas"), TEXT("neon") };
+		if (Era >= 2) Decor.Add(TEXT("ac"));
+		CapVA = Era >= 3 ? 7700 : Era == 2 ? 4400 : 2200;
+		bBilling = Era >= 2;
+		if (Era >= 2) { for (bool& B : Staff) B = true; NetPlan = 2; PricePS = 3000; PricePC = 4000; }
+		if (Era >= 3) { bKulkas = bKonter = bPrinter = true; Drinks = 24; Paper = 500; Saldo = 200000.f; }
+		Xp = XpForLevel(Era >= 3 ? 13 : Era == 2 ? 7 : 3);
+	}
 	FParse::Value(FCommandLine::Get(), TEXT("jrpromo="), PromoId);
 	if (PromoId > 0) PromoSetup();
+	else JRAds::Init();	// iklan berhadiah (Android); rekaman promosi tanpa iklan
 	BuildWorld();
 	NewDailyMissions();
 	NewWeeklyMission();
@@ -189,7 +206,7 @@ void AJRGameMode::BeginPlay()
 		bAutoTest = true;
 		Phase = EJRGamePhase::Playing;
 		Hour = 13.5f;
-		SpawnDelivery(TEXT("ps")); // uji kurir: kardus TV di depan pintu
+		if (!FParse::Param(FCommandLine::Get(), TEXT("jrfull"))) SpawnDelivery(TEXT("ps")); // uji kurir: kardus TV di depan pintu (tidak untuk foto -jrfull)
 		if (Era >= 2) { HypeName = HypeGames[0]; HypeDays = 3; bHypeInstalled = true; }
 		if (Era >= 3) PriceVIP = 4000; // uji: lebih banyak pelanggan VIP naik ke lantai 2
 		if (FParse::Param(FCommandLine::Get(), TEXT("jrbilling"))) { bBilling = true; SpawnBillingPC(); }
@@ -1834,8 +1851,10 @@ void AJRGameMode::TickAutoTest(float DeltaSeconds)
 			Pw->SetActorLocation(FVector(-(FL.HalfX + 1050.f), FL.DoorY - 150.f, (FL.HasUpstairs() ? 320.f : 220.f) - 64.f));
 			FPC->SetControlRotation(FRotator(FL.HasUpstairs() ? 4.f : -2.f, 5.f, 0.f));
 		}
+		const bool bClean = FParse::Param(FCommandLine::Get(), TEXT("jrfull"));
+		if (bClean && FPC && FPC->GetHUD()) FPC->GetHUD()->bShowHUD = false;	// foto postingan: tanpa HUD
 		if (AutoTestTime > 2.f && AutoTestTime - DeltaSeconds <= 2.f)
-			FScreenshotRequest::RequestScreenshot(FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / FString::Printf(TEXT("AutoTest/JR_Fasad_Era%d.png"), Era)), true, false);
+			FScreenshotRequest::RequestScreenshot(FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / FString::Printf(TEXT("AutoTest/JR_Fasad_Era%d.png"), Era)), !bClean, false);
 	}
 	// -jrluar: potret pemandangan jalan dari dalam pintu
 	if (FParse::Param(FCommandLine::Get(), TEXT("jrluar")) && AutoTestTime < 4.f)
@@ -1957,7 +1976,9 @@ void AJRGameMode::TickAutoTest(float DeltaSeconds)
 		if (AutoTestTime >= Shots[i].Time)
 		{
 			const FString File = FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / JRT(TEXT("AutoTest")) / FString(Shots[i].Name) + TEXT(".png"));
-			FScreenshotRequest::RequestScreenshot(File, true, false);
+			static const bool bFullShots = FParse::Param(FCommandLine::Get(), TEXT("jrfull"));
+			if (bFullShots && PC && PC->GetHUD()) PC->GetHUD()->bShowHUD = false;	// tanpa bar status/misi
+			FScreenshotRequest::RequestScreenshot(File, !bFullShots, false);	// -jrfull: foto bersih tanpa HUD untuk postingan
 			AutoTestShot = i + 1;
 		}
 	}
@@ -2297,6 +2318,15 @@ void AJRGameMode::Tick(float DeltaSeconds)
 			MieStep = 2;
 			AJRCustomer* C = MieC.Get();
 			UE_LOG(LogTemp, Display, TEXT("JR_MIEWAIT setelah_jam_habis state=%d pesan=%d makan=%d batal=%d sisa=%.2f"), C ? (int32)C->State : -1, C && C->bOrder ? 1 : 0, C && C->bAte ? 1 : 0, C ? C->MissedOrders : -1, C ? C->HoursLeft : 0.f);
+		}
+		// -jradtest (dengan -jradsim): tawaran bonus untung lalu MCB, catat kas sebelum/sesudah hadiah
+		static int32 AdStep = 0;
+		static float AdMoney = 0.f;
+		if (FParse::Param(FCommandLine::Get(), TEXT("jradtest")))
+		{
+			if (AdStep == 0 && AutoTestTime > 12.f) { AdStep = 1; AdMoney = Money; LastNet = 60000.f; AdOffers = 0; OfferAdEndOfDay(); LifeT = 0.f; }
+			else if (AdStep == 1 && LifeT > 2.f) { AdStep = 2; UE_LOG(LogTemp, Display, TEXT("JR_ADTEST bonus kas %.0f -> %.0f"), AdMoney, Money); Trip(); LifeT = 0.f; }
+			else if (AdStep == 2 && LifeT > 2.f) { AdStep = 3; UE_LOG(LogTemp, Display, TEXT("JR_ADTEST mcb turun=%d jaga_sampai=%.2f jam=%.2f"), bMcbTripped ? 1 : 0, McbGuardUntil, Hour); }
 		}
 		static int32 DreamNext = 0;
 		if (bDream && DreamNext < 5 && LifeT > 0.3f)
@@ -3356,11 +3386,12 @@ void AJRGameMode::ComputePower()
 	}
 	if (!bMcbTripped && StoveState == EJRStoveState::Cooking) U += 600; // kompor listrik
 	PowerVA = U;
-	if (!bMcbTripped && U > CapVA && Plan != EJRPlan::Genset) Trip();	// genset sewaan menanggung kelebihan daya
+	if (!bMcbTripped && U > CapVA && Plan != EJRPlan::Genset && Hour >= McbGuardUntil) Trip();	// genset sewaan / tukang listrik (iklan) menanggung kelebihan daya
 }
 
 void AJRGameMode::Trip()
 {
+	OfferAdMcb();	// iklan berhadiah: tukang listrik (sekali sehari, pilihan pemain)
 	Stats.Trips++;
 	bMcbTripped = true;
 	AddMoment(EJRMoment::Trip);
@@ -3540,6 +3571,7 @@ void AJRGameMode::EndDay()
 	CheckBadges(true);
 	CheckEndings();
 	SaveProgress();
+	OfferAdEndOfDay();	// iklan berhadiah: untung x1,5 atau kiriman Emak (pilihan pemain)
 
 	CheckDemoOver();
 }
@@ -3749,6 +3781,7 @@ bool AJRGameMode::BuyItem(FName Id)
 			}
 			PendingOrders.Add(Id);
 			AddToast(JRPrintf(JRT(TEXT("Dipesan: %s (%s). Kurir datang besok pagi.")), *It.Name, *JRFormatRp(It.Cost)), Good);
+			OfferAdCourier();	// iklan berhadiah: kurir kilat (sekali sehari, pilihan pemain)
 			return true;
 		}
 		AddToast(JRPrintf(JRT(TEXT("Dibeli: %s (%s)")), *It.Name, *JRFormatRp(It.Cost)), Good);
@@ -3870,6 +3903,8 @@ void AJRGameMode::StartDay()
 {
 	bShowMoment = false;
 	Day++;
+	AdOffers = 0;
+	McbGuardUntil = -1.f;
 	Hour = 8.f;
 	NextAutoSaveHour = 8.f + AutoSaveEveryHours;
 	Stats = FJRDayStats();

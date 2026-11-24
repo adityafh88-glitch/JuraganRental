@@ -371,6 +371,14 @@ public:
 	bool BuyDream(FName Id);
 	FString NextDreamLine() const;
 	void FamilyEvent(int32 Which);
+
+	/* ---------- Iklan berhadiah (JRRewardAds.cpp, JRAds.cpp) ---------- */
+	bool OfferAd(int32 Bit, const FString& Title, const FString& Body, TFunction<void()> Reward);
+	void OfferAdEndOfDay();
+	void OfferAdCourier();
+	void OfferAdMcb();
+	int32 AdOffers = 0;			// bit tawaran iklan yang sudah muncul hari ini (1 untung, 2 kurir, 4 MCB, 8 kas minus)
+	float McbGuardUntil = -1.f;	// hadiah iklan: MCB tidak turun sampai jam ini
 	void CdJamEvent(class AJRStation* S);
 	void OfferBerkah();
 	void ReturnRentOut();
