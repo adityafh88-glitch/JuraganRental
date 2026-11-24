@@ -64,8 +64,8 @@ void AJROpening::PlaceCamera()
 		{ 4.0f,  D + FVector(-720.f, -180.f, 200.f), D + FVector(0.f, 0.f, 140.f) },
 		{ 7.4f,  D + FVector(-330.f, 0.f, 170.f),    D + FVector(0.f, 0.f, 125.f) },	// tepat di depan rolling door
 		{ 9.8f,  D + FVector(-300.f, 0.f, 168.f),    D + FVector(0.f, 0.f, 120.f) },
-		{ 11.6f, D + FVector(140.f, -40.f, 160.f),   FVector(HX - 80.f, -500.f, 110.f) },	// masuk garasi
-		{ 14.5f, FVector(HX - 520.f, -380.f, 150.f), FVector(HX - 80.f, -680.f, 85.f) },	// dekat deretan TV tabung
+		{ 11.6f, D + FVector(140.f, -40.f, 160.f),   FVector(HX - 80.f, -380.f, 110.f) },	// masuk garasi
+		{ 14.5f, FVector(HX - 420.f, -250.f, 150.f), FVector(HX - 80.f, -560.f, 85.f) },	// dekat deretan TV tabung
 	};
 	const int32 N = UE_ARRAY_COUNT(Keys);
 	int32 i = 0;

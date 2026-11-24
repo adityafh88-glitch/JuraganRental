@@ -1,4 +1,4 @@
-// Satu unit rental: TV + PlayStasiun atau PC warnet.
+﻿// Satu unit rental: TV + PlayStasiun atau PC warnet.
 
 #pragma once
 
@@ -30,7 +30,9 @@ public:
 
 	FVector GetSeatLocation() const;
 	FRotator GetSeatRotation() const;
-	bool IsFree() const { return Customer == nullptr && !bBroken; }
+	bool IsFree() const { return Customer == nullptr && !bBroken && !bPowerOff; }
+	/** Dimatikan pemain lewat billing (hemat daya): tidak memakan listrik, jam main pelanggan berhenti. */
+	bool bPowerOff = false;
 
 	/** Jarak tempat duduk pelanggan dari unit (karpet lesehan / kursi warnet), cm. */
 	float SeatDistance() const { return Type == EJRUnitType::PS ? 170.f : Type == EJRUnitType::VIP ? 190.f : 80.f; }

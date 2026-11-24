@@ -965,3 +965,16 @@ Yah, rusak!	Aw, it broke!
 Yes!	Yes!
 \"Nggak bisa dibawa pulang, Mas\"	\"Sorry, it can't leave the shop\"
 \"Oh gitu ya, Bang. Ya udah main di sini aja deh.\"	\"Oh, okay. Guess we'll just play here then.\"
+ OFF	 OFF
+%s dimatikan (hemat daya)	%s switched off (saving power)
+%s dinyalakan lagi	%s switched back on
+Daya %d/%d VA  -  matikan unit (OFF) agar MCB tidak turun	Power %d/%d VA  -  switch units OFF so the breaker doesn't trip
+Golongan bisnis: Game Center penuh (TV, PC, VIP, AC, kompor) tanpa MCB turun.	Business tariff: a full Game Center (TVs, PCs, VIP, AC, stove) without tripping the breaker.
+Kok mati, Bang?	Why'd it turn off?
+Mi-ku mana, Bang?	Where are my noodles?
+Nyalakan lagi %s	Turn %s back on
+OFF	OFF
+OFF (jeda): %s	OFF (paused): %s
+ON	ON
+Tambah daya 4.400 VA dulu	Upgrade to 4,400 VA first
+Tambah daya ke 7.700 VA	Upgrade power to 7,700 VA

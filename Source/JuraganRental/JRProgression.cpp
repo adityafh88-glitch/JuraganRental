@@ -173,7 +173,7 @@ int32 AJRGameMode::ItemMinLevel(FName Id)
 		{ TEXT("ps2"), 4 }, { TEXT("daya2"), 4 }, { TEXT("av"), 4 }, { TEXT("hype"), 4 },
 		{ TEXT("pcfast"), 5 }, { TEXT("billing"), 5 },
 		{ TEXT("ac"), 6 }, { TEXT("duduk2"), 6 }, { TEXT("vip"), 6 },
-		{ TEXT("kulkas"), 7 }, { TEXT("konter"), 8 }, { TEXT("printer"), 10 },
+		{ TEXT("kulkas"), 7 }, { TEXT("konter"), 8 }, { TEXT("printer"), 10 }, { TEXT("daya3"), 8 },
 	};
 	for (const auto& P : Table) if (Id == P.Key) return P.Value;
 	return 1;

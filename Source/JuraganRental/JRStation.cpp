@@ -231,6 +231,11 @@ FJRInteraction AJRStation::GetInteraction() const
 			? JRPrintf(JRT(TEXT("Tahan E: perbaiki stik %s")), *DisplayName)
 			: JRPrintf(JRT(TEXT("Tahan E: restart %s")), *DisplayName);
 	}
+	else if (bPowerOff)
+	{
+		Out.Kind = EJRInteractKind::Press;
+		Out.Prompt = JRPrintf(JRT(TEXT("Nyalakan lagi %s")), *DisplayName);
+	}
 	else if (Customer && Customer->State == EJRCustomerState::Playing && GM->bMcbTripped)
 	{
 		Out.Kind = EJRInteractKind::Info;
@@ -275,6 +280,11 @@ void AJRStation::Interact()
 		GM->TutorialAdvance(AJRGameMode::TutRepair);
 		GM->CountRepair();
 	}
+	else if (bPowerOff)
+	{
+		bPowerOff = false;
+		GM->AddToast(JRPrintf(JRT(TEXT("%s dinyalakan lagi")), *DisplayName), FLinearColor(0.36f, 0.79f, 0.54f));
+	}
 	else if (Customer && Customer->State == EJRCustomerState::Playing && Customer->bAskExtend)
 	{
 		GM->ExtendSession(this);
@@ -316,6 +326,11 @@ void AJRStation::Tick(float DeltaSeconds)
 		Text = DisplayName + (bVirus ? JRT(TEXT(" VIRUS")) : JRT(TEXT(" RUSAK")));
 		TextColor = FColor(239, 107, 91);
 	}
+	else if (bPowerOff)
+	{
+		Text = DisplayName + JRT(TEXT(" OFF"));
+		TextColor = FColor(130, 140, 160);
+	}
 	else if (bPlaying && GM->bMcbTripped)
 	{
 		Text = JRT(TEXT("MATI LISTRIK"));
@@ -343,7 +358,7 @@ void AJRStation::Tick(float DeltaSeconds)
 	}
 
 	// Bunyi aktivitas pendek dan acak selama unit dipakai (bukan musik terus-menerus).
-	if (bPlaying && !GM->bMcbTripped && !bBroken && GM->IsPlaying())
+	if (bPlaying && !GM->bMcbTripped && !bBroken && !bPowerOff && GM->IsPlaying())
 	{
 		ActivityTimer -= DeltaSeconds;
 		if (ActivityTimer <= 0.f)

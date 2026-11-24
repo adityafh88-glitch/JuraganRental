@@ -136,6 +136,7 @@ void UJRBillingWidget::Refresh(bool bForce)
 		FRow R{ S, 0, FString() };
 		AJRCustomer* C = S->Customer;
 		if (S->bBroken) { R.Kind = 3; R.Text = S->bVirus ? JRT(TEXT("VIRUS")) : JRT(TEXT("RUSAK")); }
+		else if (S->bPowerOff) { R.Kind = 5; R.Text = C && C->State == EJRCustomerState::Playing ? JRPrintf(JRT(TEXT("OFF (jeda): %s")), *C->DisplayName) : FString(JRT(TEXT("OFF"))); if (C && C->State == EJRCustomerState::Playing) ++Playing; }
 		else if (C && C->State == EJRCustomerState::WaitStart) { R.Kind = 1; R.Text = JRPrintf(JRT(TEXT("Menunggu: %s")), *C->DisplayName); ++Waiting; }
 		else if (C && C->State == EJRCustomerState::Playing)
 		{
@@ -149,10 +150,11 @@ void UJRBillingWidget::Refresh(bool bForce)
 		}
 		else if (C) { R.Kind = 0; R.Text = JRT(TEXT("Pelanggan sedang jalan")); }
 		else R.Text = JRT(TEXT("Kosong"));
-		Sig += FString::Printf(TEXT("%d%d;"), R.Kind, C ? 1 : 0);
+		Sig += FString::Printf(TEXT("%d%d%d;"), R.Kind, C ? 1 : 0, S->bPowerOff ? 1 : 0);
 		Rows.Add(R);
 	}
-	Summary->SetText(FText::FromString(JRPrintf(JRT(TEXT("%d unit  -  %d menunggu  -  %d sedang main")), Rows.Num(), Waiting, Playing)));
+	Summary->SetText(FText::FromString(JRPrintf(JRT(TEXT("%d unit  -  %d menunggu  -  %d sedang main")), Rows.Num(), Waiting, Playing)
+		+ TEXT("\n") + JRPrintf(JRT(TEXT("Daya %d/%d VA  -  matikan unit (OFF) agar MCB tidak turun")), GM->PowerVA, GM->CapVA)));
 	if (!bForce && Sig == LastSig)
 	{
 		// Teks sisa waktu tetap diperbarui tanpa membangun ulang tombol
@@ -196,7 +198,7 @@ void UJRBillingWidget::Refresh(bool bForce)
 		NameBox->SetWidthOverride(110.f);
 		NameBox->AddChild(MakeText(R.S->DisplayName, 14, Ink, true));
 		H->AddChildToHorizontalBox(NameBox)->SetVerticalAlignment(VAlign_Center);
-		const FLinearColor C = R.Kind == 1 ? Wait : R.Kind == 2 ? Play : R.Kind >= 3 ? Bad : Muted;
+		const FLinearColor C = R.Kind == 1 ? Wait : R.Kind == 2 ? Play : R.Kind == 5 ? Muted : R.Kind >= 3 ? Bad : Muted;
 		UHorizontalBoxSlot* TS = H->AddChildToHorizontalBox(MakeText(R.Text, 13, C, R.Kind == 1));
 		TS->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		TS->SetVerticalAlignment(VAlign_Center);
@@ -217,6 +219,30 @@ void UJRBillingWidget::Refresh(bool bForce)
 				Refresh(true);
 			});
 			H->AddChildToHorizontalBox(B)->SetVerticalAlignment(VAlign_Center);
+		}
+		// Saklar ON/OFF: unit kosong, sedang main, atau sedang OFF
+		if (R.Kind == 0 || R.Kind == 2 || R.Kind == 5)
+		{
+			TWeakObjectPtr<AJRStation> WS(R.S);
+			const bool bOff = R.Kind == 5;
+			UJRPhoneButton* T = WidgetTree->ConstructWidget<UJRPhoneButton>(UJRPhoneButton::StaticClass());
+			T->SetBackgroundColor(FLinearColor::White);
+			if (UButtonSlot* BS = Cast<UButtonSlot>(T->SetContent(MakeText(bOff ? JRT(TEXT("ON")) : JRT(TEXT("OFF")), 13, FLinearColor::White, true))))
+			{
+				BS->SetPadding(FMargin(12.f, 5.f));
+			}
+			JRStyle::Apply(T, bOff ? JRStyle::EBtn::TabActive : JRStyle::EBtn::Secondary, 12.f);
+			T->Bind([this, WS]()
+			{
+				if (AJRStation* X = WS.Get())
+				{
+					X->bPowerOff = !X->bPowerOff;
+					if (AJRGameMode* G = GetWorld()->GetAuthGameMode<AJRGameMode>())
+						G->AddToast(JRPrintf(X->bPowerOff ? JRT(TEXT("%s dimatikan (hemat daya)")) : JRT(TEXT("%s dinyalakan lagi")), *X->DisplayName), FLinearColor(0.37f, 0.70f, 1.f));
+				}
+				Refresh(true);
+			});
+			H->AddChildToHorizontalBox(T)->SetPadding(FMargin(6.f, 0.f, 0.f, 0.f));
 		}
 		List->AddChildToVerticalBox(H)->SetPadding(FMargin(0.f, 3.f));
 	}

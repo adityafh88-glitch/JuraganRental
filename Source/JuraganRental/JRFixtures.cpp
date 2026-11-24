@@ -739,7 +739,7 @@ void AJRRoom::Build(const FJRLayout& L, int32 Era)
 	if (!bUp) AddProp(this, Root, TEXT("SM_Poster"), FVector(0.74f * HX, -(HY - 2), 150), 90.f, false);	// di Era 3 dinding ini tertutup tangga
 	if (bRuko)
 	{
-		AddProp(this, Root, TEXT("SM_Kulkas_Minuman"), FVector(bUp ? -320.f : 40.f, -(HY - 35), 0), 90.f); // kulkas minuman dekat kantin
+		AddProp(this, Root, TEXT("SM_Kulkas_Minuman"), FVector(bUp ? -320.f : 0.2f * HX, -(HY - 35), 0), 90.f); // kulkas minuman dekat kantin
 		AddProp(this, Root, TEXT("SM_Poster"), FVector(0.2f * HX, HY - 2, 150), -90.f, false);
 	}
 
@@ -798,12 +798,17 @@ void AJRRoom::BuildClutter(const FJRLayout& L, int32 Era)
 	if (L.PsY.Num() > 0) Put(TEXT("SM_PF_Cable_Spaghetti_Bundle"), FVector(HX - 25.f, L.PsY[0] - 95.f, 0.f), 180.f, 0.8f);
 	// Pojok depan kanan: rak kawat berisi kardus, krat minuman
 	{
-		const FVector Rack(-(HX - 32.f), HY - 120.f, 0.f);
+		// Garasi kecil: rak mepet pojok, krat minuman tidak muat (tempat kardus kurir di kanan pintu)
+		const bool bSmall = HY < 900.f;
+		const FVector Rack(-(HX - 32.f), HY - (bSmall ? 65.f : 120.f), 0.f);
 		Put(TEXT("SM_PF_Wire_Shelving_Rack"), Rack, 0.f);
 		Put(TEXT("SM_PF_Cardboard_Delivery_Box"), Rack + FVector(0.f, -28.f, 175.f), 0.f, 0.8f);
 		Put(TEXT("SM_PF_Cardboard_Delivery_Box"), Rack + FVector(0.f, 30.f, 175.f), 8.f, 0.7f);
-		Put(TEXT("SM_PF_Beverage_Crate"), FVector(-(HX - 30.f), HY - 220.f, 0.f), 0.f);
-		Put(TEXT("SM_PF_Beverage_Crate"), FVector(-(HX - 30.f), HY - 220.f, 41.f), 15.f);
+		if (!bSmall)
+		{
+			Put(TEXT("SM_PF_Beverage_Crate"), FVector(-(HX - 30.f), HY - 220.f, 0.f), 0.f);
+			Put(TEXT("SM_PF_Beverage_Crate"), FVector(-(HX - 30.f), HY - 220.f, 41.f), 15.f);
+		}
 	}
 	// Depan: tanaman di antara bangku antre dan kasir, APAR dekat pintu, tempat sampah kasir
 	Put(TEXT("SM_PF_Floor_Houseplant"), FVector(-(HX - 45.f), -0.28f * HY, 0.f), 0.f);
